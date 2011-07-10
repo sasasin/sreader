@@ -9,6 +9,6 @@ package net.sasasin.sreader.ormap;
  */
 public class FeedUrl {
 	public FeedUrl(){
-		
+
 	}
 }
