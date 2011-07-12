@@ -15,11 +15,13 @@ create table feed_url(
 	account_id char not null
 );
 
+/*
 alter table feed_url
 add constraint feed_url_fkey01
 foreign key (account_id)
 references account(id)
 on delete cascade;
+*/
 
 drop table content_header;
 
@@ -40,7 +42,7 @@ drop table content_full_text;
 create table content_full_text(
 	id char primary key,
 	full_text clob,
-	content_header_id not null
+	content_header_id char not null
 );
 
 alter table content_full_text

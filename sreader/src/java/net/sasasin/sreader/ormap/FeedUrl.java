@@ -3,6 +3,8 @@
  */
 package net.sasasin.sreader.ormap;
 
+import net.sasasin.sreader.util.Md5Util;
+
 /**
  * @author sasasin
  * 
@@ -44,19 +46,21 @@ public class FeedUrl {
 		this.authPassword = authPassword;
 	}
 
-	private String getUrl() {
+	public String getUrl() {
 		return url;
 	}
 
 	private void setUrl(String url) {
 		this.url = url;
+		this.setId();
 	}
 
-	private String getId() {
+	public String getId() {
 		return id;
 	}
 
-	private void setId(String id) {
-		this.id = id;
+	private void setId() {
+		// idはURLから生成
+		this.id = Md5Util.crypt(this.getUrl());
 	}
 }
