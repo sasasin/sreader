@@ -52,7 +52,7 @@ public class FeedUrl {
 
 	private void setUrl(String url) {
 		this.url = url;
-		this.setId();
+		setId();
 	}
 
 	public String getId() {
@@ -61,6 +61,6 @@ public class FeedUrl {
 
 	private void setId() {
 		// idはURLから生成
-		this.id = Md5Util.crypt(this.getUrl());
+		this.id = Md5Util.crypt(getUrl());
 	}
 }

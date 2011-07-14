@@ -17,6 +17,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.sasasin.sreader.ormap.ContentHeader;
 import net.sasasin.sreader.ormap.FeedUrl;
 
 /**
@@ -101,4 +102,47 @@ public class FeedReader {
 
 	}
 
+	public void importContentHeader(List<ContentHeader> chl){
+		Connection conn = null;
+		try {
+			conn = DriverManager.getConnection(
+					"jdbc:h2:tcp://localhost/~/h2datafiles/test", "sa", "");
+			// close時の自動コミット防止
+			conn.setAutoCommit(false);
+			// 重複チェック用SQL
+			PreparedStatement sel = conn
+					.prepareStatement("select count(*) from content_header where id = ?");
+			// 投入用SQL
+			PreparedStatement up = conn
+					.prepareStatement("insert into content_header(id, url, feed_url_id) values(?, ?, ?)");
+
+			for (ContentHeader ch : chl) {
+				// 投入前に重複チェック
+				sel.setString(1, ch.getId());
+				ResultSet rs = sel.executeQuery();
+				rs.next();
+				if (rs.getInt(1) < 1) {
+					// キーで探して居なければ投入
+					up.setString(1, ch.getId());
+					up.setString(2, ch.getUrl());
+					up.setString(3, ch.getFeedUrlId());
+					up.executeUpdate();
+				}
+				rs.close();
+			}
+			conn.commit();
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			if (conn != null) {
+				try {
+					conn.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	
 }
