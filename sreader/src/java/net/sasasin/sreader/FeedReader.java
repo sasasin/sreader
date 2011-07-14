@@ -3,12 +3,15 @@
  */
 package net.sasasin.sreader;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -102,7 +105,25 @@ public class FeedReader {
 
 	}
 
-	public void importContentHeader(List<ContentHeader> chl){
+	// get contents from url
+	// parse feed
+	// return list
+	public List<ContentHeader> fetch(String urlstr) {
+		List<ContentHeader> c = null;
+
+		try {
+			URLConnection conn = new URL(urlstr).openConnection();
+			String type = conn.getContentType();
+			conn.getInputStream();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return c;
+	}
+
+	public void importContentHeader(List<ContentHeader> chl) {
 		Connection conn = null;
 		try {
 			conn = DriverManager.getConnection(
@@ -144,5 +165,5 @@ public class FeedReader {
 			}
 		}
 	}
-	
+
 }
