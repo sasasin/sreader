@@ -54,7 +54,6 @@ public class ContentHeaderDriver {
 			// URLからいきなりDocument
 			Document d = DocumentBuilderFactory.newInstance()
 					.newDocumentBuilder().parse(urlstr);
-			NodeList nl;
 			// RSS
 			parseFeed(urlstr, c, d.getElementsByTagName("item"));
 			// RSS2.0,Atom
