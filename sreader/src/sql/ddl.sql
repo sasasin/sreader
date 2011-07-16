@@ -28,6 +28,7 @@ drop table content_header;
 create table content_header(
 	id char primary key,
 	url char not null,
+	title char,
 	feed_url_id char not null
 );
 
