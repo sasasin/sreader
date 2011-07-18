@@ -16,7 +16,7 @@ public class Wget {
 	public Wget(URL url) {
 		this.url = url;
 		try {
-			conn = (HttpURLConnection)url.openConnection();
+			conn = (HttpURLConnection) url.openConnection();
 			conn.setDoOutput(true);
 			conn.setUseCaches(false);
 			conn.setRequestMethod("GET");
@@ -30,10 +30,11 @@ public class Wget {
 		return conn.getContentType();
 	}
 
-	public String getContentEncoding(){
+	public String getContentEncoding() {
 		return conn.getContentEncoding();
 	}
-	public InputStream getInputStream(){
+
+	public InputStream getInputStream() {
 		try {
 			return conn.getInputStream();
 		} catch (IOException e) {
@@ -42,15 +43,15 @@ public class Wget {
 			return null;
 		}
 	}
-	
+
 	public String read() {
 		try {
-			BufferedReader r = new BufferedReader(new InputStreamReader(
-					conn.getInputStream()));
+			BufferedReader r;
+			r = new BufferedReader(new InputStreamReader(conn.getInputStream()));
 			StringBuilder s = new StringBuilder();
 
 			while (r.ready()) {
-				s.append(r.readLine());
+				s.append(r.readLine() + '\n');
 			}
 			return s.toString();
 		} catch (IOException e) {
@@ -68,7 +69,8 @@ public class Wget {
 			Wget w = new Wget(new URL(args[0]));
 			String t = w.getContentType();
 			String c = w.read();
-			System.out.println(args[0] + " " + t);
+			System.out
+					.println(args[0] + " " + t + " " + w.getContentEncoding());
 			System.out.println(c);
 
 		} catch (MalformedURLException e) {

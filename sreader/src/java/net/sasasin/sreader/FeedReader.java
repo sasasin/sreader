@@ -24,20 +24,21 @@ public class FeedReader {
 			System.out.println("FAIL;" + path.getPath() + " can not proc.");
 			return;
 		}
-		
+
 		new FeedReader().run(path);
 
 		System.out.println("Finished!");
 	}
 
-	public void run(File path){
+	public void run(File path) {
 		// import path to feed_url table.
 		new FeedUrlDriver(path).run();
 
 		// import RSS/Atom to content_header table.
-		new ContentHeaderDriver().run();		
-		
+		new ContentHeaderDriver().run();
+
+		// get content full text.
+		new ContentFullTextDriver().run();
 	}
-	
 
 }
