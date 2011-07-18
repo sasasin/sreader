@@ -51,3 +51,19 @@ add constraint content_full_text_fkey01
 foreign key (content_header_id)
 references content_header(id)
 on delete cascade;
+
+drop table login_url;
+
+create table login_url(
+	host_name char primary key,
+	post_url char not null,
+	id_box_name char not null,
+	password_box_name char not null
+);
+
+-- login_url sample data
+insert into login_url(host_name, post_url, id_box_name, password_box_name) 
+values('jp.wsj.com', 'http://jp.wsj.com/user/login', 'Login', 'Password');
+
+insert into login_url(host_name, post_url, id_box_name, password_box_name)
+values('jbpress.ismedia.jp', 'https://jbpress.ismedia.jp/auth/dologin', 'login', 'password');

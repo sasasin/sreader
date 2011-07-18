@@ -5,50 +5,73 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.protocol.HTTP;
+import org.apache.http.util.EntityUtils;
+
+import net.sasasin.sreader.ormap.LoginUrl;
 
 public class Wget {
 
 	URL url;
-	HttpURLConnection conn;
 
 	public Wget(URL url) {
 		this.url = url;
+	}
+
+	public String read(LoginUrl loginInfo, String loginId, String loginPassword) {
+		String r = null;
+		HttpClient httpclient = new DefaultHttpClient();
+
 		try {
-			conn = (HttpURLConnection) url.openConnection();
-			conn.setDoOutput(true);
-			conn.setUseCaches(false);
-			conn.setRequestMethod("GET");
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			// access top page.
+			HttpResponse response = httpclient.execute(new HttpGet("http://"
+					+ loginInfo.getHostName()));
+			EntityUtils.consume(response.getEntity());
+
+			// login
+			HttpPost httpost = new HttpPost(loginInfo.getPostUrl());
+			List<NameValuePair> nvps = new ArrayList<NameValuePair>();
+			nvps.add(new BasicNameValuePair(loginInfo.getIdBoxName(), loginId));
+			nvps.add(new BasicNameValuePair(loginInfo.getPasswordBoxName(),
+					loginPassword));
+			httpost.setEntity((HttpEntity) new UrlEncodedFormEntity(nvps,
+					HTTP.UTF_8));
+			response = httpclient.execute(httpost);
+			EntityUtils.consume(response.getEntity());
+
+			// get contents.
+			response = httpclient.execute(new HttpGet(this.url.toString()));
+			r = read(response.getEntity().getContent());
+
+		} catch (ClientProtocolException e) {
 			e.printStackTrace();
-		}
-	}
-
-	public String getContentType() {
-		return conn.getContentType();
-	}
-
-	public String getContentEncoding() {
-		return conn.getContentEncoding();
-	}
-
-	public InputStream getInputStream() {
-		try {
-			return conn.getInputStream();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return null;
+		} finally {
+			httpclient.getConnectionManager().shutdown();
 		}
+		return r;
 	}
 
-	public String read() {
+	private String read(InputStream is) {
 		try {
 			BufferedReader r;
-			r = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+			r = new BufferedReader(new InputStreamReader(is));
 			StringBuilder s = new StringBuilder();
 
 			String tmp = null;
@@ -57,14 +80,21 @@ public class Wget {
 			}
 			return s.toString();
 		} catch (FileNotFoundException e) {
-			// e.printStackTrace();
 			System.out.println("FAIL; " + url.toString());
 			return "";
 		} catch (IOException e) {
-			// e.printStackTrace();
 			System.out.println("FAIL; " + url.toString());
 			return "";
 		}
+	}
+
+	public String read() {
+		try {
+			return read(url.openStream());
+		} catch (IOException e) {
+			return "";
+		}
+
 	}
 
 	public static void main(String[] args) {
@@ -74,10 +104,8 @@ public class Wget {
 
 		try {
 			Wget w = new Wget(new URL(args[0]));
-			String t = w.getContentType();
 			String c = w.read();
-			System.out
-					.println(args[0] + " " + t + " " + w.getContentEncoding());
+			System.out.println(args[0]);
 			System.out.println(c);
 
 		} catch (MalformedURLException e) {

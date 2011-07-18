@@ -11,16 +11,26 @@ import java.util.Set;
 
 import net.sasasin.sreader.ormap.ContentFullText;
 import net.sasasin.sreader.ormap.ContentHeader;
+import net.sasasin.sreader.ormap.LoginUrl;
 import net.sasasin.sreader.util.DbUtil;
 import net.sasasin.sreader.util.Md5Util;
 import net.sasasin.sreader.util.Wget;
 
 public class ContentFullTextDriver {
 
-	public ContentFullText fetch(String url) {
+	public ContentFullText fetch(String url, String feedUrlId) {
 		ContentFullText c = null;
+		String s = null;
+		String[] auth = null;
 		try {
-			String s = new Wget(new URL(url)).read();
+			auth = getAuthInfo(feedUrlId);
+			//TODO why throw NullPointerException ?
+			if (auth != null && auth[0].length() > 0){
+				LoginUrl l = getLoginUrl(new URL(url).getHost());
+				s = new Wget(new URL(url)).read(l, auth[0], auth[1]);
+			} else {
+				s = new Wget(new URL(url)).read();
+			}
 			if (s.length() > 0) {
 				c = new ContentFullText(s, Md5Util.crypt(url));
 			}
@@ -31,6 +41,66 @@ public class ContentFullTextDriver {
 		}
 		return c;
 
+	}
+
+	public LoginUrl getLoginUrl(String hostName) {
+		LoginUrl l = null;
+		Connection conn = null;
+		try {
+			conn = DbUtil.getConnection();
+			// fetch full text is null records.
+			PreparedStatement sel = conn
+					.prepareStatement("select post_url, id_box_name, password_box_name"
+							+ " from login_url where host_name = ?");
+			sel.setString(1, hostName);
+			sel.execute();
+			ResultSet rs = sel.getResultSet();
+			rs.next();
+			l = new LoginUrl(hostName, rs.getString(1), rs.getString(2),
+					rs.getString(3));
+			rs.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			if (conn != null) {
+				try {
+					conn.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return l;
+	}
+
+	public String[] getAuthInfo(String feedUrlId) {
+		String[] s = new String[2];
+		Connection conn = null;
+		try {
+			conn = DbUtil.getConnection();
+			// fetch full text is null records.
+			PreparedStatement sel = conn
+					.prepareStatement("select auth_name, auth_password"
+							+ " from feed_url where id = ?");
+			sel.setString(1, feedUrlId);
+			sel.execute();
+			ResultSet rs = sel.getResultSet();
+			rs.next();
+			s[0] = rs.getString(1);
+			s[1] = rs.getString(2);
+			rs.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			if (conn != null) {
+				try {
+					conn.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return s;
 	}
 
 	public Set<ContentHeader> getContentHeader() {
@@ -110,7 +180,7 @@ public class ContentFullTextDriver {
 	public void run() {
 
 		for (ContentHeader ch : getContentHeader()) {
-			ContentFullText s = this.fetch(ch.getUrl());
+			ContentFullText s = this.fetch(ch.getUrl(), ch.getFeedUrlId());
 			if (s != null) {
 				this.importContentFullText(s);
 			}
