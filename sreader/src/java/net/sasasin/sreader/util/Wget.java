@@ -1,4 +1,4 @@
-package net.sasasin.sreader.http;
+package net.sasasin.sreader.util;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;

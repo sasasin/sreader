@@ -19,6 +19,7 @@ public class ContentHeader {
 
 	private String feedUrlId;
 
+	@SuppressWarnings("unused")
 	private ContentHeader() {
 
 	}

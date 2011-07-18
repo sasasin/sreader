@@ -42,8 +42,8 @@ public class FeedUrl {
 	private String authPassword;
 	private String accountId;
 
+	@SuppressWarnings("unused")
 	private FeedUrl() {
-
 	}
 
 	public FeedUrl(String url, String auth_id, String auth_password,

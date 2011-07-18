@@ -9,11 +9,11 @@ import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Set;
 
-import net.sasasin.sreader.http.Wget;
 import net.sasasin.sreader.ormap.ContentFullText;
 import net.sasasin.sreader.ormap.ContentHeader;
 import net.sasasin.sreader.util.DbUtil;
 import net.sasasin.sreader.util.Md5Util;
+import net.sasasin.sreader.util.Wget;
 
 public class ContentFullTextDriver {
 

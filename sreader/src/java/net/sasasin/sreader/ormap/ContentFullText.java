@@ -16,6 +16,7 @@ public class ContentFullText {
 
 	private String contentHeaderId;
 
+	@SuppressWarnings("unused")
 	private ContentFullText() {
 	}
 
