@@ -16,11 +16,13 @@ public class ContentFullText {
 
 	private String contentHeaderId;
 
-	private ContentFullText(){
+	private ContentFullText() {
 	}
 
-	public ContentFullText(String text, String contentHeaderId){
-		
+	public ContentFullText(String text, String contentHeaderId) {
+		setId(text);
+		setFullText(text);
+		setContentHeaderId(contentHeaderId);
 	}
 
 	@Override
@@ -51,6 +53,7 @@ public class ContentFullText {
 	public String getId() {
 		return id;
 	}
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -58,17 +61,17 @@ public class ContentFullText {
 		result = prime * result + ((id == null) ? 0 : id.hashCode());
 		return result;
 	}
+
 	public void setContentHeaderId(String contentHeaderId) {
 		this.contentHeaderId = contentHeaderId;
 	}
-	
+
 	public void setFullText(String fullText) {
 		this.fullText = fullText;
 	}
-	
+
 	public void setId(String id) {
-		this.id = Md5Util.crypt(getFullText());
+		this.id = Md5Util.crypt(id);
 	}
-	
 
 }

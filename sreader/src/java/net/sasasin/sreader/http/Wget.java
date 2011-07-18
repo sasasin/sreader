@@ -1,6 +1,7 @@
 package net.sasasin.sreader.http;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -50,12 +51,18 @@ public class Wget {
 			r = new BufferedReader(new InputStreamReader(conn.getInputStream()));
 			StringBuilder s = new StringBuilder();
 
-			while (r.ready()) {
-				s.append(r.readLine() + '\n');
+			String tmp = null;
+			while ((tmp = r.readLine()) != null) {
+				s.append(tmp + '\n');
 			}
 			return s.toString();
+		} catch (FileNotFoundException e) {
+			// e.printStackTrace();
+			System.out.println("FAIL; " + url.toString());
+			return "";
 		} catch (IOException e) {
-			e.printStackTrace();
+			// e.printStackTrace();
+			System.out.println("FAIL; " + url.toString());
 			return "";
 		}
 	}

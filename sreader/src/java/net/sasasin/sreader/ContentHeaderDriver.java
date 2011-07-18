@@ -30,21 +30,6 @@ import org.xml.sax.SAXException;
  */
 public class ContentHeaderDriver {
 
-	public ContentHeaderDriver() {
-
-	}
-
-	public void run() {
-
-		// fetch feed_url to Set<FeedUrl>
-		Set<FeedUrl> fus = getFeedUrl();
-		for (FeedUrl fu : fus) {
-			// RSS/Atom feed to Set<....>
-			Set<ContentHeader> s = this.fetch(fu.getUrl());
-			this.importContentHeader(s);
-		}
-	}
-
 	// get contents from url
 	// parse feed
 	// return list
@@ -65,43 +50,34 @@ public class ContentHeaderDriver {
 		return c;
 	}
 
-	private void parseFeed(String urlstr, Set<ContentHeader> c, NodeList nl) {
-		for (int i = 0; i < nl.getLength(); i++) {
-			String title = null;
-			String url = null;
-			Node n = nl.item(i);
-			NodeList nlist = n.getChildNodes();
-			try {
-				// 1st try
-				url = n.getAttributes().getNamedItem("rdf:about")
-						.getNodeValue();
-			} catch (NullPointerException e) {
-				// no action
+	public Set<FeedUrl> getFeedUrl() {
+		Set<FeedUrl> s = new HashSet<FeedUrl>();
+
+		Connection conn = null;
+		try {
+			conn = DbUtil.getConnection();
+			PreparedStatement sel = conn
+					.prepareStatement("select url, auth_name, auth_password, account_id from feed_url");
+			sel.execute();
+			ResultSet rs = sel.getResultSet();
+			while (rs.next()) {
+				s.add(new FeedUrl(rs.getString(1), rs.getString(2), rs
+						.getString(3), rs.getString(4)));
 			}
-			for (int j = 0; j < nlist.getLength(); j++) {
-				Node child = nlist.item(j);
-				if (child.getNodeName().equals("title")) {
-					title = child.getTextContent().trim();
-				} else if (child.getNodeName().equals("link")) {
-					if (url == null || url.length() == 0) {
-						// 2nd try
-						url = child.getTextContent().trim();
-					}
-					if (url == null || url.length() == 0) {
-						try {
-							// 3rd try
-							url = child.getAttributes().getNamedItem("href")
-									.getNodeValue();
-						} catch (NullPointerException e) {
-							// no action
-						}
-					}
-				}
-				if (title != null && url != null) {
-					c.add(new ContentHeader(url, title, Md5Util.crypt(urlstr)));
+			rs.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			if (conn != null) {
+				try {
+					conn.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
 				}
 			}
 		}
+
+		return s;
 	}
 
 	public void importContentHeader(Set<ContentHeader> chs) {
@@ -145,35 +121,52 @@ public class ContentHeaderDriver {
 		}
 	}
 
-	public Set<FeedUrl> getFeedUrl() {
-		Set<FeedUrl> fus = new HashSet<FeedUrl>();
-
-		Connection conn = null;
-		try {
-			conn = DbUtil.getConnection();
-			// 重複チェック用SQL
-			PreparedStatement sel = conn
-					.prepareStatement("select url, auth_name, auth_password, account_id from feed_url");
-			sel.execute();
-			ResultSet rs = sel.getResultSet();
-			while (rs.next()) {
-				fus.add(new FeedUrl(rs.getString(1), rs.getString(2), rs
-						.getString(3), rs.getString(4)));
+	private void parseFeed(String urlstr, Set<ContentHeader> c, NodeList nl) {
+		for (int i = 0; i < nl.getLength(); i++) {
+			String title = null;
+			String url = null;
+			Node n = nl.item(i);
+			NodeList nlist = n.getChildNodes();
+			try {
+				// 1st try
+				url = n.getAttributes().getNamedItem("rdf:about")
+						.getNodeValue();
+			} catch (NullPointerException e) {
+				// no action
 			}
-
-		} catch (SQLException e) {
-			e.printStackTrace();
-		} finally {
-			if (conn != null) {
-				try {
-					conn.close();
-				} catch (SQLException e) {
-					e.printStackTrace();
+			for (int j = 0; j < nlist.getLength(); j++) {
+				Node child = nlist.item(j);
+				if (child.getNodeName().equals("title")) {
+					title = child.getTextContent().trim();
+				} else if (child.getNodeName().equals("link")) {
+					if (url == null || url.length() == 0) {
+						// 2nd try
+						url = child.getTextContent().trim();
+					}
+					if (url == null || url.length() == 0) {
+						try {
+							// 3rd try
+							url = child.getAttributes().getNamedItem("href")
+									.getNodeValue();
+						} catch (NullPointerException e) {
+							// no action
+						}
+					}
+				}
+				if (title != null && url != null) {
+					c.add(new ContentHeader(url, title, Md5Util.crypt(urlstr)));
 				}
 			}
 		}
+	}
 
-		return fus;
+	public void run() {
+
+		for (FeedUrl fu : getFeedUrl()) {
+			// RSS/Atom feed to Set<....>
+			Set<ContentHeader> s = this.fetch(fu.getUrl());
+			this.importContentHeader(s);
+		}
 	}
 
 }
