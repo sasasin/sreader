@@ -13,6 +13,7 @@ import net.sasasin.sreader.ormap.ContentFullText;
 import net.sasasin.sreader.ormap.ContentHeader;
 import net.sasasin.sreader.ormap.LoginUrl;
 import net.sasasin.sreader.util.DbUtil;
+import net.sasasin.sreader.util.ExtractContent;
 import net.sasasin.sreader.util.Md5Util;
 import net.sasasin.sreader.util.Wget;
 
@@ -24,15 +25,16 @@ public class ContentFullTextDriver {
 		String[] auth = null;
 		try {
 			auth = getAuthInfo(feedUrlId);
-			//TODO why throw NullPointerException ?
-			if (auth != null && auth[0].length() > 0){
+			// TODO why throw NullPointerException ?
+			if (auth != null && auth[0].length() > 0) {
 				LoginUrl l = getLoginUrl(new URL(url).getHost());
 				s = new Wget(new URL(url)).read(l, auth[0], auth[1]);
 			} else {
 				s = new Wget(new URL(url)).read();
 			}
 			if (s.length() > 0) {
-				c = new ContentFullText(s, Md5Util.crypt(url));
+				c = new ContentFullText(new ExtractContent().analyse(s),
+						Md5Util.crypt(url));
 			}
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
