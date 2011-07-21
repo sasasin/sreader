@@ -73,10 +73,10 @@ public class Wget {
 			BufferedReader r;
 			r = new BufferedReader(new InputStreamReader(is));
 			StringBuilder s = new StringBuilder();
-
 			String tmp = null;
 			while ((tmp = r.readLine()) != null) {
-				s.append(tmp + '\n');
+				s.append(tmp);
+				s.append('\n');
 			}
 			return s.toString();
 		} catch (FileNotFoundException e) {

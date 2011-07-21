@@ -42,7 +42,7 @@ public class FeedUrlDriver {
 					.prepareStatement("select count(*) from feed_url where id = ?");
 			// 投入用SQL
 			PreparedStatement up = conn
-					.prepareStatement("insert into feed_url(id, url, account_id) values(?, ?, ?)");
+					.prepareStatement("insert into feed_url(id, url, auth_name, auth_password, account_id) values(?, ?, ?, ?, ?)");
 
 			for (FeedUrl fu : ful) {
 				// 投入前に重複チェック
@@ -53,7 +53,9 @@ public class FeedUrlDriver {
 					// キーで探して居なければ投入
 					up.setString(1, fu.getId());
 					up.setString(2, fu.getUrl());
-					up.setString(3, "hoge");
+					up.setString(3, fu.getAuthId());
+					up.setString(4, fu.getAuthPassword());
+					up.setString(5, "hoge");
 					up.executeUpdate();
 				}
 				rs.close();
@@ -89,7 +91,11 @@ public class FeedUrlDriver {
 			BufferedReader r = new BufferedReader(new FileReader(path));
 			while (r.ready()) {
 				String[] s = r.readLine().split("\t");
-				fu.add(new FeedUrl(s[0]));
+				if (s.length == 3 ){
+					fu.add(new FeedUrl(s[0], s[1], s[2], "hoge"));
+				}else{
+					fu.add(new FeedUrl(s[0]));					
+				}
 			}
 		} catch (IOException e) {
 			e.printStackTrace();

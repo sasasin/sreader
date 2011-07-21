@@ -25,16 +25,14 @@ public class ContentFullTextDriver {
 		String[] auth = null;
 		try {
 			auth = getAuthInfo(feedUrlId);
-			// TODO why throw NullPointerException ?
-			if (auth != null && auth[0].length() > 0) {
+			if (auth != null && auth[0] != null && auth[1] != null) {
 				LoginUrl l = getLoginUrl(new URL(url).getHost());
 				s = new Wget(new URL(url)).read(l, auth[0], auth[1]);
 			} else {
 				s = new Wget(new URL(url)).read();
 			}
 			if (s.length() > 0) {
-				c = new ContentFullText(new ExtractContent().analyse(s),
-						Md5Util.crypt(url));
+				c = new ContentFullText(new ExtractContent().analyse(s).get("body"), Md5Util.crypt(url));
 			}
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
