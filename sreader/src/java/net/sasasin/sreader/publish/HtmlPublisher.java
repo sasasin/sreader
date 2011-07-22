@@ -27,7 +27,9 @@ public class HtmlPublisher {
 	}
 
 	public void init() {
-		System.out.println("<html><body>");
+		System.out.println("<html>");
+		System.out.println("<head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" /></head>");
+		System.out.println("<body>");
 	}
 
 	public void finalize() {
