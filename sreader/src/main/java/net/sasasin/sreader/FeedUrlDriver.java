@@ -66,11 +66,7 @@ public class FeedUrlDriver {
 			e.printStackTrace();
 		} finally {
 			if (conn != null) {
-				try {
-					conn.close();
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
+				DbUtil.stopServer(conn);
 			}
 		}
 

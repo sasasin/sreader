@@ -32,7 +32,8 @@ public class ContentFullTextDriver {
 				s = new Wget(new URL(url)).read();
 			}
 			if (s.length() > 0) {
-				c = new ContentFullText(new ExtractContent().analyse(s).get("body"), Md5Util.crypt(url));
+				c = new ContentFullText(new ExtractContent().analyse(s).get(
+						"body"), Md5Util.crypt(url));
 			}
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
@@ -63,11 +64,7 @@ public class ContentFullTextDriver {
 			e.printStackTrace();
 		} finally {
 			if (conn != null) {
-				try {
-					conn.close();
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
+				DbUtil.stopServer(conn);
 			}
 		}
 		return l;
@@ -93,11 +90,7 @@ public class ContentFullTextDriver {
 			e.printStackTrace();
 		} finally {
 			if (conn != null) {
-				try {
-					conn.close();
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
+				DbUtil.stopServer(conn);
 			}
 		}
 		return s;
@@ -125,11 +118,7 @@ public class ContentFullTextDriver {
 			e.printStackTrace();
 		} finally {
 			if (conn != null) {
-				try {
-					conn.close();
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
+				DbUtil.stopServer(conn);
 			}
 		}
 
@@ -168,11 +157,7 @@ public class ContentFullTextDriver {
 			e.printStackTrace();
 		} finally {
 			if (conn != null) {
-				try {
-					conn.close();
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
+				DbUtil.stopServer(conn);
 			}
 		}
 	}

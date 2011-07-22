@@ -69,11 +69,7 @@ public class ContentHeaderDriver {
 			e.printStackTrace();
 		} finally {
 			if (conn != null) {
-				try {
-					conn.close();
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
+				DbUtil.stopServer(conn);
 			}
 		}
 
@@ -112,11 +108,7 @@ public class ContentHeaderDriver {
 			e.printStackTrace();
 		} finally {
 			if (conn != null) {
-				try {
-					conn.close();
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
+				DbUtil.stopServer(conn);
 			}
 		}
 	}
