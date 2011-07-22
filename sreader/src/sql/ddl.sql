@@ -61,9 +61,16 @@ create table login_url(
 	password_box_name char not null
 );
 
+create or replace view content_view as
+select h.id, h.url,h.title,f.full_text 
+from content_header h
+inner join content_full_text f
+on h.id = f.content_header_id;
+
 -- login_url sample data
 insert into login_url(host_name, post_url, id_box_name, password_box_name) 
 values('jp.wsj.com', 'http://jp.wsj.com/user/login', 'Login', 'Password');
 
 insert into login_url(host_name, post_url, id_box_name, password_box_name)
 values('jbpress.ismedia.jp', 'https://jbpress.ismedia.jp/auth/dologin', 'login', 'password');
+
