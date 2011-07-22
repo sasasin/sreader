@@ -6,7 +6,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import net.sasasin.sreader.ormap.ContentFullText;
@@ -22,12 +24,14 @@ public class ContentFullTextDriver {
 	public ContentFullText fetch(String url, String feedUrlId) {
 		ContentFullText c = null;
 		String s = null;
-		String[] auth = null;
+		Map<String, String> auth = null;
 		try {
 			auth = getAuthInfo(feedUrlId);
-			if (auth != null && auth[0] != null && auth[1] != null) {
+			if (!auth.isEmpty() && auth.get("name") != null
+					&& auth.get("password") != null) {
 				LoginUrl l = getLoginUrl(new URL(url).getHost());
-				s = new Wget(new URL(url)).read(l, auth[0], auth[1]);
+				s = new Wget(new URL(url)).read(l, auth.get("name"),
+						auth.get("password"));
 			} else {
 				s = new Wget(new URL(url)).read();
 			}
@@ -70,8 +74,8 @@ public class ContentFullTextDriver {
 		return l;
 	}
 
-	public String[] getAuthInfo(String feedUrlId) {
-		String[] s = new String[2];
+	public Map<String, String> getAuthInfo(String feedUrlId) {
+		Map<String, String> s = new HashMap<String, String>();
 		Connection conn = null;
 		try {
 			conn = DbUtil.getConnection();
@@ -83,8 +87,8 @@ public class ContentFullTextDriver {
 			sel.execute();
 			ResultSet rs = sel.getResultSet();
 			rs.next();
-			s[0] = rs.getString(1);
-			s[1] = rs.getString(2);
+			s.put("name", rs.getString(1));
+			s.put("password", rs.getString(2));
 			rs.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
