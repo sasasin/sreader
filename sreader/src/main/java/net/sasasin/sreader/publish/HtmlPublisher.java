@@ -1,32 +1,45 @@
 package net.sasasin.sreader.publish;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 
+import org.apache.commons.io.FileUtils;
+
 public class HtmlPublisher extends AbstractPublisher {
+
+	private StringBuilder s = new StringBuilder();
 
 	public static void main(String[] args) {
 		new HtmlPublisher().run();
 	}
 
 	public void init() {
-		System.out.println("<html>");
-		System.out
-				.println("<head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" /></head>");
-		System.out.println("<body>");
+
+		s.append("<html>");
+		s.append("<head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" /></head>");
+		s.append("<body>");
 	}
 
 	public void finalize() {
-		System.out.println("</body><html>");
+		s.append("</body><html>");
+		try {
+			FileUtils
+					.writeStringToFile(new File(System.getProperty("user.home")
+							+ "/sreader.html"), s.toString());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public void publish(Map<String, String> content) {
-		System.out.println("<hr>");
+		s.append("<hr>");
 		// title with url
-		System.out.println("<h1><a href='" + content.get("url") + "'>"
+		s.append("<h1><a href='" + content.get("url") + "'>"
 				+ content.get("title") + "</a></h1>");
-		System.out.println("<p>");
+		s.append("<p>");
 		// content full text
-		System.out.println(content.get("full_text").replaceAll("(?m)^", "<p>"));
+		s.append(content.get("full_text").replaceAll("(?m)^", "<p>"));
 	}
 
 }
