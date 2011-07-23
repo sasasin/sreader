@@ -38,7 +38,7 @@ public class DbUtil {
 	}
 
 	public static boolean stopServer(Connection conn) {
-		if(conn != null){
+		if (conn != null) {
 			try {
 				conn.close();
 			} catch (SQLException e) {
@@ -51,7 +51,8 @@ public class DbUtil {
 	public static Connection getConnection() throws SQLException {
 
 		try {
-			FileUtils.forceMkdir(new File("~/h2datafiles"));
+			FileUtils.forceMkdir(new File(System.getProperty("user.home")
+					+ "/h2datafiles"));
 		} catch (IOException e) {
 		}
 		startServer();
