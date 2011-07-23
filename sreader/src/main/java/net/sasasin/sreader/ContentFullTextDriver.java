@@ -56,7 +56,7 @@ public class ContentFullTextDriver {
 			// fetch full text is null records.
 			PreparedStatement sel = conn
 					.prepareStatement("select post_url, id_box_name, password_box_name"
-							+ " from login_url where host_name = ?");
+							+ " from login_rules where host_name = ?");
 			sel.setString(1, hostName);
 			sel.execute();
 			ResultSet rs = sel.getResultSet();

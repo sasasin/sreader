@@ -25,7 +25,7 @@ public class HtmlPublisher extends AbstractPublisher {
 		try {
 			FileUtils.writeStringToFile(
 					new File(System.getProperty("user.home")
-							+ File.pathSeparator + "sreader.html"),
+							+ File.separatorChar + "sreader.html"),
 					s.toString());
 		} catch (IOException e) {
 			e.printStackTrace();

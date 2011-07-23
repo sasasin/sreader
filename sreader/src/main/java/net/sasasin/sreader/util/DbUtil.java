@@ -37,25 +37,25 @@ public class DbUtil {
 		return server.isRunning(false);
 	}
 
-	public static boolean stopServer(Connection conn) {
+	public static void stopServer(Connection conn) {
 		if (conn != null) {
 			try {
 				conn.close();
 			} catch (SQLException e) {
 			}
 		}
-		server.stop();
-		return server.isRunning(false);
+		//server.stop();
 	}
 
 	public static Connection getConnection() throws SQLException {
 
 		try {
 			FileUtils.forceMkdir(new File(System.getProperty("user.home")
-					+ "/h2datafiles"));
+					+ File.separatorChar + "h2datafiles"));
 		} catch (IOException e) {
+			e.printStackTrace();
 		}
-		startServer();
+		//startServer();
 		Connection conn;
 		conn = DriverManager.getConnection(
 				"jdbc:h2:tcp://localhost/~/h2datafiles/sreader", "sa", "");
