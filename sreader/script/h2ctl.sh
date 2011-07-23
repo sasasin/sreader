@@ -27,6 +27,13 @@ runscript(){
 	-script "$SQLFILE"
 }
 
+shell(){
+    java -cp $(dirname $0)/../lib/\* \
+	org.h2.tools.Shell \
+	-url 'jdbc:h2:tcp://localhost/~/h2datafiles/sreader' \
+	-user 'sa' -password ''
+}
+
 case $1 in
     start)
 	start_h2
@@ -40,5 +47,8 @@ case $1 in
 	;;
     runsql)
 	runscript
+	;;
+	shell)
+	shell
 	;;
 esac

@@ -60,7 +60,7 @@ references content_header(id)
 on delete cascade;
 
 -- 配信履歴。配信済みのcontent_headerのidを記録。
-drop table publish_log;
+-- drop table publish_log;
 
 create table publish_log(
 	content_header_id char not null
@@ -100,7 +100,7 @@ create table eft_rules(
 );
 
 -- GMailログイン情報。GMailPublisher用。
-drop table gmail_login_info;
+--drop table gmail_login_info;
 
 create table gmail_login_info(
 	address char primary key,
