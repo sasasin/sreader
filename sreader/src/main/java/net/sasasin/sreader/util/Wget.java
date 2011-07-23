@@ -23,7 +23,7 @@ import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.protocol.HTTP;
 import org.apache.http.util.EntityUtils;
 
-import net.sasasin.sreader.ormap.LoginUrl;
+import net.sasasin.sreader.ormap.LoginRule;
 
 public class Wget {
 
@@ -33,7 +33,7 @@ public class Wget {
 		this.url = url;
 	}
 
-	public String read(LoginUrl loginInfo, String loginId, String loginPassword) {
+	public String read(LoginRule loginInfo, String loginId, String loginPassword) {
 		String r = null;
 		HttpClient httpclient = new DefaultHttpClient();
 

@@ -1,6 +1,6 @@
 package net.sasasin.sreader.ormap;
 
-public class LoginUrl {
+public class LoginRule {
 	private String hostName;
 
 	private String postUrl;
@@ -10,11 +10,11 @@ public class LoginUrl {
 	private String passwordBoxName;
 
 	@SuppressWarnings("unused")
-	private LoginUrl(){
+	private LoginRule(){
 		
 	}
 
-	public LoginUrl(String hostName, String postUrl, String idBoxName, String passWordBoxName){
+	public LoginRule(String hostName, String postUrl, String idBoxName, String passWordBoxName){
 		setHostName(hostName);
 		setPostUrl(postUrl);
 		setIdBoxName(idBoxName);

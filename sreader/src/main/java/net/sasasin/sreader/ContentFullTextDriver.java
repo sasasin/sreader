@@ -13,7 +13,7 @@ import java.util.Set;
 
 import net.sasasin.sreader.ormap.ContentFullText;
 import net.sasasin.sreader.ormap.ContentHeader;
-import net.sasasin.sreader.ormap.LoginUrl;
+import net.sasasin.sreader.ormap.LoginRule;
 import net.sasasin.sreader.util.DbUtil;
 import net.sasasin.sreader.util.ExtractContent;
 import net.sasasin.sreader.util.Md5Util;
@@ -29,7 +29,7 @@ public class ContentFullTextDriver {
 			auth = getAuthInfo(feedUrlId);
 			if (!auth.isEmpty() && auth.get("name") != null
 					&& auth.get("password") != null) {
-				LoginUrl l = getLoginUrl(new URL(url).getHost());
+				LoginRule l = getLoginUrl(new URL(url).getHost());
 				s = new Wget(new URL(url)).read(l, auth.get("name"),
 						auth.get("password"));
 			} else {
@@ -48,8 +48,8 @@ public class ContentFullTextDriver {
 
 	}
 
-	public LoginUrl getLoginUrl(String hostName) {
-		LoginUrl l = null;
+	public LoginRule getLoginUrl(String hostName) {
+		LoginRule l = null;
 		Connection conn = null;
 		try {
 			conn = DbUtil.getConnection();
@@ -61,7 +61,7 @@ public class ContentFullTextDriver {
 			sel.execute();
 			ResultSet rs = sel.getResultSet();
 			rs.next();
-			l = new LoginUrl(hostName, rs.getString(1), rs.getString(2),
+			l = new LoginRule(hostName, rs.getString(1), rs.getString(2),
 					rs.getString(3));
 			rs.close();
 		} catch (SQLException e) {
