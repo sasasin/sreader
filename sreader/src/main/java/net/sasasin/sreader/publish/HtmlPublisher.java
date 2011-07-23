@@ -15,7 +15,6 @@ public class HtmlPublisher extends AbstractPublisher {
 	}
 
 	public void init() {
-
 		s.append("<html>");
 		s.append("<head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" /></head>");
 		s.append("<body>");

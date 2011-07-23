@@ -20,13 +20,16 @@ public abstract class AbstractPublisher {
 		}
 		finalize();
 	}
-	
-	public void init(){}
-	
-	public void finalize(){}
-	
-	public void publish(Map<String, String> content) {}
-	
+
+	public void init() {
+	}
+
+	public void finalize() {
+	}
+
+	public void publish(Map<String, String> content) {
+	}
+
 	public ArrayList<Map<String, String>> getContent() {
 		ArrayList<Map<String, String>> contents = new ArrayList<Map<String, String>>();
 		Map<String, String> content = null;
@@ -58,4 +61,26 @@ public abstract class AbstractPublisher {
 		}
 		return contents;
 	}
+
+	public void log(Map<String, String> content) {
+		Connection conn = null;
+		try {
+			conn = DbUtil.getConnection();
+
+			PreparedStatement sql = conn
+					.prepareStatement("insert into publish_log(content_header_id) values(?)");
+			sql.setString(1, content.get("id"));
+			sql.execute();
+			sql.close();
+			conn.commit();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			if (conn != null) {
+				DbUtil.stopServer(conn);
+			}
+
+		}
+	}
+
 }
