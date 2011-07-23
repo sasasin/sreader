@@ -19,7 +19,8 @@ public class FeedReader {
 			return;
 		}
 
-		File path = new File(args[0]);
+		File path = new File(System.getProperty("user.home")
+				+ File.pathSeparator + "sreader.txt");
 		if (!path.exists() || !path.isFile() || !path.canRead()) {
 			System.out.println("FAIL;" + path.getPath() + " can not proc.");
 			return;
