@@ -108,11 +108,12 @@ public class ContentFullTextDriver {
 		Connection conn = null;
 		try {
 			conn = DbUtil.getConnection();
-			// fetch full text is null records.
+			// 本文未取得で、未配信のもの
 			PreparedStatement sel = conn
 					.prepareStatement("select h.url, h.title, h.feed_url_id"
 							+ " from content_header h left outer join content_full_text f"
-							+ " on h.id = f.content_header_id where f.id is null");
+							+ " on h.id = f.content_header_id where f.id is null"
+							+ " where h.id not in (select content_header_id from publish_log)");
 			sel.execute();
 			ResultSet rs = sel.getResultSet();
 			while (rs.next()) {
