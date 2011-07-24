@@ -1,6 +1,6 @@
 #!/bin/sh
 
-BASEDIR=$(pwd)/$(dirname $0)
+BASEDIR=$(cd $(dirname $0);pwd)
 
 cd $BASEDIR/../
 

@@ -81,7 +81,7 @@ where h.id not in (
 	from publish_log
 );
 
--- ログインルールマスター。POSTメソッドによるログイン情報の渡し方を蓄積。
+-- ログインルール。POSTメソッドによるログイン情報の渡し方を蓄積。
 drop table login_rules;
 
 create table login_rules(
@@ -91,7 +91,7 @@ create table login_rules(
 	password_box_name char not null
 );
 
--- 全文抽出ルール。ExtractContentで全文を切り出すルールを、URL毎に蓄積。
+-- 全文抽出ルール。ExtractContentで全文を切り出すルールを蓄積。
 drop table eft_rules;
 
 create table eft_rules(
