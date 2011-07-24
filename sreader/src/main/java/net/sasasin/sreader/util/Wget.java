@@ -41,7 +41,7 @@ public class Wget {
 			// access top page.
 			HttpResponse response = httpclient.execute(new HttpGet("http://"
 					+ loginInfo.getHostName()));
-			EntityUtils.consume(response.getEntity());
+			closeAllStream(response.getEntity());
 
 			// login
 			HttpPost httpost = new HttpPost(loginInfo.getPostUrl());
@@ -52,7 +52,7 @@ public class Wget {
 			httpost.setEntity((HttpEntity) new UrlEncodedFormEntity(nvps,
 					HTTP.UTF_8));
 			response = httpclient.execute(httpost);
-			EntityUtils.consume(response.getEntity());
+			closeAllStream(response.getEntity());
 
 			// get contents.
 			response = httpclient.execute(new HttpGet(this.url.toString()));
@@ -68,6 +68,23 @@ public class Wget {
 		return r;
 	}
 
+	public void closeAllStream(HttpEntity he) {
+        if (he == null) {
+            return;
+        }
+        if (he.isStreaming()) {
+            InputStream s;
+			try {
+				s = he.getContent();
+	            if (s != null) {
+	                s.close();
+	            }
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+        }
+    }
+	
 	private String read(InputStream is) {
 		try {
 			BufferedReader r;

@@ -16,6 +16,7 @@ import net.sasasin.sreader.ormap.ContentHeader;
 import net.sasasin.sreader.ormap.LoginRule;
 import net.sasasin.sreader.util.DbUtil;
 import net.sasasin.sreader.util.ExtractContent;
+import net.sasasin.sreader.util.ExtractFullText;
 import net.sasasin.sreader.util.Md5Util;
 import net.sasasin.sreader.util.Wget;
 
@@ -36,8 +37,9 @@ public class ContentFullTextDriver {
 				s = new Wget(new URL(url)).read();
 			}
 			if (s.length() > 0) {
-				c = new ContentFullText(new ExtractContent().analyse(s).get(
-						"body"), Md5Util.crypt(url));
+				c = new ContentFullText(new ExtractFullText().analyse(s,
+						new URL(url)), Md5Util.crypt(url));
+
 			}
 		} catch (MalformedURLException e) {
 			e.printStackTrace();

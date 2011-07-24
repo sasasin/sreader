@@ -30,6 +30,10 @@ public class FeedReader {
 			return;
 		}
 
+		// import Extract full text rules from 
+		// http://wedata.net/databases/LDRFullFeed/items
+		new EftRulesDriver().run();
+		
 		// import path to feed_url table.
 		new FeedUrlDriver(path).run();
 
