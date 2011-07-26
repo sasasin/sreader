@@ -99,7 +99,7 @@ public class Wget {
 			response = httpclient.execute(new HttpGet(this.url.toString()));
 			String r = read(response.getEntity().getContent(), "UTF-8");
 			String h = charsetDetector(r);
-			if (h.isEmpty()) {
+			if (!h.equals("UTF-8")) {
 				// リトライ
 				response = httpclient.execute(new HttpGet(this.url.toString()));
 				r = read(response.getEntity().getContent(), "JISAutoDetect");
@@ -166,7 +166,7 @@ public class Wget {
 			response = httpclient.execute(new HttpGet(this.url.toString()));
 			r = read(response.getEntity().getContent(), "UTF-8");
 			String h = charsetDetector(r);
-			if (h.isEmpty()) {
+			if (!h.equals("UTF-8")) {
 				// リトライ
 				response = httpclient.execute(new HttpGet(this.url.toString()));
 				r = read(response.getEntity().getContent(), "JISAutoDetect");
