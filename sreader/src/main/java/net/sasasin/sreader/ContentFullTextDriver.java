@@ -112,8 +112,9 @@ public class ContentFullTextDriver {
 			PreparedStatement sel = conn
 					.prepareStatement("select h.url, h.title, h.feed_url_id"
 							+ " from content_header h left outer join content_full_text f"
-							+ " on h.id = f.content_header_id where f.id is null"
-							+ " where h.id not in (select content_header_id from publish_log)");
+							+ " on h.id = f.content_header_id"
+							+ " where f.id is null"
+							+ " and h.id not in (select content_header_id from publish_log)");
 			sel.execute();
 			ResultSet rs = sel.getResultSet();
 			while (rs.next()) {
