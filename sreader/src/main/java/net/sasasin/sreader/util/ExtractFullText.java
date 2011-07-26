@@ -46,7 +46,7 @@ public class ExtractFullText {
 		// 結局取れなければ全部入れる
 		if (result == null) {
 			result = html;
-		}
+		}		
 		return result;
 	}
 

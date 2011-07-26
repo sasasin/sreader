@@ -32,32 +32,10 @@ public class Wget {
 
 	URL url;
 
-	public static String result = null;
-
-	public static String charsetDetector(String s) {
-		nsDetector det = new nsDetector(nsDetector.JAPANESE);
-		// DoIt後、Reportが判定結果を引数にNotifyを呼んでくれる。
-		det.Init(new nsICharsetDetectionObserver() {
-			public void Notify(String charset) {
-				result = charset;
-			}
-		});
-
-		if (det.isAscii(s.getBytes(), s.getBytes().length)) {
-			return "UTF-8";
-		} else {
-			det.DoIt(s.getBytes(), s.getBytes().length, false);
-			det.Done();
-			return result;
-		}
-
-	}
-
 	public static void main(String[] args) {
 		if (args.length < 1) {
 			return;
 		}
-
 		try {
 			Wget w = new Wget(new URL(args[0]));
 			String c = w.read();
@@ -67,11 +45,10 @@ public class Wget {
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
 		}
-
 	}
 
 	public Wget(URL url) {
-		result = "";
+		CharDetector.result = "";
 		this.url = url;
 	}
 
@@ -98,17 +75,17 @@ public class Wget {
 			HttpResponse response;
 			response = httpclient.execute(new HttpGet(this.url.toString()));
 			String r = read(response.getEntity().getContent(), "UTF-8");
-			String h = charsetDetector(r);
+			String h = CharDetector.detect(r);
 			if (!h.equals("UTF-8")) {
 				// リトライ
 				response = httpclient.execute(new HttpGet(this.url.toString()));
 				r = read(response.getEntity().getContent(), "JISAutoDetect");
+				r = r.replaceAll("charset=(.*?)\"", "charset=UTF-8\"");
 			}
 			return r;
 		} catch (IOException e) {
 			return "";
 		}
-
 	}
 
 	private String read(InputStream is, String charset) {
@@ -165,11 +142,12 @@ public class Wget {
 			// get contents.
 			response = httpclient.execute(new HttpGet(this.url.toString()));
 			r = read(response.getEntity().getContent(), "UTF-8");
-			String h = charsetDetector(r);
+			String h = CharDetector.detect(r);
 			if (!h.equals("UTF-8")) {
 				// リトライ
 				response = httpclient.execute(new HttpGet(this.url.toString()));
 				r = read(response.getEntity().getContent(), "JISAutoDetect");
+				r = r.replaceAll("charset=(.*?)\"", "charset=UTF-8\"");
 			}
 		} catch (ClientProtocolException e) {
 			e.printStackTrace();
