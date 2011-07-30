@@ -36,51 +36,12 @@ import org.hibernate.cfg.Configuration;
  */
 public class DbUtil {
 
-	private static Server server;
 	private static String[] serverArgs;
 	private static SessionFactory sf;
 
 	static {
 		serverArgs = new String[] { "-baseDir", "~/h2datafiles", "-web",
 				"-tcp", "tcpAllowOthers", "true" };
-	}
-
-	public static boolean startServer() {
-		try {
-			if (server == null) {
-				server = Server.createTcpServer(serverArgs).start();
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return server.isRunning(false);
-	}
-
-	public static void stopServer(Connection conn) {
-		if (conn != null) {
-			try {
-				conn.close();
-			} catch (SQLException e) {
-			}
-		}
-		// server.stop();
-	}
-
-	public static Connection getConnection() throws SQLException {
-
-		try {
-			FileUtils.forceMkdir(new File(System.getProperty("user.home")
-					+ File.separatorChar + "h2datafiles"));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		// startServer();
-		Connection conn;
-		conn = DriverManager.getConnection(
-				"jdbc:h2:tcp://localhost/~/h2datafiles/sreader", "sa", "");
-		// close時の自動コミット防止
-		conn.setAutoCommit(false);
-		return conn;
 	}
 
 	public static SessionFactory getSessionFactory() {

@@ -27,17 +27,17 @@ cd $BASEDIR/../
 
 # FeedReaderの実行
 # RSS/AtomのURLリストは$HOME/sreader.txt
-java -cp $BASEDIR/../lib/\* \
+java -cp $BASEDIR/../lib/:$BASEDIR/../lib/\* \
     net.sasasin.sreader.FeedReader
 
 # HTMLで配信
 # $HOME/sreader.htmlが作成される
-java -cp $BASEDIR/../lib/\* \
+java -cp $BASEDIR/../lib/:$BASEDIR/../lib/\* \
     net.sasasin.sreader.publish.HtmlPublisher
 
 # GMailで配信
 # gmail_login_infoテーブルに、データを入れておかないと、空回りして悲しい
-java -cp $BASEDIR/../lib/\* \
+java -cp $BASEDIR/../lib/:$BASEDIR/../lib/\* \
     net.sasasin.sreader.publish.GMailPublisher
 
 cd $BASEDIR

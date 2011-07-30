@@ -1,6 +1,6 @@
 package net.sasasin.sreader.orm;
 
-// Generated Jul 30, 2011 11:16:11 PM by Hibernate Tools 3.4.0.CR1
+// Generated Jul 31, 2011 5:27:04 AM by Hibernate Tools 3.4.0.CR1
 
 import java.util.HashSet;
 import java.util.Set;

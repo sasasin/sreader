@@ -27,9 +27,9 @@ cd $BASEDIR/../
 mvn dependency:copy-dependencies -DoutputDirectory=lib
 
 # アプリのコンパイル
-mvn clean
-mvn clean package
+mvn clean compile package
 cp $BASEDIR/../target/*.jar $BASEDIR/../lib
+cp $BASEDIR/../src/main/java/hibernate.cfg.xml $BASEDIR/../lib 
 
 cd $BASEDIR
 
