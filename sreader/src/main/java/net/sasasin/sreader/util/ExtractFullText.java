@@ -21,11 +21,13 @@ package net.sasasin.sreader.util;
 
 import java.io.IOException;
 import java.net.URL;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.List;
+
+import net.sasasin.sreader.orm.EftRules;
+
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+
 import com.gargoylesoftware.htmlunit.StringWebResponse;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HTMLParser;
@@ -65,35 +67,26 @@ public class ExtractFullText {
 		// 結局取れなければ全部入れる
 		if (result == null) {
 			result = html;
-		}		
+		}
 		return result;
 	}
 
 	public String getExtractRule(URL url) {
 		String extractRule = null;
-		Connection conn = null;
-		try {
-			conn = DbUtil.getConnection();
-			// 複数いた場合はURL文字列の長いルールを使用する
-			PreparedStatement sel = conn
-					.prepareStatement("select extract_rule from eft_rules where ? regexp url order by length(url) desc");
+		String sql = "select e.* from eft_rules e where :url regexp url order by length(url) desc";
 
-			sel.setString(1, url.toString());
-			ResultSet rs = sel.executeQuery();
-			rs.next();
-			extractRule = rs.getString(1);
-			rs.close();
+		Session ses = DbUtil.getSessionFactory().openSession();
+		Transaction tx = ses.beginTransaction();
 
-		} catch (SQLException e) {
-			e.printStackTrace();
-		} finally {
-			if (conn != null) {
-				DbUtil.stopServer(conn);
-			}
-		}
-		if (extractRule == null) {
+		EftRules er = (EftRules) ses.createSQLQuery(sql)
+				.addEntity(EftRules.class).setParameter("url", url.toString())
+				.setMaxResults(1).uniqueResult();
+		if (er != null) {
+			extractRule = er.getExtractRule();
+		} else {
 			extractRule = "";
 		}
+		tx.commit();
 		return extractRule;
 	}
 

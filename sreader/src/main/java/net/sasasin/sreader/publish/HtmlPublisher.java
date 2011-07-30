@@ -21,24 +21,20 @@ package net.sasasin.sreader.publish;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Map;
+
+import net.sasasin.sreader.orm.ContentViewId;
 
 import org.apache.commons.io.FileUtils;
 
 public class HtmlPublisher extends AbstractPublisher {
 
-	private StringBuilder s = new StringBuilder();
-
 	public static void main(String[] args) {
 		new HtmlPublisher().run();
 	}
 
-	public void init() {
-		s.append("<html>");
-		s.append("<head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" /></head>");
-		s.append("<body>");
-	}
+	private StringBuilder s = new StringBuilder();
 
+	@Override
 	public void finalize() {
 		s.append("</body><html>");
 		try {
@@ -51,14 +47,22 @@ public class HtmlPublisher extends AbstractPublisher {
 		}
 	}
 
-	public void publish(Map<String, String> content) {
+	@Override
+	public void init() {
+		s.append("<html>");
+		s.append("<head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" /></head>");
+		s.append("<body>");
+	}
+
+	@Override
+	public void publish(ContentViewId content) {
 		s.append("<hr>");
 		// title with url
-		s.append("<h1><a href='" + content.get("url") + "'>"
-				+ content.get("title") + "</a></h1>");
+		s.append("<h1><a href='" + content.getUrl() + "'>" + content.getTitle()
+				+ "</a></h1>");
 		s.append("<p>");
 		// content full text
-		s.append(content.get("full_text").replaceAll("(?m)^", "<p>"));
+		s.append(clobToString(content.getFullText()).replaceAll("(?m)^", "<p>"));
 	}
 
 }

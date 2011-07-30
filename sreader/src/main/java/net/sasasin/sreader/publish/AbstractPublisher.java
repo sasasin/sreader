@@ -19,23 +19,26 @@
  */
 package net.sasasin.sreader.publish;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.sql.Clob;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
+import org.hibernate.Transaction;
+import org.hibernate.Session;
+
+import net.sasasin.sreader.orm.ContentView;
+import net.sasasin.sreader.orm.ContentViewId;
+import net.sasasin.sreader.orm.PublishLog;
 import net.sasasin.sreader.util.DbUtil;
 
 public abstract class AbstractPublisher {
 
 	public void run() {
-		ArrayList<Map<String, String>> contents = getContent();
+		List<ContentView> contents = getContent();
+
 		init();
-		for (Map<String, String> content : contents) {
-			publish(content);
+		for (ContentView content : contents) {
+			publish(content.getId());
 		}
 		finalize();
 	}
@@ -46,59 +49,41 @@ public abstract class AbstractPublisher {
 	public void finalize() {
 	}
 
-	public void publish(Map<String, String> content) {
+	public void publish(ContentViewId content) {
 	}
 
-	public ArrayList<Map<String, String>> getContent() {
-		ArrayList<Map<String, String>> contents = new ArrayList<Map<String, String>>();
-		Map<String, String> content = null;
+	public List<ContentView> getContent() {
+		Session ses = DbUtil.getSessionFactory().openSession();
+		Transaction tx = ses.beginTransaction();
 
-		Connection conn = null;
-		try {
-			conn = DbUtil.getConnection();
+		@SuppressWarnings("unchecked")
+		List<ContentView> l = (List<ContentView>) ses.createCriteria(
+				ContentView.class).list();
 
-			PreparedStatement sql = conn
-					.prepareStatement("select id, url, title, full_text from content_view order by url");
-			sql.execute();
-			ResultSet rs = sql.getResultSet();
-			while (rs.next()) {
-				content = new HashMap<String, String>();
-				content.put("id", rs.getString(1));
-				content.put("url", rs.getString(2));
-				content.put("title", rs.getString(3));
-				content.put("full_text", rs.getString(4));
-				contents.add(content);
-			}
-			rs.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		} finally {
-			if (conn != null) {
-				DbUtil.stopServer(conn);
-			}
+		tx.commit();
+		return l;
 
-		}
-		return contents;
 	}
 
-	public void log(Map<String, String> content) {
-		Connection conn = null;
-		try {
-			conn = DbUtil.getConnection();
+	public void log(ContentViewId content) {
+		Session ses = DbUtil.getSessionFactory().openSession();
+		Transaction tx = ses.beginTransaction();
 
-			PreparedStatement sql = conn
-					.prepareStatement("insert into publish_log(content_header_id) values(?)");
-			sql.setString(1, content.get("id"));
-			sql.execute();
-			sql.close();
-			conn.commit();
+		PublishLog log = new PublishLog();
+		log.setContentHeaderId(content.getId());
+
+		ses.save(log);
+
+		tx.commit();
+
+	}
+
+	public String clobToString(Clob clob) {
+		try {
+			return clob.getSubString(1, (int) clob.length());
 		} catch (SQLException e) {
 			e.printStackTrace();
-		} finally {
-			if (conn != null) {
-				DbUtil.stopServer(conn);
-			}
-
+			return "";
 		}
 	}
 

@@ -115,7 +115,8 @@ create table login_rules(
 drop table eft_rules;
 
 create table eft_rules(
-	url char primary key,
+	id char primary key,
+	url char not null,
 	extract_rule char not null
 );
 

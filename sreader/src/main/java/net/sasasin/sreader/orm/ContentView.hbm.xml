@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated Jul 30, 2011 11:16:11 PM by Hibernate Tools 3.4.0.CR1 -->
+<hibernate-mapping>
+    <class name="net.sasasin.sreader.orm.ContentView" table="CONTENT_VIEW" schema="PUBLIC" catalog="SREADER">
+        <composite-id name="id" class="net.sasasin.sreader.orm.ContentViewId">
+            <key-property name="id" type="string">
+                <column name="ID" />
+            </key-property>
+            <key-property name="url" type="string">
+                <column name="URL" />
+            </key-property>
+            <key-property name="title" type="string">
+                <column name="TITLE" />
+            </key-property>
+            <key-property name="fullText" type="clob">
+                <column name="FULL_TEXT" />
+            </key-property>
+        </composite-id>
+    </class>
+</hibernate-mapping>

@@ -28,8 +28,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -42,10 +40,8 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.protocol.HTTP;
-import org.mozilla.intl.chardet.nsDetector;
-import org.mozilla.intl.chardet.nsICharsetDetectionObserver;
 
-import net.sasasin.sreader.ormap.LoginRule;
+import net.sasasin.sreader.orm.LoginRules;
 
 public class Wget {
 
@@ -137,7 +133,7 @@ public class Wget {
 		return result;
 	}
 
-	public String read(LoginRule loginInfo, String loginId, String loginPassword) {
+	public String read(LoginRules loginInfo, String loginId, String loginPassword) {
 		String r = null;
 		HttpClient httpclient = new DefaultHttpClient();
 

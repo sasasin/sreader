@@ -27,6 +27,8 @@ import java.sql.SQLException;
 
 import org.apache.commons.io.FileUtils;
 import org.h2.tools.Server;
+import org.hibernate.SessionFactory;
+import org.hibernate.cfg.Configuration;
 
 /**
  * @author sasasin
@@ -36,6 +38,7 @@ public class DbUtil {
 
 	private static Server server;
 	private static String[] serverArgs;
+	private static SessionFactory sf;
 
 	static {
 		serverArgs = new String[] { "-baseDir", "~/h2datafiles", "-web",
@@ -60,7 +63,7 @@ public class DbUtil {
 			} catch (SQLException e) {
 			}
 		}
-		//server.stop();
+		// server.stop();
 	}
 
 	public static Connection getConnection() throws SQLException {
@@ -71,7 +74,7 @@ public class DbUtil {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		//startServer();
+		// startServer();
 		Connection conn;
 		conn = DriverManager.getConnection(
 				"jdbc:h2:tcp://localhost/~/h2datafiles/sreader", "sa", "");
@@ -80,4 +83,11 @@ public class DbUtil {
 		return conn;
 	}
 
+	public static SessionFactory getSessionFactory() {
+		if (sf == null){
+			sf = new Configuration().configure()
+					.buildSessionFactory();
+		}
+		return sf;
+	}
 }

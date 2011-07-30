@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated Jul 30, 2011 11:16:11 PM by Hibernate Tools 3.4.0.CR1 -->
+<hibernate-mapping>
+    <class name="net.sasasin.sreader.orm.ContentHeader" table="CONTENT_HEADER" schema="PUBLIC" catalog="SREADER">
+        <id name="id" type="string">
+            <column name="ID" />
+            <generator class="assigned" />
+        </id>
+        <many-to-one name="feedUrl" class="net.sasasin.sreader.orm.FeedUrl" fetch="select">
+            <column name="FEED_URL_ID" not-null="true" />
+        </many-to-one>
+        <property name="url" type="string">
+            <column name="URL" not-null="true" />
+        </property>
+        <property name="title" type="string">
+            <column name="TITLE" />
+        </property>
+        <set name="contentFullTexts" table="CONTENT_FULL_TEXT" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="CONTENT_HEADER_ID" not-null="true" />
+            </key>
+            <one-to-many class="net.sasasin.sreader.orm.ContentFullText" />
+        </set>
+    </class>
+</hibernate-mapping>
