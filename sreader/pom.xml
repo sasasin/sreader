@@ -42,11 +42,6 @@
 			<version>1.2.0</version>
 		</dependency>
 		<dependency>
-			<groupId>net.sourceforge.jchardet</groupId>
-			<artifactId>jchardet</artifactId>
-			<version>1.0</version>
-		</dependency>
-		<dependency>
 			<groupId>org.hibernate</groupId>
 			<artifactId>hibernate-core</artifactId>
 			<version>3.6.6.Final</version>
@@ -55,6 +50,13 @@
 			<groupId>javassist</groupId>
 			<artifactId>javassist</artifactId>
 			<version>3.12.1.GA</version>
+		</dependency>
+		<dependency>
+			<groupId>juniversalchardet</groupId>
+			<artifactId>juniversalchardet</artifactId>
+			<version>1.0.3</version>
+			<scope>system</scope>
+			<systemPath>${basedir}/lib/juniversalchardet-1.0.3.jar</systemPath>
 		</dependency>
 	</dependencies>
 	<repositories>

@@ -24,12 +24,11 @@ BASEDIR=$(cd $(dirname $0);pwd)
 cd $BASEDIR/../
 
 # シェルスクリプト実行に必要なライブラリ収集
-mvn dependency:copy-dependencies -DoutputDirectory=lib
+mvn dependency:copy-dependencies -DoutputDirectory=lib_ext
 
 # アプリのコンパイル
 mvn clean compile package
 cp $BASEDIR/../target/*.jar $BASEDIR/../lib
-cp $BASEDIR/../src/main/java/hibernate.cfg.xml $BASEDIR/../lib 
 
 cd $BASEDIR
 

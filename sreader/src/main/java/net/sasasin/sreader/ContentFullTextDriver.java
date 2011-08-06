@@ -49,10 +49,10 @@ public class ContentFullTextDriver {
 				// ログイン情報も取ってきて
 				LoginRules lr = getLoginRules(new URL(ch.getUrl()).getHost());
 				// で、取る。
-				s = new Wget(new URL(ch.getUrl())).read(lr, f.getAuthName(),
+				s = new Wget(new URL(ch.getUrl())).readWithLogin(lr, f.getAuthName(),
 						f.getAuthPassword());
 			} else {
-				s = new Wget(new URL(ch.getUrl())).read();
+				s = new Wget(new URL(ch.getUrl())).readWithoutLogin();
 			}
 			if (s.length() > 0) {
 

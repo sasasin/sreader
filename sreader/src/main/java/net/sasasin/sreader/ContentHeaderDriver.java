@@ -20,6 +20,8 @@
 package net.sasasin.sreader;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,7 +33,9 @@ import net.sasasin.sreader.orm.ContentHeader;
 import net.sasasin.sreader.orm.FeedUrl;
 import net.sasasin.sreader.util.DbUtil;
 import net.sasasin.sreader.util.Md5Util;
+import net.sasasin.sreader.util.Wget;
 
+import org.apache.commons.io.IOUtils;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.w3c.dom.Document;
@@ -51,9 +55,10 @@ public class ContentHeaderDriver {
 	public Set<ContentHeader> fetch(FeedUrl f) {
 		Set<ContentHeader> c = new HashSet<ContentHeader>();
 		try {
-			// URLからいきなりDocument
+			//文字化けるRSS対策
+			InputStream is = IOUtils.toInputStream(new Wget(new URL(f.getUrl())).readWithoutLogin());			
 			Document d = DocumentBuilderFactory.newInstance()
-					.newDocumentBuilder().parse(f.getUrl());
+					.newDocumentBuilder().parse(is);
 			// RSS
 			parseFeed(f, c, d.getElementsByTagName("item"));
 			// RSS2.0,Atom

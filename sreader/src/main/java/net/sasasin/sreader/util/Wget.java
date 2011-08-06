@@ -19,16 +19,14 @@
  */
 package net.sasasin.sreader.util;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -45,15 +43,13 @@ import net.sasasin.sreader.orm.LoginRules;
 
 public class Wget {
 
-	URL url;
-
 	public static void main(String[] args) {
 		if (args.length < 1) {
 			return;
 		}
 		try {
 			Wget w = new Wget(new URL(args[0]));
-			String c = w.read();
+			String c = w.readWithoutLogin();
 			System.out.println(args[0]);
 			System.out.println(c);
 
@@ -62,86 +58,57 @@ public class Wget {
 		}
 	}
 
+	private URL url;
+
 	public Wget(URL url) {
-		CharDetector.result = "";
-		this.url = url;
+		setUrl(url);
 	}
 
-	public void closeAllStream(HttpEntity he) {
-		if (he == null) {
-			return;
-		}
-		if (he.isStreaming()) {
-			InputStream s;
-			try {
-				s = he.getContent();
-				if (s != null) {
-					s.close();
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
+	public URL getUrl() {
+		return url;
 	}
 
-	public String read() {
+	public String readWithoutLogin() {
 		HttpClient httpclient = new DefaultHttpClient();
 		try {
 			HttpResponse response;
-			response = httpclient.execute(new HttpGet(this.url.toString()));
-			String r = read(response.getEntity().getContent(), "UTF-8");
-			String h = CharDetector.detect(r);
-			if (!h.equals("UTF-8")) {
-				// リトライ
-				response = httpclient.execute(new HttpGet(this.url.toString()));
-				r = read(response.getEntity().getContent(), "JISAutoDetect");
-				r = r.replaceAll("charset=(.*?)\"", "charset=UTF-8\"");
-			}
+			response = httpclient.execute(new HttpGet(getUrl().toString()));
+			String r = read(response.getEntity().getContent());
+			r = r.replaceAll("charset=(.*?)\"", "charset=UTF-8\"");
 			return r;
 		} catch (IOException e) {
 			return "";
+		} finally {
+			httpclient.getConnectionManager().shutdown();
 		}
 	}
 
-	private String read(InputStream is, String charset) {
+	public String read(InputStream is) {
 		String result = null;
-		BufferedReader r = null;
 		try {
-			r = new BufferedReader(new InputStreamReader(is, charset));
-			StringBuilder s = new StringBuilder();
-			String tmp = null;
-			while ((tmp = r.readLine()) != null) {
-				s.append(tmp);
-				s.append('\n');
+			byte[] buf = IOUtils.toByteArray(is);
+			String enc = CharDetector.detect(buf);
+			if (enc != null) {
+				result = new String(buf, enc);
+			} else {
+				result = new String(buf);
 			}
-			r.close();
-			result = s.toString();
-		} catch (FileNotFoundException e) {
-			System.out.println("FAIL; " + url.toString());
-			result = "";
 		} catch (IOException e) {
-			System.out.println("FAIL; " + url.toString());
+			e.printStackTrace();
 			result = "";
-		} finally {
-			if (r != null) {
-				try {
-					r.close();
-				} catch (IOException e) {
-				}
-			}
 		}
 		return result;
 	}
 
-	public String read(LoginRules loginInfo, String loginId, String loginPassword) {
+	public String readWithLogin(LoginRules loginInfo, String loginId,
+			String loginPassword) {
 		String r = null;
 		HttpClient httpclient = new DefaultHttpClient();
-
 		try {
 			// access top page.
 			HttpResponse response = httpclient.execute(new HttpGet("http://"
 					+ loginInfo.getHostName()));
-			closeAllStream(response.getEntity());
+			response.getEntity().consumeContent();
 
 			// login
 			HttpPost httpost = new HttpPost(loginInfo.getPostUrl());
@@ -152,18 +119,13 @@ public class Wget {
 			httpost.setEntity((HttpEntity) new UrlEncodedFormEntity(nvps,
 					HTTP.UTF_8));
 			response = httpclient.execute(httpost);
-			closeAllStream(response.getEntity());
+			response.getEntity().consumeContent();
 
 			// get contents.
-			response = httpclient.execute(new HttpGet(this.url.toString()));
-			r = read(response.getEntity().getContent(), "UTF-8");
-			String h = CharDetector.detect(r);
-			if (!h.equals("UTF-8")) {
-				// リトライ
-				response = httpclient.execute(new HttpGet(this.url.toString()));
-				r = read(response.getEntity().getContent(), "JISAutoDetect");
-				r = r.replaceAll("charset=(.*?)\"", "charset=UTF-8\"");
-			}
+			response = httpclient.execute(new HttpGet(getUrl().toString()));
+			r = read(response.getEntity().getContent());
+			r = r.replaceAll("charset=(.*?)\"", "charset=UTF-8\"");
+
 		} catch (ClientProtocolException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -172,5 +134,9 @@ public class Wget {
 			httpclient.getConnectionManager().shutdown();
 		}
 		return r;
+	}
+
+	public void setUrl(URL url) {
+		this.url = url;
 	}
 }

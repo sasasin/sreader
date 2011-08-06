@@ -19,12 +19,14 @@
  */
 package net.sasasin.sreader;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.io.IOUtils;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 
@@ -32,7 +34,6 @@ import net.arnx.jsonic.JSON;
 import net.sasasin.sreader.orm.EftRules;
 import net.sasasin.sreader.util.DbUtil;
 import net.sasasin.sreader.util.Md5Util;
-import net.sasasin.sreader.util.Wget;
 
 public class EftRulesDriver {
 	private URL url = null;
@@ -49,7 +50,12 @@ public class EftRulesDriver {
 	public void run() {
 		try {
 			url = new URL("http://wedata.net/databases/LDRFullFeed/items.json");
-			jsonString = new Wget(url).read();
+			try {
+				jsonString = IOUtils.toString(url.openStream());
+			} catch (IOException e) {
+				e.printStackTrace();
+				jsonString = "";
+			}
 			jsonMap = parseJson();
 			importEftRules(jsonMap);
 		} catch (MalformedURLException e) {
