@@ -26,11 +26,13 @@ import java.util.List;
 
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import org.hibernate.criterion.Restrictions;
 
 import net.sasasin.sreader.orm.ContentFullText;
 import net.sasasin.sreader.orm.ContentHeader;
 import net.sasasin.sreader.orm.FeedUrl;
 import net.sasasin.sreader.orm.LoginRules;
+import net.sasasin.sreader.orm.Subscriber;
 import net.sasasin.sreader.util.DbUtil;
 import net.sasasin.sreader.util.ExtractFullText;
 import net.sasasin.sreader.util.Md5Util;
@@ -41,22 +43,31 @@ public class ContentFullTextDriver {
 	public ContentFullText fetch(ContentHeader ch) {
 		ContentFullText c = null;
 		String s = null;
+		Session ses = DbUtil.getSessionFactory().openSession();
 		try {
 
 			FeedUrl f = ch.getFeedUrl();
+			// ログインIDとパスワードはSubscriberにある。
+			// TODO 「有効なアカウントの」という条件を付与する。
+			// TODO 「有効なアカウント」をチェックする仕組みを作る。
+			Subscriber sub = (Subscriber) ses.createCriteria(Subscriber.class)
+					.add(Restrictions.eq("feedUrl", f))
+					.add(Restrictions.isNotNull("authName"))
+					.add(Restrictions.isNotNull("authPassword"))
+					.setMaxResults(1).uniqueResult();
+
 			// ログインIDとパスワードがあれば
-			if (f.getAuthName() != null && f.getAuthPassword() != null) {
+			if (sub != null){
 				// ログイン情報も取ってきて
 				LoginRules lr = getLoginRules(new URL(ch.getUrl()).getHost());
 				// で、取る。
-				s = new Wget(new URL(ch.getUrl())).readWithLogin(lr, f.getAuthName(),
-						f.getAuthPassword());
+				s = new Wget(new URL(ch.getUrl())).readWithLogin(lr,
+						sub.getAuthName(), sub.getAuthPassword());
 			} else {
 				s = new Wget(new URL(ch.getUrl())).readWithoutLogin();
 			}
 			if (s.length() > 0) {
 
-				Session ses = DbUtil.getSessionFactory().openSession();
 				Clob clob = ses.getLobHelper().createClob(
 						new ExtractFullText().analyse(s, new URL(ch.getUrl())));
 				c = new ContentFullText();
@@ -83,7 +94,8 @@ public class ContentFullTextDriver {
 		lr = (LoginRules) ses
 				.createQuery(
 						"from LoginRules lr where lr.hostName = :p_hostName")
-				.setParameter("p_hostName", hostName).setMaxResults(1).uniqueResult();
+				.setParameter("p_hostName", hostName).setMaxResults(1)
+				.uniqueResult();
 
 		tx.commit();
 		return lr;

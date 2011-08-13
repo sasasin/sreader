@@ -1,6 +1,6 @@
 package net.sasasin.sreader.orm;
 
-// Generated Jul 31, 2011 5:27:04 AM by Hibernate Tools 3.4.0.CR1
+// Generated Aug 13, 2011 9:20:57 AM by Hibernate Tools 3.4.0.CR1
 
 import java.sql.Clob;
 import javax.persistence.Column;

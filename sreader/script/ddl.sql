@@ -20,33 +20,52 @@
 
 drop view content_view;
 
+--アカウント。
 drop table account;
 
 create table account(
-	id char primary key,
-	name char not null
+       id char primary key,
+       email char not null,
+       password char not null       
 );
 
+
 -- 収集するRSSのURL一覧。
--- 全文取得にログインが必要なら、ログインIDとパスワードをここに、
--- ログインページについての情報はlogin_urlに入れておく。
 drop table feed_url;
 
 create table feed_url(
 	id char primary key,
-	url char not null,
-	auth_name char,
-	auth_password char,
-	account_id char not null
+	url char not null
 );
 
-/*
-alter table feed_url
-add constraint feed_url_fkey01
+
+-- RSSの購読者。必要ならログイン情報も。
+-- 全文取得にログインが必要なら、ログインIDとパスワードをここに、
+-- ログイン方法についての情報はlogin_urlに入れておく。
+drop table subscriber;
+
+create table subscriber(
+       id char primary key,
+       account_id char not null,
+       feed_url_id char not null,
+       subscribe_date date,
+       auth_name char,
+       auth_password char,
+       auth_check_date date
+);
+
+alter table subscriber
+add constraint subscriber_fkey01
 foreign key (account_id)
 references account(id)
 on delete cascade;
-*/
+
+alter table subscriber
+add constraint subscriber_fkey02
+foreign key (feed_url_id)
+references feed_url(id)
+on delete cascade;
+
 
 -- RSSから取得した記事。記事の本文以外の情報を蓄積。
 drop table content_header;
@@ -68,9 +87,9 @@ on delete cascade;
 drop table content_full_text;
 
 create table content_full_text(
-	id char primary key,
-	full_text clob,
-	content_header_id char not null
+       id char primary key,
+       full_text clob,
+       content_header_id char not null
 );
 
 alter table content_full_text
@@ -80,52 +99,54 @@ references content_header(id)
 on delete cascade;
 
 -- 配信履歴。配信済みのcontent_headerのidを記録。
--- drop table publish_log;
+--drop table publish_log;
 
 create table publish_log(
-	content_header_id char not null
+       id char primary key,
+       account_id char not null,
+       content_header_id char not null,
+       publish_date date not null
 );
 
 -- AbstractPublisher用の補助ビュー。
 -- 未配信の記事のみ抽出。
 create or replace view content_view as
-select h.id
-, h.url
-, h.title
-, f.full_text 
-from content_header h
-inner join content_full_text f
-	on h.id = f.content_header_id
-where h.id not in (
-	select content_header_id
-	from publish_log
+select a.id as account_id
+, a.email
+, a.password
+, ch.id as content_header_id
+, ch.url
+, ch.title
+, cf.full_text
+from account a
+inner join subscriber sub
+      on a.id = sub.account_id
+inner join content_header ch
+      on sub.feed_url_id = ch.feed_url_id
+inner join content_full_text cf
+      on ch.id = cf.content_header_id
+where not exists (
+      select 1
+      from publish_log p
+      where p.account_id = a.id
+      and p.content_header_id = ch.id
 );
 
 -- ログインルール。POSTメソッドによるログイン情報の渡し方を蓄積。
 drop table login_rules;
 
 create table login_rules(
-	host_name char primary key,
-	post_url char not null,
-	id_box_name char not null,
-	password_box_name char not null
+       host_name char primary key,
+       post_url char not null,
+       id_box_name char not null,
+       password_box_name char not null
 );
 
 -- 全文抽出ルール。ExtractContentで全文を切り出すルールを蓄積。
 drop table eft_rules;
 
 create table eft_rules(
-	id char primary key,
-	url char not null,
-	extract_rule char not null
+       id char primary key,
+       url char not null,
+       extract_rule char not null
 );
-
--- GMailログイン情報。GMailPublisher用。
---drop table gmail_login_info;
-
-create table gmail_login_info(
-	address char primary key,
-	password char,
-	account_id char not null
-);
-

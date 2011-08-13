@@ -21,6 +21,7 @@ package net.sasasin.sreader.publish;
 
 import java.sql.Clob;
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.List;
 
 import org.hibernate.Transaction;
@@ -30,6 +31,7 @@ import net.sasasin.sreader.orm.ContentView;
 import net.sasasin.sreader.orm.ContentViewId;
 import net.sasasin.sreader.orm.PublishLog;
 import net.sasasin.sreader.util.DbUtil;
+import net.sasasin.sreader.util.Md5Util;
 
 public abstract class AbstractPublisher {
 
@@ -70,7 +72,12 @@ public abstract class AbstractPublisher {
 		Transaction tx = ses.beginTransaction();
 
 		PublishLog log = new PublishLog();
-		log.setContentHeaderId(content.getId());
+
+		log.setId(Md5Util.crypt(content.getAccountId()
+				+ content.getContentHeaderId()));
+		log.setAccountId(content.getAccountId());
+		log.setContentHeaderId(content.getContentHeaderId());
+		log.setPublishDate(new Date());
 
 		ses.save(log);
 

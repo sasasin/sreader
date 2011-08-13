@@ -1,6 +1,6 @@
 package net.sasasin.sreader.orm;
 
-// Generated Jul 31, 2011 5:27:04 AM by Hibernate Tools 3.4.0.CR1
+// Generated Aug 13, 2011 9:20:57 AM by Hibernate Tools 3.4.0.CR1
 
 import java.util.HashSet;
 import java.util.Set;
@@ -20,27 +20,22 @@ public class FeedUrl implements java.io.Serializable {
 
 	private String id;
 	private String url;
-	private String authName;
-	private String authPassword;
-	private String accountId;
+	private Set<Subscriber> subscribers = new HashSet<Subscriber>(0);
 	private Set<ContentHeader> contentHeaders = new HashSet<ContentHeader>(0);
 
 	public FeedUrl() {
 	}
 
-	public FeedUrl(String id, String url, String accountId) {
+	public FeedUrl(String id, String url) {
 		this.id = id;
 		this.url = url;
-		this.accountId = accountId;
 	}
 
-	public FeedUrl(String id, String url, String authName, String authPassword,
-			String accountId, Set<ContentHeader> contentHeaders) {
+	public FeedUrl(String id, String url, Set<Subscriber> subscribers,
+			Set<ContentHeader> contentHeaders) {
 		this.id = id;
 		this.url = url;
-		this.authName = authName;
-		this.authPassword = authPassword;
-		this.accountId = accountId;
+		this.subscribers = subscribers;
 		this.contentHeaders = contentHeaders;
 	}
 
@@ -63,31 +58,13 @@ public class FeedUrl implements java.io.Serializable {
 		this.url = url;
 	}
 
-	@Column(name = "AUTH_NAME")
-	public String getAuthName() {
-		return this.authName;
+	@OneToMany(fetch = FetchType.LAZY, mappedBy = "feedUrl")
+	public Set<Subscriber> getSubscribers() {
+		return this.subscribers;
 	}
 
-	public void setAuthName(String authName) {
-		this.authName = authName;
-	}
-
-	@Column(name = "AUTH_PASSWORD")
-	public String getAuthPassword() {
-		return this.authPassword;
-	}
-
-	public void setAuthPassword(String authPassword) {
-		this.authPassword = authPassword;
-	}
-
-	@Column(name = "ACCOUNT_ID", nullable = false)
-	public String getAccountId() {
-		return this.accountId;
-	}
-
-	public void setAccountId(String accountId) {
-		this.accountId = accountId;
+	public void setSubscribers(Set<Subscriber> subscribers) {
+		this.subscribers = subscribers;
 	}
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "feedUrl")

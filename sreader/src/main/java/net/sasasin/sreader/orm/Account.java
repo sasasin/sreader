@@ -1,10 +1,14 @@
 package net.sasasin.sreader.orm;
 
-// Generated Jul 31, 2011 5:27:04 AM by Hibernate Tools 3.4.0.CR1
+// Generated Aug 13, 2011 9:20:57 AM by Hibernate Tools 3.4.0.CR1
 
+import java.util.HashSet;
+import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 
 /**
@@ -15,14 +19,25 @@ import javax.persistence.Table;
 public class Account implements java.io.Serializable {
 
 	private String id;
-	private String name;
+	private String email;
+	private String password;
+	private Set<Subscriber> subscribers = new HashSet<Subscriber>(0);
 
 	public Account() {
 	}
 
-	public Account(String id, String name) {
+	public Account(String id, String email, String password) {
 		this.id = id;
-		this.name = name;
+		this.email = email;
+		this.password = password;
+	}
+
+	public Account(String id, String email, String password,
+			Set<Subscriber> subscribers) {
+		this.id = id;
+		this.email = email;
+		this.password = password;
+		this.subscribers = subscribers;
 	}
 
 	@Id
@@ -35,13 +50,31 @@ public class Account implements java.io.Serializable {
 		this.id = id;
 	}
 
-	@Column(name = "NAME", nullable = false)
-	public String getName() {
-		return this.name;
+	@Column(name = "EMAIL", nullable = false)
+	public String getEmail() {
+		return this.email;
 	}
 
-	public void setName(String name) {
-		this.name = name;
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	@Column(name = "PASSWORD", nullable = false)
+	public String getPassword() {
+		return this.password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
+	}
+
+	@OneToMany(fetch = FetchType.LAZY, mappedBy = "account")
+	public Set<Subscriber> getSubscribers() {
+		return this.subscribers;
+	}
+
+	public void setSubscribers(Set<Subscriber> subscribers) {
+		this.subscribers = subscribers;
 	}
 
 }

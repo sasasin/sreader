@@ -20,15 +20,11 @@
 package net.sasasin.sreader.publish;
 
 import net.sasasin.sreader.orm.ContentViewId;
-import net.sasasin.sreader.orm.GmailLoginInfo;
-import net.sasasin.sreader.util.DbUtil;
 
 import org.apache.commons.mail.DefaultAuthenticator;
 import org.apache.commons.mail.Email;
 import org.apache.commons.mail.EmailException;
 import org.apache.commons.mail.SimpleEmail;
-import org.hibernate.Session;
-import org.hibernate.Transaction;
 
 /**
  * @author sasasin
@@ -45,24 +41,21 @@ public class GMailPublisher extends AbstractPublisher {
 		new GMailPublisher().run();
 	}
 
+	@Override
 	public void init() {
-		GmailLoginInfo m = getLoginInfo();
 		email.setHostName("smtp.gmail.com");
 		email.setSmtpPort(587);
-		email.setAuthenticator(new DefaultAuthenticator(m.getAddress(), m
-				.getPassword()));
 		email.setTLS(true);
 		email.setCharset("UTF-8");
-		try {
-			email.setFrom(m.getAddress());
-			email.addTo(m.getAddress());
-		} catch (EmailException e) {
-			e.printStackTrace();
-		}
 	}
 
+	@Override
 	public void publish(ContentViewId content) {
 		try {
+			email.setAuthenticator(new DefaultAuthenticator(content.getEmail(),
+					content.getPassword()));
+			email.setFrom(content.getEmail());
+			email.addTo(content.getEmail());
 			email.setSubject(content.getTitle());
 			email.setMsg(content.getUrl() + "\n"
 					+ clobToString(content.getFullText()));
@@ -71,15 +64,6 @@ public class GMailPublisher extends AbstractPublisher {
 		} catch (EmailException e) {
 			e.printStackTrace();
 		}
-	}
-
-	private GmailLoginInfo getLoginInfo() {
-		Session ses = DbUtil.getSessionFactory().openSession();
-		Transaction tx = ses.beginTransaction();
-		GmailLoginInfo gli = (GmailLoginInfo) ses.createCriteria(
-				GmailLoginInfo.class).uniqueResult();
-		tx.commit();
-		return gli;
 	}
 
 }

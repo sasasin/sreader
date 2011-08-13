@@ -1,6 +1,6 @@
 package net.sasasin.sreader.orm;
 
-// Generated Jul 31, 2011 5:27:04 AM by Hibernate Tools 3.4.0.CR1
+// Generated Aug 13, 2011 9:20:57 AM by Hibernate Tools 3.4.0.CR1
 
 import javax.persistence.AttributeOverride;
 import javax.persistence.AttributeOverrides;
@@ -27,7 +27,10 @@ public class ContentView implements java.io.Serializable {
 
 	@EmbeddedId
 	@AttributeOverrides({
-			@AttributeOverride(name = "id", column = @Column(name = "ID")),
+			@AttributeOverride(name = "accountId", column = @Column(name = "ACCOUNT_ID")),
+			@AttributeOverride(name = "email", column = @Column(name = "EMAIL")),
+			@AttributeOverride(name = "password", column = @Column(name = "PASSWORD")),
+			@AttributeOverride(name = "contentHeaderId", column = @Column(name = "CONTENT_HEADER_ID")),
 			@AttributeOverride(name = "url", column = @Column(name = "URL")),
 			@AttributeOverride(name = "title", column = @Column(name = "TITLE")),
 			@AttributeOverride(name = "fullText", column = @Column(name = "FULL_TEXT")) })

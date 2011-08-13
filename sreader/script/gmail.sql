@@ -1,7 +1,7 @@
 -- GMailログイン情報のサンプルデータ。
-delete from gmail_login_info;
+delete from account;
 
-insert into gmail_login_info(address, password, account_id)
-values('fugafuga@gmail.com', 'piyopiyo', 'hoge');
+insert into account(id, email, password)
+values('1', 'fugafuga@gmail.com', 'piyopiyo');
 
 commit;

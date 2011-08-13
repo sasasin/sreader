@@ -12,12 +12,12 @@
         <property name="hibernate.search.autoregister_listeners">false</property>
         <mapping class="net.sasasin.sreader.orm.Account" />
         <mapping class="net.sasasin.sreader.orm.ContentHeader" />
+        <mapping class="net.sasasin.sreader.orm.Subscriber" />
         <mapping class="net.sasasin.sreader.orm.PublishLog" />
         <mapping class="net.sasasin.sreader.orm.ContentView" />
         <mapping class="net.sasasin.sreader.orm.FeedUrl" />
         <mapping class="net.sasasin.sreader.orm.EftRules" />
         <mapping class="net.sasasin.sreader.orm.LoginRules" />
-        <mapping class="net.sasasin.sreader.orm.GmailLoginInfo" />
         <mapping class="net.sasasin.sreader.orm.ContentFullText" />
     </session-factory>
 </hibernate-configuration>

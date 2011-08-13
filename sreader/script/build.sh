@@ -28,7 +28,7 @@ mvn dependency:copy-dependencies -DoutputDirectory=lib_ext
 
 # アプリのコンパイル
 mvn clean compile package
-cp $BASEDIR/../target/*.jar $BASEDIR/../lib
+cp $BASEDIR/../target/*.jar $BASEDIR/../lib_ext
 
 cd $BASEDIR
 

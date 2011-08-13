@@ -1,6 +1,6 @@
 package net.sasasin.sreader.orm;
 
-// Generated Jul 31, 2011 5:27:04 AM by Hibernate Tools 3.4.0.CR1
+// Generated Aug 13, 2011 9:20:57 AM by Hibernate Tools 3.4.0.CR1
 
 import java.sql.Clob;
 import javax.persistence.Column;
@@ -12,7 +12,10 @@ import javax.persistence.Embeddable;
 @Embeddable
 public class ContentViewId implements java.io.Serializable {
 
-	private String id;
+	private String accountId;
+	private String email;
+	private String password;
+	private String contentHeaderId;
 	private String url;
 	private String title;
 	private Clob fullText;
@@ -20,20 +23,51 @@ public class ContentViewId implements java.io.Serializable {
 	public ContentViewId() {
 	}
 
-	public ContentViewId(String id, String url, String title, Clob fullText) {
-		this.id = id;
+	public ContentViewId(String accountId, String email, String password,
+			String contentHeaderId, String url, String title, Clob fullText) {
+		this.accountId = accountId;
+		this.email = email;
+		this.password = password;
+		this.contentHeaderId = contentHeaderId;
 		this.url = url;
 		this.title = title;
 		this.fullText = fullText;
 	}
 
-	@Column(name = "ID")
-	public String getId() {
-		return this.id;
+	@Column(name = "ACCOUNT_ID")
+	public String getAccountId() {
+		return this.accountId;
 	}
 
-	public void setId(String id) {
-		this.id = id;
+	public void setAccountId(String accountId) {
+		this.accountId = accountId;
+	}
+
+	@Column(name = "EMAIL")
+	public String getEmail() {
+		return this.email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	@Column(name = "PASSWORD")
+	public String getPassword() {
+		return this.password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
+	}
+
+	@Column(name = "CONTENT_HEADER_ID")
+	public String getContentHeaderId() {
+		return this.contentHeaderId;
+	}
+
+	public void setContentHeaderId(String contentHeaderId) {
+		this.contentHeaderId = contentHeaderId;
 	}
 
 	@Column(name = "URL")
@@ -72,9 +106,21 @@ public class ContentViewId implements java.io.Serializable {
 			return false;
 		ContentViewId castOther = (ContentViewId) other;
 
-		return ((this.getId() == castOther.getId()) || (this.getId() != null
-				&& castOther.getId() != null && this.getId().equals(
-				castOther.getId())))
+		return ((this.getAccountId() == castOther.getAccountId()) || (this
+				.getAccountId() != null && castOther.getAccountId() != null && this
+				.getAccountId().equals(castOther.getAccountId())))
+				&& ((this.getEmail() == castOther.getEmail()) || (this
+						.getEmail() != null && castOther.getEmail() != null && this
+						.getEmail().equals(castOther.getEmail())))
+				&& ((this.getPassword() == castOther.getPassword()) || (this
+						.getPassword() != null
+						&& castOther.getPassword() != null && this
+						.getPassword().equals(castOther.getPassword())))
+				&& ((this.getContentHeaderId() == castOther
+						.getContentHeaderId()) || (this.getContentHeaderId() != null
+						&& castOther.getContentHeaderId() != null && this
+						.getContentHeaderId().equals(
+								castOther.getContentHeaderId())))
 				&& ((this.getUrl() == castOther.getUrl()) || (this.getUrl() != null
 						&& castOther.getUrl() != null && this.getUrl().equals(
 						castOther.getUrl())))
@@ -90,7 +136,16 @@ public class ContentViewId implements java.io.Serializable {
 	public int hashCode() {
 		int result = 17;
 
-		result = 37 * result + (getId() == null ? 0 : this.getId().hashCode());
+		result = 37 * result
+				+ (getAccountId() == null ? 0 : this.getAccountId().hashCode());
+		result = 37 * result
+				+ (getEmail() == null ? 0 : this.getEmail().hashCode());
+		result = 37 * result
+				+ (getPassword() == null ? 0 : this.getPassword().hashCode());
+		result = 37
+				* result
+				+ (getContentHeaderId() == null ? 0 : this.getContentHeaderId()
+						.hashCode());
 		result = 37 * result
 				+ (getUrl() == null ? 0 : this.getUrl().hashCode());
 		result = 37 * result
