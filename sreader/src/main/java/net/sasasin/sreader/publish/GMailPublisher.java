@@ -32,8 +32,6 @@ import org.apache.commons.mail.SimpleEmail;
  */
 public class GMailPublisher extends AbstractPublisher {
 
-	private Email email = new SimpleEmail();
-
 	/**
 	 * @param args
 	 */
@@ -42,23 +40,23 @@ public class GMailPublisher extends AbstractPublisher {
 	}
 
 	@Override
-	public void init() {
-		email.setHostName("smtp.gmail.com");
-		email.setSmtpPort(587);
-		email.setTLS(true);
-		email.setCharset("UTF-8");
-	}
-
-	@Override
 	public void publish(ContentViewId content) {
 		try {
+			Email email = new SimpleEmail();
+			email.setHostName("smtp.gmail.com");
+			email.setSmtpPort(587);
+			email.setTLS(true);
+			email.setCharset("UTF-8");
+
 			email.setAuthenticator(new DefaultAuthenticator(content.getEmail(),
 					content.getPassword()));
+
 			email.setFrom(content.getEmail());
 			email.addTo(content.getEmail());
 			email.setSubject(content.getTitle());
 			email.setMsg(content.getUrl() + "\n"
 					+ clobToString(content.getFullText()));
+
 			email.send();
 			log(content);
 		} catch (EmailException e) {
