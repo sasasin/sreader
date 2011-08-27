@@ -19,14 +19,6 @@
  */
 package net.sasasin.sreader.util;
 
-import java.io.File;
-import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-
-import org.apache.commons.io.FileUtils;
-import org.h2.tools.Server;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 
@@ -36,13 +28,7 @@ import org.hibernate.cfg.Configuration;
  */
 public class DbUtil {
 
-	private static String[] serverArgs;
 	private static SessionFactory sf;
-
-	static {
-		serverArgs = new String[] { "-baseDir", "~/h2datafiles", "-web",
-				"-tcp", "tcpAllowOthers", "true" };
-	}
 
 	public static SessionFactory getSessionFactory() {
 		if (sf == null){
