@@ -23,10 +23,6 @@ import org.mozilla.universalchardet.UniversalDetector;
 
 public class CharDetector {
 
-	public static String detect(String s) {
-		return detect(s.getBytes());
-	}
-
 	public static String detect(byte[] buf) {
 		UniversalDetector detector = new UniversalDetector(null);
 		int len = buf.length;
