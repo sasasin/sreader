@@ -36,42 +36,45 @@ import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 public class ExtractFullText {
 	public String analyse(String html, URL url) {
-		// title、bodyを詰める
 		String result = null;
-
+		HtmlPage h = null;
 		try {
-			WebClient c = new WebClient();
-			c.setCssEnabled(false);
-			c.setAppletEnabled(false);
-			c.setActiveXNative(false);
-			c.setJavaScriptEnabled(false);
-			c.setPopupBlockerEnabled(true);
-			HtmlPage h = HTMLParser.parseHtml(new StringWebResponse(html,
-					"UTF-8", url), c.getCurrentWindow());
-
-			// 本文抽出のルール取得
-			String xpath = getExtractRule(url);
-			@SuppressWarnings("unchecked")
-			List<HtmlElement> bodys = (List<HtmlElement>) h.getByXPath(xpath);
-			if (!bodys.isEmpty()) {
-				StringBuilder sb = new StringBuilder();
-				for (HtmlElement body : bodys) {
-					sb.append(body.asText() + '\n');
-				}
-				result = sb.toString();
-			}
+			h = getHtmlPage(html, url);
 		} catch (IOException e) {
 			e.printStackTrace();
-		} catch (Exception e) {
+		}
+		// 本文抽出のルール取得
+		String xpath = getExtractRule(url);
+		// xpathで複数抽出されるのもある
+		@SuppressWarnings("unchecked")
+		List<HtmlElement> bodys = (List<HtmlElement>) h.getByXPath(xpath);
+		if (!bodys.isEmpty()) {
+			StringBuilder sb = new StringBuilder();
+			for (HtmlElement body : bodys) {
+				sb.append(body.asText() + '\n');
+			}
+			result = sb.toString();
 		}
 		// 結局取れなければ全部入れる
 		if (result == null) {
-			result = html;
+			result = h.getBody().asText();
 		}
 		return result;
 	}
 
-	public String getExtractRule(URL url) {
+	private HtmlPage getHtmlPage(String html, URL url) throws IOException {
+		WebClient c = new WebClient();
+		c.setCssEnabled(false);
+		c.setAppletEnabled(false);
+		c.setActiveXNative(false);
+		c.setJavaScriptEnabled(false);
+		c.setPopupBlockerEnabled(true);
+		HtmlPage h = HTMLParser.parseHtml(new StringWebResponse(html, "UTF-8",
+				url), c.getCurrentWindow());
+		return h;
+	}
+
+	private String getExtractRule(URL url) {
 		String extractRule = null;
 		String sql = "select e.* from eft_rules e where :url regexp url order by length(url) desc";
 
