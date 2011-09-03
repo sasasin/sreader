@@ -69,6 +69,7 @@ public class ExtractFullText {
 		c.setActiveXNative(false);
 		c.setJavaScriptEnabled(false);
 		c.setPopupBlockerEnabled(true);
+		
 		HtmlPage h = HTMLParser.parseHtml(new StringWebResponse(html, "UTF-8",
 				url), c.getCurrentWindow());
 		return h;

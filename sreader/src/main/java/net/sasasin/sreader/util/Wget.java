@@ -38,6 +38,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.protocol.HTTP;
+import org.apache.http.util.EntityUtils;
 
 import net.sasasin.sreader.orm.LoginRules;
 
@@ -108,8 +109,7 @@ public class Wget {
 			// access top page.
 			HttpResponse response = httpclient.execute(new HttpGet("http://"
 					+ loginInfo.getHostName()));
-			response.getEntity().consumeContent();
-
+			EntityUtils.consume(response.getEntity());
 			// login
 			HttpPost httpost = new HttpPost(loginInfo.getPostUrl());
 			List<NameValuePair> nvps = new ArrayList<NameValuePair>();
@@ -119,7 +119,7 @@ public class Wget {
 			httpost.setEntity((HttpEntity) new UrlEncodedFormEntity(nvps,
 					HTTP.UTF_8));
 			response = httpclient.execute(httpost);
-			response.getEntity().consumeContent();
+			EntityUtils.consume(response.getEntity());
 
 			// get contents.
 			response = httpclient.execute(new HttpGet(getUrl().toString()));
