@@ -57,7 +57,7 @@ public class ContentFullTextDriver {
 					.setMaxResults(1).uniqueResult();
 
 			// ログインIDとパスワードがあれば
-			if (sub != null){
+			if (sub != null) {
 				// ログイン情報も取ってきて
 				LoginRules lr = getLoginRules(new URL(ch.getUrl()).getHost());
 				// で、取る。
@@ -66,6 +66,7 @@ public class ContentFullTextDriver {
 			} else {
 				s = new Wget(new URL(ch.getUrl())).readWithoutLogin();
 			}
+			s = s.replaceAll("charset=(.*?)\"", "charset=UTF-8\"");
 			if (s.length() > 0) {
 
 				Clob clob = ses.getLobHelper().createClob(

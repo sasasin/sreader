@@ -75,7 +75,6 @@ public class Wget {
 			HttpResponse response;
 			response = httpclient.execute(new HttpGet(getUrl().toString()));
 			String r = read(response.getEntity().getContent());
-			r = r.replaceAll("charset=(.*?)\"", "charset=UTF-8\"");
 			return r;
 		} catch (IOException e) {
 			return "";
@@ -124,7 +123,6 @@ public class Wget {
 			// get contents.
 			response = httpclient.execute(new HttpGet(getUrl().toString()));
 			r = read(response.getEntity().getContent());
-			r = r.replaceAll("charset=(.*?)\"", "charset=UTF-8\"");
 
 		} catch (ClientProtocolException e) {
 			e.printStackTrace();
