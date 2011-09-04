@@ -21,6 +21,7 @@ package net.sasasin.sreader;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashSet;
 import java.util.List;
@@ -43,6 +44,12 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import com.sun.syndication.feed.synd.SyndEntry;
+import com.sun.syndication.feed.synd.SyndFeed;
+import com.sun.syndication.io.FeedException;
+import com.sun.syndication.io.SyndFeedInput;
+import com.sun.syndication.io.XmlReader;
+
 /**
  * @author sasasin
  * 
@@ -54,20 +61,40 @@ public class ContentHeaderDriver {
 	// return list
 	public Set<ContentHeader> fetch(FeedUrl f) {
 		Set<ContentHeader> c = new HashSet<ContentHeader>();
-		try {
-			//文字化けるRSS対策
-			InputStream is = IOUtils.toInputStream(new Wget(new URL(f.getUrl())).readWithoutLogin());			
-			Document d = DocumentBuilderFactory.newInstance()
-					.newDocumentBuilder().parse(is);
-			// RSS
-			parseFeed(f, c, d.getElementsByTagName("item"));
-			// RSS2.0,Atom
-			parseFeed(f, c, d.getElementsByTagName("entry"));
-		} catch (IOException e) {
-		} catch (SAXException e) {
-		} catch (ParserConfigurationException e) {
-		}
+
+		fetchByRome(f, c);
+		// fetchByDefaultApi(f, c);
 		return c;
+	}
+
+	@SuppressWarnings("unchecked")
+	private void fetchByRome(FeedUrl f, Set<ContentHeader> c) {
+		try {
+			// 文字化けるRSS対策
+			InputStream is = IOUtils
+					.toInputStream(new Wget(new URL(f.getUrl()))
+							.readWithoutLogin());
+			// Romeパーサー
+			SyndFeed feed = new SyndFeedInput().build(new XmlReader(is));
+			for (SyndEntry entry : (List<SyndEntry>) feed.getEntries()) {
+				ContentHeader ch = new ContentHeader();
+				ch.setUrl(entry.getLink());
+				ch.setId(Md5Util.crypt(ch.getUrl()));
+				ch.setTitle(entry.getTitle());
+				ch.setFeedUrl(f);
+				c.add(ch);
+			}
+
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace();
+		} catch (FeedException e) {
+			e.printStackTrace();
+		}
+
 	}
 
 	public List<FeedUrl> getFeedUrl() {
@@ -96,52 +123,6 @@ public class ContentHeaderDriver {
 		}
 		tx.commit();
 
-	}
-
-	private void parseFeed(FeedUrl f, Set<ContentHeader> c, NodeList nl) {
-		ContentHeader ch = null;
-		for (int i = 0; i < nl.getLength(); i++) {
-			String title = null;
-			String url = null;
-			Node n = nl.item(i);
-			NodeList nlist = n.getChildNodes();
-
-			try {
-				// 1st try
-				url = n.getAttributes().getNamedItem("rdf:about")
-						.getNodeValue();
-			} catch (NullPointerException e) {
-				// no action
-			}
-			for (int j = 0; j < nlist.getLength(); j++) {
-				Node child = nlist.item(j);
-				if (child.getNodeName().equals("title")) {
-					title = child.getTextContent().trim();
-				} else if (child.getNodeName().equals("link")) {
-					if (url == null || url.length() == 0) {
-						// 2nd try
-						url = child.getTextContent().trim();
-					}
-					if (url == null || url.length() == 0) {
-						try {
-							// 3rd try
-							url = child.getAttributes().getNamedItem("href")
-									.getNodeValue();
-						} catch (NullPointerException e) {
-							// no action
-						}
-					}
-				}
-				if (title != null && url != null) {
-					ch = new ContentHeader();
-					ch.setUrl(url);
-					ch.setId(Md5Util.crypt(ch.getUrl()));
-					ch.setTitle(title);
-					ch.setFeedUrl(f);
-					c.add(ch);
-				}
-			}
-		}
 	}
 
 	public void run() {
