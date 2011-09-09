@@ -27,9 +27,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-
 import net.sasasin.sreader.orm.ContentHeader;
 import net.sasasin.sreader.orm.FeedUrl;
 import net.sasasin.sreader.util.DbUtil;
@@ -39,10 +36,6 @@ import net.sasasin.sreader.util.Wget;
 import org.apache.commons.io.IOUtils;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
 
 import com.sun.syndication.feed.synd.SyndEntry;
 import com.sun.syndication.feed.synd.SyndFeed;
@@ -72,13 +65,17 @@ public class ContentHeaderDriver {
 		try {
 			// 文字化けるRSS対策
 			InputStream is = IOUtils
-					.toInputStream(new Wget(new URL(f.getUrl()))
-							.readWithoutLogin());
+					.toInputStream(new Wget(new URL(f.getUrl())).read());
 			// Romeパーサー
 			SyndFeed feed = new SyndFeedInput().build(new XmlReader(is));
 			for (SyndEntry entry : (List<SyndEntry>) feed.getEntries()) {
 				ContentHeader ch = new ContentHeader();
-				ch.setUrl(entry.getLink());
+
+				// HTTP 30x対策。moved先のURLを取得する。
+				// 30xしていなければ、new URL(entry.getLink())したものが返る。
+				URL entryUrl = new Wget(new URL(entry.getLink())).getOriginalUrl();
+				
+				ch.setUrl(entryUrl.toString());
 				ch.setId(Md5Util.crypt(ch.getUrl()));
 				ch.setTitle(entry.getTitle());
 				ch.setFeedUrl(f);

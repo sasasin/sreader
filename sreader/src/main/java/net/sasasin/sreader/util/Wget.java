@@ -25,18 +25,24 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.params.ClientPNames;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpParams;
 import org.apache.http.protocol.HTTP;
 import org.apache.http.util.EntityUtils;
 
@@ -44,53 +50,88 @@ import net.sasasin.sreader.orm.LoginRules;
 
 public class Wget {
 
-	public static void main(String[] args) {
-		if (args.length < 1) {
-			return;
-		}
-		try {
-			Wget w = new Wget(new URL(args[0]));
-			String c = w.readWithoutLogin();
-			System.out.println(args[0]);
-			System.out.println(c);
-
-		} catch (MalformedURLException e) {
-			e.printStackTrace();
-		}
-	}
-
 	private URL url;
+	private LoginRules loginInfo;
+	private String loginId;
+	private String loginPassword;
+
+	private Wget() {
+		setUrl(null);
+		setLoginInfo(null);
+		setLoginId(null);
+		setLoginPassword(null);
+	}
 
 	public Wget(URL url) {
 		setUrl(url);
+		setLoginInfo(null);
+		setLoginId(null);
+		setLoginPassword(null);
+	}
+
+	public void setUrl(URL url) {
+		this.url = url;
 	}
 
 	public URL getUrl() {
 		return url;
 	}
 
-	public String readWithoutLogin() {
-		HttpClient httpclient = new DefaultHttpClient();
+	public LoginRules getLoginInfo() {
+		return loginInfo;
+	}
+
+	public void setLoginInfo(LoginRules loginInfo) {
+		this.loginInfo = loginInfo;
+	}
+
+	public String getLoginId() {
+		return loginId;
+	}
+
+	public void setLoginId(String loginId) {
+		this.loginId = loginId;
+	}
+
+	public String getLoginPassword() {
+		return loginPassword;
+	}
+
+	public void setLoginPassword(String loginPassword) {
+		this.loginPassword = loginPassword;
+	}
+
+	public String read() {
+
+		HttpClient httpclient = null;
+		HttpResponse responce = null;
 		try {
-			HttpResponse response;
-			response = httpclient.execute(new HttpGet(getUrl().toString()));
-			String r = read(response.getEntity().getContent());
-			return r;
+			httpclient = httpClientFactory();
+			responce = httpclient.execute(new HttpGet(getUrl().toString()));
+			return read(responce.getEntity().getContent());
+
 		} catch (IOException e) {
-			return "";
+			e.printStackTrace();
 		} finally {
 			httpclient.getConnectionManager().shutdown();
 		}
+		return "";
 	}
 
-	public String read(InputStream is) {
+	private String read(InputStream is) {
 		String result = null;
 		try {
+			// バイト配列に読み込む。
+			// UTF8ではないソースからStringに読み込むと、文字化けるためと、
+			// 文字化けたStringでは、CharDetectorが文字コード判定に失敗するため。
 			byte[] buf = IOUtils.toByteArray(is);
+			// 文字コード名を取得。
 			String enc = CharDetector.detect(buf);
 			if (enc != null) {
+				// 取得した文字コードでStringに変換。
 				result = new String(buf, enc);
 			} else {
+				// 判定に失敗してたら仕方ないのでそのままStringに変換。
 				result = new String(buf);
 			}
 		} catch (IOException e) {
@@ -100,41 +141,86 @@ public class Wget {
 		return result;
 	}
 
-	public String readWithLogin(LoginRules loginInfo, String loginId,
-			String loginPassword) {
-		String r = null;
-		HttpClient httpclient = new DefaultHttpClient();
-		try {
+	private HttpClient httpClientFactory() throws IOException {
+
+		HttpParams params = new BasicHttpParams();
+		// HTTP 30xを追跡する
+		params.setBooleanParameter(ClientPNames.HANDLE_REDIRECTS, true);
+
+		HttpClient httpclient = new DefaultHttpClient(params);
+		HttpResponse response = null;
+
+		// ログイン情報があれば、ログイン済みのHttpClientを返す。
+		if (getLoginId() != null && getLoginPassword() != null
+				&& getLoginInfo() != null) {
+
 			// access top page.
-			HttpResponse response = httpclient.execute(new HttpGet("http://"
-					+ loginInfo.getHostName()));
+			response = httpclient.execute(new HttpGet("http://"
+					+ getLoginInfo().getHostName()));
 			EntityUtils.consume(response.getEntity());
+
 			// login
-			HttpPost httpost = new HttpPost(loginInfo.getPostUrl());
+			HttpPost httpost = new HttpPost(getLoginInfo().getPostUrl());
 			List<NameValuePair> nvps = new ArrayList<NameValuePair>();
-			nvps.add(new BasicNameValuePair(loginInfo.getIdBoxName(), loginId));
-			nvps.add(new BasicNameValuePair(loginInfo.getPasswordBoxName(),
-					loginPassword));
+			// ログインID入力欄の名前と、ログインIDをセット
+			nvps.add(new BasicNameValuePair(getLoginInfo().getIdBoxName(),
+					getLoginId()));
+			// パスワード入力欄の名前と、パスワードをセット
+			nvps.add(new BasicNameValuePair(
+					getLoginInfo().getPasswordBoxName(), getLoginPassword()));
 			httpost.setEntity((HttpEntity) new UrlEncodedFormEntity(nvps,
 					HTTP.UTF_8));
 			response = httpclient.execute(httpost);
 			EntityUtils.consume(response.getEntity());
+		}
+		return httpclient;
+	}
 
-			// get contents.
-			response = httpclient.execute(new HttpGet(getUrl().toString()));
-			r = read(response.getEntity().getContent());
+	public URL getOriginalUrl() {
 
-		} catch (ClientProtocolException e) {
-			e.printStackTrace();
+		HttpParams params = new BasicHttpParams();
+		// HTTP 30xを追跡しない
+		params.setBooleanParameter(ClientPNames.HANDLE_REDIRECTS, false);
+
+		HttpClient httpclient = new DefaultHttpClient(params);
+
+		HttpResponse responce = null;
+		try {
+			responce = httpclient.execute(new HttpGet(getUrl().toString()));
+
+			int httpStatusCode = responce.getStatusLine().getStatusCode();
+
+			if (httpStatusCode == HttpStatus.SC_MOVED_PERMANENTLY
+					|| httpStatusCode == HttpStatus.SC_MOVED_TEMPORARILY) {
+				// 301,302の時は、Locationに本命のURLがある
+				Header h = responce.getFirstHeader("Location");
+				if (!getUrl().toString().equals(h.getValue())) {
+					// URLが取れたら本命のURLを返す
+					return new URL(h.getValue());
+				}
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
 			httpclient.getConnectionManager().shutdown();
 		}
-		return r;
+		// 30xでなければインスタンス作成時に渡されたURLを返す。
+		return getUrl();
 	}
 
-	public void setUrl(URL url) {
-		this.url = url;
+	public static void main(String[] args) {
+		if (args.length < 1) {
+			return;
+		}
+		try {
+			Wget w = new Wget(new URL(args[0]));
+			String c = w.read();
+			System.out.println(args[0]);
+			System.out.println(c);
+
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		}
 	}
+
 }

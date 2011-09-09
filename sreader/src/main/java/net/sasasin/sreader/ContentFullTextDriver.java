@@ -56,16 +56,18 @@ public class ContentFullTextDriver {
 					.add(Restrictions.isNotNull("authPassword"))
 					.setMaxResults(1).uniqueResult();
 
+			Wget w = new Wget(new URL(ch.getUrl()));
 			// ログインIDとパスワードがあれば
 			if (sub != null) {
 				// ログイン情報も取ってきて
-				LoginRules lr = getLoginRules(new URL(ch.getUrl()).getHost());
-				// で、取る。
-				s = new Wget(new URL(ch.getUrl())).readWithLogin(lr,
-						sub.getAuthName(), sub.getAuthPassword());
-			} else {
-				s = new Wget(new URL(ch.getUrl())).readWithoutLogin();
+				w.setLoginInfo(getLoginRules(new URL(ch.getUrl()).getHost()));
+				w.setLoginId(sub.getAuthName());
+				w.setLoginPassword(sub.getAuthPassword());
 			}
+			// Wget.read()は、任意の文字コードからUTF-8に変換し、Stringに詰める。
+			s = w.read();
+			// Stringの文字コードと、HTMLのcharsetに記載された文字コード名が一致していないと
+			// HtmlUnitがパニックを起こす。その対策。
 			s = s.replaceAll("charset=(.*?)\"", "charset=UTF-8\"");
 			if (s.length() > 0) {
 

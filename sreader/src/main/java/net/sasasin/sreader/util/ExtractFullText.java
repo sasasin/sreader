@@ -45,15 +45,18 @@ public class ExtractFullText {
 		}
 		// 本文抽出のルール取得
 		String xpath = getExtractRule(url);
-		// xpathで複数抽出されるのもある
-		@SuppressWarnings("unchecked")
-		List<HtmlElement> bodys = (List<HtmlElement>) h.getByXPath(xpath);
-		if (!bodys.isEmpty()) {
-			StringBuilder sb = new StringBuilder();
-			for (HtmlElement body : bodys) {
-				sb.append(body.asText() + '\n');
+		// xpath.isEmptyだとHtmlUnitが例外を投げて面倒くさい
+		if (!xpath.isEmpty()) {
+			// xpathで複数抽出されるのもある
+			@SuppressWarnings("unchecked")
+			List<HtmlElement> bodys = (List<HtmlElement>) h.getByXPath(xpath);
+			if (!bodys.isEmpty()) {
+				StringBuilder sb = new StringBuilder();
+				for (HtmlElement body : bodys) {
+					sb.append(body.asText() + '\n');
+				}
+				result = sb.toString();
 			}
-			result = sb.toString();
 		}
 		// 結局取れなければ全部入れる
 		if (result == null) {
@@ -69,7 +72,7 @@ public class ExtractFullText {
 		c.setActiveXNative(false);
 		c.setJavaScriptEnabled(false);
 		c.setPopupBlockerEnabled(true);
-		
+
 		HtmlPage h = HTMLParser.parseHtml(new StringWebResponse(html, "UTF-8",
 				url), c.getCurrentWindow());
 		return h;
