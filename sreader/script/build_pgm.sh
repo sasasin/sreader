@@ -21,8 +21,12 @@
 
 BASEDIR=$(cd $(dirname $0);pwd)
 
-# sreaderのコンパイル
-./build_pgm.sh
+cd $BASEDIR/../
 
-# DBの構築
-./build_db.sh
+# シェルスクリプト実行に必要なライブラリ収集
+mvn dependency:copy-dependencies -DoutputDirectory=lib_ext
+
+# アプリのコンパイル
+mvn clean compile package
+cp $BASEDIR/../target/*.jar $BASEDIR/../lib_ext
+

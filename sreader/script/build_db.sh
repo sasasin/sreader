@@ -21,8 +21,13 @@
 
 BASEDIR=$(cd $(dirname $0);pwd)
 
-# sreaderのコンパイル
-./build_pgm.sh
+cd $BASEDIR
 
-# DBの構築
-./build_db.sh
+# h2 databaseの起動
+./h2ctl.sh start
+# スキーマオブジェクトの作成
+./h2ctl.sh runsql $BASEDIR/ddl.sql
+# マスターデータの投入
+./h2ctl.sh runsql $BASEDIR/dml.sql
+# h2 databaseの停止
+./h2ctl.sh stop
