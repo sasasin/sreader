@@ -1,8 +1,7 @@
 package net.sasasin.sreader.orm;
 
-// Generated Aug 13, 2011 9:20:57 AM by Hibernate Tools 3.4.0.CR1
+// Generated Sep 11, 2011 1:46:23 AM by Hibernate Tools 3.4.0.CR1
 
-import java.sql.Clob;
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
 
@@ -18,13 +17,22 @@ public class ContentViewId implements java.io.Serializable {
 	private String contentHeaderId;
 	private String url;
 	private String title;
-	private Clob fullText;
+	private String fullText;
 
 	public ContentViewId() {
 	}
 
 	public ContentViewId(String accountId, String email, String password,
-			String contentHeaderId, String url, String title, Clob fullText) {
+			String contentHeaderId, String url) {
+		this.accountId = accountId;
+		this.email = email;
+		this.password = password;
+		this.contentHeaderId = contentHeaderId;
+		this.url = url;
+	}
+
+	public ContentViewId(String accountId, String email, String password,
+			String contentHeaderId, String url, String title, String fullText) {
 		this.accountId = accountId;
 		this.email = email;
 		this.password = password;
@@ -34,7 +42,7 @@ public class ContentViewId implements java.io.Serializable {
 		this.fullText = fullText;
 	}
 
-	@Column(name = "ACCOUNT_ID")
+	@Column(name = "account_id", nullable = false, length = 32)
 	public String getAccountId() {
 		return this.accountId;
 	}
@@ -43,7 +51,7 @@ public class ContentViewId implements java.io.Serializable {
 		this.accountId = accountId;
 	}
 
-	@Column(name = "EMAIL")
+	@Column(name = "email", nullable = false, length = 1024)
 	public String getEmail() {
 		return this.email;
 	}
@@ -52,7 +60,7 @@ public class ContentViewId implements java.io.Serializable {
 		this.email = email;
 	}
 
-	@Column(name = "PASSWORD")
+	@Column(name = "password", nullable = false, length = 1024)
 	public String getPassword() {
 		return this.password;
 	}
@@ -61,7 +69,7 @@ public class ContentViewId implements java.io.Serializable {
 		this.password = password;
 	}
 
-	@Column(name = "CONTENT_HEADER_ID")
+	@Column(name = "content_header_id", nullable = false, length = 32)
 	public String getContentHeaderId() {
 		return this.contentHeaderId;
 	}
@@ -70,7 +78,7 @@ public class ContentViewId implements java.io.Serializable {
 		this.contentHeaderId = contentHeaderId;
 	}
 
-	@Column(name = "URL")
+	@Column(name = "url", nullable = false, length = 8096)
 	public String getUrl() {
 		return this.url;
 	}
@@ -79,7 +87,7 @@ public class ContentViewId implements java.io.Serializable {
 		this.url = url;
 	}
 
-	@Column(name = "TITLE")
+	@Column(name = "title", length = 1024)
 	public String getTitle() {
 		return this.title;
 	}
@@ -88,12 +96,12 @@ public class ContentViewId implements java.io.Serializable {
 		this.title = title;
 	}
 
-	@Column(name = "FULL_TEXT")
-	public Clob getFullText() {
+	@Column(name = "full_text")
+	public String getFullText() {
 		return this.fullText;
 	}
 
-	public void setFullText(Clob fullText) {
+	public void setFullText(String fullText) {
 		this.fullText = fullText;
 	}
 

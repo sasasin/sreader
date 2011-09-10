@@ -62,7 +62,7 @@ public class HtmlPublisher extends AbstractPublisher {
 				+ "</a></h1>");
 		s.append("<p>");
 		// content full text
-		s.append(clobToString(content.getFullText()).replaceAll("(?m)^", "<p>"));
+		s.append(content.getFullText().replaceAll("(?m)^", "<p>"));
 	}
 
 }

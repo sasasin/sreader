@@ -54,8 +54,7 @@ public class GMailPublisher extends AbstractPublisher {
 			email.setFrom(content.getEmail());
 			email.addTo(content.getEmail());
 			email.setSubject(content.getTitle());
-			email.setMsg(content.getUrl() + "\n"
-					+ clobToString(content.getFullText()));
+			email.setMsg(content.getUrl() + "\n" + content.getFullText());
 
 			email.send();
 			log(content);

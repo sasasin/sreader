@@ -80,7 +80,8 @@ public class ExtractFullText {
 
 	private String getExtractRule(URL url) {
 		String extractRule = null;
-		String sql = "select e.* from eft_rules e where :url regexp url order by length(url) desc";
+		String sql = "select e.* from eft_rules e where :url regexp replace(substring_index(url, '(?!', '1'),'(?:','(') "
+				+ "order by length(replace(substring_index(url, '(?!', '1'),'(?:','(')) desc";
 
 		Session ses = DbUtil.getSessionFactory().openSession();
 		Transaction tx = ses.beginTransaction();

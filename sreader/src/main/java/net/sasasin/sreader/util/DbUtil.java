@@ -19,6 +19,9 @@
  */
 package net.sasasin.sreader.util;
 
+import java.sql.Clob;
+import java.sql.SQLException;
+
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 
@@ -36,5 +39,18 @@ public class DbUtil {
 					.buildSessionFactory();
 		}
 		return sf;
+	}
+	
+	public static Clob stringToClob(String str){
+		return getSessionFactory().openSession().getLobHelper().createClob(str);
+	}
+	
+	public static String clobToString(Clob clob) {
+		try {
+			return clob.getSubString(1, (int) clob.length());
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return "";
+		}
 	}
 }

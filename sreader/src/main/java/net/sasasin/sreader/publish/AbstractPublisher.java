@@ -19,8 +19,6 @@
  */
 package net.sasasin.sreader.publish;
 
-import java.sql.Clob;
-import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
 
@@ -83,15 +81,6 @@ public abstract class AbstractPublisher {
 
 		tx.commit();
 
-	}
-
-	public String clobToString(Clob clob) {
-		try {
-			return clob.getSubString(1, (int) clob.length());
-		} catch (SQLException e) {
-			e.printStackTrace();
-			return "";
-		}
 	}
 
 }

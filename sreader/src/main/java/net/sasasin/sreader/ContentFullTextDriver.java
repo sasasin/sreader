@@ -21,7 +21,6 @@ package net.sasasin.sreader;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.sql.Clob;
 import java.util.List;
 
 import org.hibernate.Session;
@@ -71,11 +70,9 @@ public class ContentFullTextDriver {
 			s = s.replaceAll("charset=(.*?)\"", "charset=UTF-8\"");
 			if (s.length() > 0) {
 
-				Clob clob = ses.getLobHelper().createClob(
-						new ExtractFullText().analyse(s, new URL(ch.getUrl())));
 				c = new ContentFullText();
 				c.setId(Md5Util.crypt(ch.getUrl()));
-				c.setFullText(clob);
+				c.setFullText(new ExtractFullText().analyse(s, new URL(ch.getUrl())));
 				c.setContentHeader(ch);
 
 			}
