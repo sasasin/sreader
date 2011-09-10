@@ -30,7 +30,7 @@ start_h2(){
     java -cp $BASEDIR/../lib_ext/\* \
 	org.h2.tools.Server \
 	-baseDir ~/h2datafiles \
-	-web -tcp -pg &
+	-web -tcp -tcpAllowOthers -pg &
 }
 
 stop_h2(){
