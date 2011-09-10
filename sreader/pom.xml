@@ -58,6 +58,11 @@
 			<scope>system</scope>
 			<systemPath>${basedir}/lib/juniversalchardet-1.0.3.jar</systemPath>
 		</dependency>
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>5.1.17</version>
+		</dependency>
 	</dependencies>
 	<repositories>
 		<repository>
