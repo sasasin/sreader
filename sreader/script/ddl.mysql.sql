@@ -21,7 +21,7 @@
 -- show warnings
 \W
 
-set charcter set utf8;
+set character set utf8;
 
 grant all privileges on *.* to  'sreader'@'%'
 identified by 'sreader' with grant option;
