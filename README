@@ -17,17 +17,19 @@ SReaderは、RSS/Atomリーダーです。
 入手方法 & セットアップ手順
 -----------------------
 
-JDK6、Git、Maven3.xをあらかじめPATHの通った場所にインストールしておいてください。
+JDK6、MySQL、Git、Maven3.xをあらかじめPATHの通った場所にインストールしておいてください。
 
-	git clone https://github.com/sasasin/sreader.git
+	git clone git://github.com/sasasin/sreader.git
 	cd sreader/sreader/script
-	./build.sh
+	./build_pgm.sh
 
-Gmail配信を使用するため、アカウント情報をデータベースに登録します。gmail.sqlは適宜修正して使用してください。
+DBを構築します。Gmail配信を使用するため、アカウント情報をデータベースに登録します。gmail.sqlは適宜修正して使用してください。
 
-	./h2ctl.sh start
-	./h2ctl.sh runsql ./gmail.sql
-	./h2ctl.sh stop
+	mysql -u root -p
+	source ddl.mysql.sql
+	source dml.sql
+	source gmail.sql
+	commit;
 
 $HOME/sreader.txtを作成し、収集対象のRSS/AtomのURLを、一行にひとつずつ記載してください。
 
