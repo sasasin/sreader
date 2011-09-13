@@ -25,7 +25,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
@@ -33,7 +32,6 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
@@ -55,6 +53,7 @@ public class Wget {
 	private String loginId;
 	private String loginPassword;
 
+	@SuppressWarnings("unused")
 	private Wget() {
 		setUrl(null);
 		setLoginInfo(null);
