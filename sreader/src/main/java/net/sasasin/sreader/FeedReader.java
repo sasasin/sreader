@@ -31,15 +31,15 @@ public class FeedReader {
 	public static void main(String[] args) {
 
 		new FeedReader().run(args);
-		
+
 	}
 
 	public void run(String[] args) {
 
-		// import Extract full text rules from 
+		// import Extract full text rules from
 		// http://wedata.net/databases/LDRFullFeed/items
 		new EftRulesDriver().run();
-		
+
 		// import RSS/Atom to content_header table.
 		new ContentHeaderDriver().run();
 

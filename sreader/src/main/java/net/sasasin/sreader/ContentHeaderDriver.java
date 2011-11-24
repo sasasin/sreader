@@ -130,5 +130,10 @@ public class ContentHeaderDriver {
 			this.importContentHeader(s);
 		}
 	}
+	
+	public static void main(String[] args){
+		// import RSS/Atom to content_header table.
+		new ContentHeaderDriver().run();		
+	}
 
 }

@@ -52,12 +52,12 @@ public class EftRulesDriver {
 			url = new URL("http://wedata.net/databases/LDRFullFeed/items.json");
 			try {
 				jsonString = IOUtils.toString(url.openStream());
+				jsonMap = parseJson();
+				importEftRules(jsonMap);
 			} catch (IOException e) {
 				e.printStackTrace();
 				jsonString = "";
 			}
-			jsonMap = parseJson();
-			importEftRules(jsonMap);
 		} catch (MalformedURLException e) {
 		}
 
