@@ -84,9 +84,9 @@ public class EftRulesDriver {
 			// いなければnull
 			if (er == null) {
 				er = new EftRules();
+				er.setUrl(key);
 				er.setId(Md5Util.crypt(er.getUrl()));
 			}
-			er.setUrl(key);
 			er.setExtractRule(json.get(key));
 			session.save(er);
 		}
