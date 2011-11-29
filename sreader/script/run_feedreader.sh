@@ -29,7 +29,13 @@ java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
 
 # FeedReaderの実行
 java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
-    net.sasasin.sreader.FeedReader
+    net.sasasin.sreader.EftRulesDriver
+
+java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
+    net.sasasin.sreader.ContentHeaderDriver
+
+java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
+    net.sasasin.sreader.ContentFullTextDriver
 
 # GMailで配信
 # gmail_login_infoテーブルに、データを入れておかないと、空回りして悲しい
