@@ -32,28 +32,29 @@ public class Md5Util {
 	public static String crypt(String orig) {
 
 		Assert.hasText(orig);
-		
+
+		MessageDigest md = null;
 		try {
-			StringBuffer md5 = null;
-			MessageDigest md = MessageDigest.getInstance("MD5");
-			md.update(orig.getBytes());
-			byte[] hash = md.digest();
-			md5 = new StringBuffer(hash.length * 2);
-			for (int i = 0; i < hash.length; i++) {
-				int d = hash[i];
-				if (d < 0) {
-					d += 256;
-				}
-				if (d < 16) {
-					md5.append("0");
-				}
-				md5.append(Integer.toString(d, 16));
-			}
-			return md5.toString();
+			md = MessageDigest.getInstance("MD5");
 		} catch (NoSuchAlgorithmException e) {
 			e.printStackTrace();
 			return null;
 		}
+		StringBuffer md5 = null;
+		md.update(orig.getBytes());
+		byte[] hash = md.digest();
+		md5 = new StringBuffer(hash.length * 2);
+		for (int i = 0; i < hash.length; i++) {
+			int d = hash[i];
+			if (d < 0) {
+				d += 256;
+			}
+			if (d < 16) {
+				md5.append("0");
+			}
+			md5.append(Integer.toString(d, 16));
+		}
+		return md5.toString();
 
 	}
 }

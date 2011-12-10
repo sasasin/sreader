@@ -48,7 +48,7 @@ public class TestMd5Util {
 		String input = "";
 
 		Md5Util.crypt(input);
-
+		
 		fail("例外にならないのは失敗");
 	}
 
