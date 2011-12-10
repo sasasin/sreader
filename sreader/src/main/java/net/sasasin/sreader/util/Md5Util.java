@@ -22,6 +22,8 @@ package net.sasasin.sreader.util;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
+import org.springframework.util.Assert;
+
 /**
  * @author sasasin
  * 
@@ -29,6 +31,8 @@ import java.security.NoSuchAlgorithmException;
 public class Md5Util {
 	public static String crypt(String orig) {
 
+		Assert.hasText(orig);
+		
 		try {
 			StringBuffer md5 = null;
 			MessageDigest md = MessageDigest.getInstance("MD5");
