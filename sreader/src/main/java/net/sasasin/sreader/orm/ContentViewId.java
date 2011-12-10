@@ -11,6 +11,7 @@ import javax.persistence.Embeddable;
 @Embeddable
 public class ContentViewId implements java.io.Serializable {
 
+	private static final long serialVersionUID = 603796587965308549L;
 	private String accountId;
 	private String email;
 	private String password;
