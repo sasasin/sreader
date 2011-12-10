@@ -23,14 +23,9 @@ BASEDIR=$(cd $(dirname $0);pwd)
 
 cd $BASEDIR/../
 
-# RSS/AtomのURLリストは$HOME/sreader.txt
+# GMailで配信
+# gmail_login_infoテーブルに、データを入れておかないと、空回りして悲しい
 java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
-    net.sasasin.sreader.SingleAccountFeedReader
-
-java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
-    net.sasasin.sreader.ContentHeaderDriver
-
-java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
-    net.sasasin.sreader.ContentFullTextDriver
+    net.sasasin.sreader.publish.GMailPublisher
 
 cd $BASEDIR

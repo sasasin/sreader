@@ -23,14 +23,8 @@ BASEDIR=$(cd $(dirname $0);pwd)
 
 cd $BASEDIR/../
 
-# RSS/AtomのURLリストは$HOME/sreader.txt
+# FeedReaderの実行
 java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
-    net.sasasin.sreader.SingleAccountFeedReader
-
-java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
-    net.sasasin.sreader.ContentHeaderDriver
-
-java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
-    net.sasasin.sreader.ContentFullTextDriver
+    net.sasasin.sreader.EftRulesDriver
 
 cd $BASEDIR
