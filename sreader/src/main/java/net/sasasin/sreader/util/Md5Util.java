@@ -22,6 +22,8 @@ package net.sasasin.sreader.util;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
+import net.sasasin.sreader.exception.UnSupportedAlgorithmError;
+
 import org.springframework.util.Assert;
 
 /**
@@ -37,8 +39,7 @@ public class Md5Util {
 		try {
 			md = MessageDigest.getInstance("MD5");
 		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-			return null;
+			throw new UnSupportedAlgorithmError(e);
 		}
 		StringBuffer md5 = null;
 		md.update(orig.getBytes());
