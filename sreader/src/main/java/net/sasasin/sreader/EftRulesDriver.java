@@ -26,19 +26,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.io.IOUtils;
-import org.hibernate.Session;
-import org.hibernate.Transaction;
-
 import net.arnx.jsonic.JSON;
+import net.sasasin.sreader.dao.EftRulesDao;
+import net.sasasin.sreader.dao.impl.EftRulesDaoHibernateImpl;
 import net.sasasin.sreader.orm.EftRules;
-import net.sasasin.sreader.util.DbUtil;
 import net.sasasin.sreader.util.Md5Util;
+
+import org.apache.commons.io.IOUtils;
 
 public class EftRulesDriver {
 	private URL url = null;
 	private String jsonString = null;
 	private Map<String, String> jsonMap = null;
+	private EftRulesDao dao = new EftRulesDaoHibernateImpl();
 
 	public static void main(String[] args) {
 		new EftRulesDriver().run();
@@ -75,12 +75,9 @@ public class EftRulesDriver {
 	}
 
 	public void importEftRules(Map<String, String> json) {
-		Session session = DbUtil.getSessionFactory().openSession();
-		Transaction tx = session.beginTransaction();
-		EftRules er = null;
 		for (String key : json.keySet()) {
 			// とりあえず探してみる
-			er = (EftRules) session.get(EftRules.class, Md5Util.crypt(key));
+			EftRules er = dao.get(Md5Util.crypt(key));
 			// いなければnull
 			if (er == null) {
 				er = new EftRules();
@@ -88,8 +85,7 @@ public class EftRulesDriver {
 				er.setId(Md5Util.crypt(er.getUrl()));
 			}
 			er.setExtractRule(json.get(key));
-			session.save(er);
+			dao.sava(er);
 		}
-		tx.commit();
 	}
 }
