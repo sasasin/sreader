@@ -28,7 +28,7 @@ public interface GenericDao<T, PK extends Serializable> {
 
 	public List<T> findAll();
 
-	public PK sava(T entity);
+	public PK save(T entity);
 
 	public void update(T entity);
 

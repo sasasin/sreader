@@ -85,7 +85,7 @@ public class EftRulesDriver {
 				er.setId(Md5Util.crypt(er.getUrl()));
 			}
 			er.setExtractRule(json.get(key));
-			dao.sava(er);
+			dao.save(er);
 		}
 	}
 }

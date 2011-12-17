@@ -26,10 +26,12 @@ import java.util.List;
 import net.sasasin.sreader.dao.GenericDao;
 
 import org.hibernate.Criteria;
+import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
+import org.hibernate.exception.ConstraintViolationException;
 
 /**
  * {@link GenericDao}のHibernateによる実装。
@@ -48,9 +50,14 @@ public class GenericDaoHibernateImpl<T, PK extends Serializable> implements
 
 	protected SessionFactory getSessionFactory() {
 		if (sessionFactory == null) {
-			sessionFactory = new Configuration().configure().buildSessionFactory();
+			sessionFactory = new Configuration().configure()
+					.buildSessionFactory();
 		}
 		return sessionFactory;
+	}
+
+	public void setSessionFactory(SessionFactory sessionFactory) {
+		this.sessionFactory = sessionFactory;
 	}
 
 	protected Class<T> getType() {
@@ -81,28 +88,52 @@ public class GenericDaoHibernateImpl<T, PK extends Serializable> implements
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public PK sava(T entity) {
+	public PK save(T entity) {
 		Session s = getSessionFactory().openSession();
 		Transaction tx = s.beginTransaction();
-		PK id = (PK) s.save(entity);
-		tx.commit();
-		return id;
+		try {
+			PK id = (PK) s.save(entity);
+			tx.commit();
+			return id;
+		} catch (HibernateException e) {
+			// キー重複によるinsert失敗。ロールバックし、セッションは閉じる。
+			e.printStackTrace();
+			tx.rollback();
+			s.close();
+			throw e;
+		}
 	}
 
 	@Override
 	public void update(T entity) {
 		Session s = getSessionFactory().openSession();
 		Transaction tx = s.beginTransaction();
-		s.save(entity);
-		tx.commit();
+		try {
+			s.update(entity);
+			tx.commit();
+		} catch (HibernateException e) {
+			// update失敗。ロールバックし、セッションは閉じる。
+			e.printStackTrace();
+			tx.rollback();
+			s.close();
+			throw e;
+		}
 	}
 
 	@Override
 	public void delete(T entity) {
 		Session s = getSessionFactory().openSession();
 		Transaction tx = s.beginTransaction();
-		s.delete(entity);
-		tx.commit();
+		try {
+			s.delete(entity);
+			tx.commit();
+		} catch (HibernateException e) {
+			// delete失敗。ロールバックし、セッションは閉じる。
+			e.printStackTrace();
+			tx.rollback();
+			s.close();
+			throw e;
+		}
 	}
 
 }
