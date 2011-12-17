@@ -44,13 +44,13 @@ public class GenericDaoHibernateImpl<T, PK extends Serializable> implements
 	private final Class<T> type = (Class<T>) ((ParameterizedType) getClass()
 			.getGenericSuperclass()).getActualTypeArguments()[0];
 
-	private SessionFactory sf;
+	private SessionFactory sessionFactory;
 
 	protected SessionFactory getSessionFactory() {
-		if (sf == null) {
-			sf = new Configuration().configure().buildSessionFactory();
+		if (sessionFactory == null) {
+			sessionFactory = new Configuration().configure().buildSessionFactory();
 		}
-		return sf;
+		return sessionFactory;
 	}
 
 	protected Class<T> getType() {
@@ -68,14 +68,12 @@ public class GenericDaoHibernateImpl<T, PK extends Serializable> implements
 
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public List<T> findAll() {
 		Session s = getSessionFactory().openSession();
 
-		String entityName = s.getEntityName(getType());
-
-		@SuppressWarnings("unchecked")
-		List<T> result = s.createCriteria(entityName)
+		List<T> result = s.createCriteria(getType())
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).list();
 
 		return result;
