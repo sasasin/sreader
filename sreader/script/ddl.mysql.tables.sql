@@ -23,15 +23,6 @@
 
 set character set utf8;
 
-grant all privileges on *.* to  'sreader'@'%'
-identified by 'sreader' with grant option;
-
-create database if not exists sreader;
-
-alter database sreader character set utf8;
-
-use sreader;
-
 -- createとは逆順でdrop。
 drop view if exists content_view;
 drop table if exists content_full_text;
