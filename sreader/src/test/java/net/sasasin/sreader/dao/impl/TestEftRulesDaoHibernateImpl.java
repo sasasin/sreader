@@ -39,7 +39,6 @@ import org.hibernate.HibernateException;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class TestEftRulesDaoHibernateImpl extends AbstractHibernateTestCase {
@@ -54,8 +53,8 @@ public class TestEftRulesDaoHibernateImpl extends AbstractHibernateTestCase {
 		testee.setSessionFactory(getSessionFactory());
 
 		// テストデータ投入
-		IDataSet dataSet = new XlsDataSet(this.getClass().getResourceAsStream(
-				this.getClass().getSimpleName() + ".xls"));
+		IDataSet dataSet = new XlsDataSet(getClass().getResourceAsStream(
+				getClass().getSimpleName() + ".xls"));
 		DatabaseOperation.CLEAN_INSERT.execute(getConnection(), dataSet);
 	}
 
@@ -81,6 +80,7 @@ public class TestEftRulesDaoHibernateImpl extends AbstractHibernateTestCase {
 		assertThat(actual.size(), not(0));
 	}
 
+	//TODO 事前にデータを消す方法を考える
 	// /**
 	// * データが存在しないケース。
 	// *
@@ -249,7 +249,7 @@ public class TestEftRulesDaoHibernateImpl extends AbstractHibernateTestCase {
 			testee.update(expected);
 			fail("update失敗してるのに例外が出ないのは失敗");
 		} catch (HibernateException e) {
-			//テスト対象存在せず、的な？
+			// テスト対象存在せず、的な？
 		}
 	}
 
