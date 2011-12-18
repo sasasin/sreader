@@ -38,7 +38,7 @@ public class EftRulesDriver {
 	private URL url = null;
 	private String jsonString = null;
 	private Map<String, String> jsonMap = null;
-	private EftRulesDao dao = new EftRulesDaoHibernateImpl();
+	private EftRulesDao eftRulesDao = new EftRulesDaoHibernateImpl();
 
 	public static void main(String[] args) {
 		new EftRulesDriver().run();
@@ -77,15 +77,16 @@ public class EftRulesDriver {
 	public void importEftRules(Map<String, String> json) {
 		for (String key : json.keySet()) {
 			// とりあえず探してみる
-			EftRules er = dao.get(Md5Util.crypt(key));
+			EftRules er = eftRulesDao.get(Md5Util.crypt(key));
 			// いなければnull
 			if (er == null) {
 				er = new EftRules();
 				er.setUrl(key);
 				er.setId(Md5Util.crypt(er.getUrl()));
+				eftRulesDao.save(er);
 			}
 			er.setExtractRule(json.get(key));
-			dao.save(er);
+			eftRulesDao.update(er);
 		}
 	}
 }

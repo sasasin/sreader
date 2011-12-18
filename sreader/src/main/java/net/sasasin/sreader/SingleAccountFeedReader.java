@@ -25,17 +25,24 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 
-import org.apache.commons.io.IOUtils;
-import org.hibernate.Session;
-import org.hibernate.Transaction;
-
+import net.sasasin.sreader.dao.AccountDao;
+import net.sasasin.sreader.dao.FeedUrlDao;
+import net.sasasin.sreader.dao.SubscriberDao;
+import net.sasasin.sreader.dao.impl.AccountDaoHibernateImpl;
+import net.sasasin.sreader.dao.impl.FeedUrlDaoHibernateImpl;
+import net.sasasin.sreader.dao.impl.SubscriberDaoHibernateImpl;
 import net.sasasin.sreader.orm.Account;
 import net.sasasin.sreader.orm.FeedUrl;
 import net.sasasin.sreader.orm.Subscriber;
-import net.sasasin.sreader.util.DbUtil;
 import net.sasasin.sreader.util.Md5Util;
 
+import org.apache.commons.io.IOUtils;
+
 public class SingleAccountFeedReader {
+
+	private AccountDao accountDao = new AccountDaoHibernateImpl();
+	private FeedUrlDao feedUrlDao = new FeedUrlDaoHibernateImpl();
+	private SubscriberDao subscriberDao = new SubscriberDaoHibernateImpl();
 
 	/**
 	 * @param args
@@ -54,57 +61,53 @@ public class SingleAccountFeedReader {
 			return;
 		}
 
-		// import path to feed_url table.
-		importSubscribe(path);
-
-	}
-
-	private void importSubscribe(File path) {
-		Session ses = DbUtil.getSessionFactory().openSession();
-		Transaction tx = ses.beginTransaction();
-
-		Account a = (Account) ses.createCriteria(Account.class)
-				.setMaxResults(1).uniqueResult();
-		if (a == null) {
-			return;
-		}
-
 		List<String> lines = null;
 		try {
 			lines = IOUtils.readLines(new FileReader(path));
 		} catch (IOException e) {
 			e.printStackTrace();
+			return;
+		}
+
+		// import path to feed_url table.
+		importSubscribe(lines);
+
+	}
+
+	private void importSubscribe(List<String> lines) {
+
+		Account a = accountDao.getOneResult();
+		if (a == null) {
+			return;
 		}
 
 		for (String line : lines) {
 			String[] str = line.split("\t");
 
-			FeedUrl f = (FeedUrl) ses.get(FeedUrl.class, Md5Util.crypt(str[0]));
+			FeedUrl f = feedUrlDao.get(Md5Util.crypt(str[0]));
 			if (f == null) {
 				f = new FeedUrl();
 				f.setId(Md5Util.crypt(str[0]));
 				f.setUrl(str[0]);
-				ses.save(f);
+				feedUrlDao.save(f);
 			}
 
-			Subscriber s = (Subscriber) ses.get(Subscriber.class,
-					Md5Util.crypt(a.getId() + f.getId()));
+			Subscriber s = subscriberDao.get(Md5Util.crypt(a.getId()
+					+ f.getId()));
 			if (s == null) {
 				s = new Subscriber();
 				s.setId(Md5Util.crypt(a.getId() + f.getId()));
 				s.setAccount(a);
 				s.setFeedUrl(f);
 				s.setSubscribeDate(new Date());
+				subscriberDao.save(s);
 			}
 			if (str.length == 3) {
 				s.setAuthName(str[1]);
 				s.setAuthPassword(str[2]);
 				s.setAuthCheckDate(new Date());
+				subscriberDao.update(s);
 			}
-			ses.save(s);
-
 		}
-
-		tx.commit();
 	}
 }
