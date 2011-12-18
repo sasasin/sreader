@@ -19,6 +19,8 @@
  */
 package net.sasasin.sreader.dao.impl;
 
+import org.hibernate.criterion.Order;
+
 import net.sasasin.sreader.dao.AccountDao;
 import net.sasasin.sreader.orm.Account;
 
@@ -28,4 +30,14 @@ import net.sasasin.sreader.orm.Account;
  */
 public class AccountDaoHibernateImpl extends
 		GenericDaoHibernateImpl<Account, String> implements AccountDao {
+
+	@Override
+	public Account getOneResult() {
+
+		Account entity = (Account) getSessionFactory().openSession()
+				.createCriteria(getType()).addOrder(Order.asc("id"))
+				.setMaxResults(1).uniqueResult();
+
+		return entity;
+	}
 }

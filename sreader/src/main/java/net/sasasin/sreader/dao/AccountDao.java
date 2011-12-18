@@ -26,5 +26,13 @@ import net.sasasin.sreader.orm.Account;
  *
  */
 public interface AccountDao extends GenericDao<Account, String> {
+	
+	/**
+	 * テーブルから、IDで昇順にソートし、最初のレコードを返す。
+	 * レコードが存在しない場合はnullを返す。
+	 * 
+	 * @return Account
+	 */
+	public Account getOneResult();
 
 }
