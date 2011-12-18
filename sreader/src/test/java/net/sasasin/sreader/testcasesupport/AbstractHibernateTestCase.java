@@ -32,9 +32,9 @@ public abstract class AbstractHibernateTestCase extends DBTestCase {
 	public void setUp() throws Exception {
 
 		Configuration cfg = new Configuration().configure();
-		if (sessionFactory == null) {
-			sessionFactory = cfg.buildSessionFactory();
-		}
+
+		sessionFactory = cfg.buildSessionFactory();
+
 		session = sessionFactory.openSession();
 
 		// Hibernateと接続情報を共有する。接続自体を共有するわけではない
@@ -67,17 +67,17 @@ public abstract class AbstractHibernateTestCase extends DBTestCase {
 		session.close();
 		super.tearDown();
 	}
-	
+
 	/**
 	 * テスト用スキーマに接続するためのSessionFactoryを返す。
 	 * 各テストケースはDAOのSessionFactoryにこれをセットしてテストする。
 	 * 
 	 * @return SessionFactory
 	 */
-	protected SessionFactory getSessionFactory(){
+	protected SessionFactory getSessionFactory() {
 		return sessionFactory;
 	}
-	
+
 	@Override
 	protected IDataSet getDataSet() throws Exception {
 		return new DefaultDataSet();
