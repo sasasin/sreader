@@ -27,6 +27,8 @@ import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.criterion.Restrictions;
 
+import net.sasasin.sreader.dao.LoginRulesDao;
+import net.sasasin.sreader.dao.impl.LoginRulesDaoHibernateImpl;
 import net.sasasin.sreader.orm.ContentFullText;
 import net.sasasin.sreader.orm.ContentHeader;
 import net.sasasin.sreader.orm.FeedUrl;
@@ -38,6 +40,8 @@ import net.sasasin.sreader.util.Md5Util;
 import net.sasasin.sreader.util.Wget;
 
 public class ContentFullTextDriver {
+
+	private LoginRulesDao loginRulesDao = new LoginRulesDaoHibernateImpl();
 
 	public ContentFullText fetch(ContentHeader ch) {
 		ContentFullText c = null;
@@ -59,7 +63,9 @@ public class ContentFullTextDriver {
 			// ログインIDとパスワードがあれば
 			if (sub != null) {
 				// ログイン情報も取ってきて
-				w.setLoginInfo(getLoginRules(new URL(ch.getUrl()).getHost()));
+				LoginRules lr = loginRulesDao
+						.getByHostname(new URL(ch.getUrl()).getHost());
+				w.setLoginInfo(lr);
 				w.setLoginId(sub.getAuthName());
 				w.setLoginPassword(sub.getAuthPassword());
 			}
@@ -72,7 +78,8 @@ public class ContentFullTextDriver {
 
 				c = new ContentFullText();
 				c.setId(Md5Util.crypt(ch.getUrl()));
-				c.setFullText(new ExtractFullText().analyse(s, new URL(ch.getUrl())));
+				c.setFullText(new ExtractFullText().analyse(s,
+						new URL(ch.getUrl())));
 				c.setContentHeader(ch);
 
 			}
@@ -85,30 +92,14 @@ public class ContentFullTextDriver {
 
 	}
 
-	public LoginRules getLoginRules(String hostName) {
-
-		LoginRules lr = null;
-		Session ses = DbUtil.getSessionFactory().openSession();
-		Transaction tx = ses.beginTransaction();
-
-		lr = (LoginRules) ses
-				.createQuery(
-						"from LoginRules lr where lr.hostName = :p_hostName")
-				.setParameter("p_hostName", hostName).setMaxResults(1)
-				.uniqueResult();
-
-		tx.commit();
-		return lr;
-	}
-
 	public List<ContentHeader> getContentHeader() {
 
 		Session ses = DbUtil.getSessionFactory().openSession();
 		Transaction tx = ses.beginTransaction();
 
 		// 本文未取得で、未配信のもの
-		//TODO これでは、誰か一人でも配信されてたら、金輪際配信されなくなる
-		//TODO 正しくは、誰か一人でも配信されていなければ、取得を試みるようにしないと
+		// TODO これでは、誰か一人でも配信されてたら、金輪際配信されなくなる
+		// TODO 正しくは、誰か一人でも配信されていなければ、取得を試みるようにしないと
 		String queryString = "select h.*"
 				+ " from content_header h left outer join content_full_text f"
 				+ " on h.id = f.content_header_id"
@@ -149,7 +140,7 @@ public class ContentFullTextDriver {
 		}
 	}
 
-	public static void main(String[] args){
+	public static void main(String[] args) {
 		// get content full text.
 		new ContentFullTextDriver().run();
 	}
