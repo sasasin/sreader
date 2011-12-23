@@ -21,12 +21,12 @@ JDK6、MySQL、Git、Maven3.xをあらかじめPATHの通った場所にイン�
 
 	git clone git://github.com/sasasin/sreader.git
 	cd sreader/sreader/script
-	./build_pgm.sh
+	./build.sh
 
 DBを構築します。Gmail配信を使用するため、アカウント情報をデータベースに登録します。gmail.sqlは適宜修正して使用してください。
 
 	mysql -u root -p
-	source ddl.mysql.sql
+	source ddl.mysql.users.sql
 	source dml.sql
 	source gmail.sql
 	commit;
