@@ -27,15 +27,16 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import net.sasasin.sreader.dao.ContentHeaderDao;
+import net.sasasin.sreader.dao.FeedUrlDao;
+import net.sasasin.sreader.dao.impl.ContentHeaderDaoHibernateImpl;
+import net.sasasin.sreader.dao.impl.FeedUrlDaoHibernateImpl;
 import net.sasasin.sreader.orm.ContentHeader;
 import net.sasasin.sreader.orm.FeedUrl;
-import net.sasasin.sreader.util.DbUtil;
 import net.sasasin.sreader.util.Md5Util;
 import net.sasasin.sreader.util.Wget;
 
 import org.apache.commons.io.IOUtils;
-import org.hibernate.Session;
-import org.hibernate.Transaction;
 
 import com.sun.syndication.feed.synd.SyndEntry;
 import com.sun.syndication.feed.synd.SyndFeed;
@@ -48,6 +49,9 @@ import com.sun.syndication.io.XmlReader;
  * 
  */
 public class ContentHeaderDriver {
+
+	private FeedUrlDao feedUrlDao = new FeedUrlDaoHibernateImpl();
+	private ContentHeaderDao contentHeaderDao = new ContentHeaderDaoHibernateImpl();
 
 	// get contents from url
 	// parse feed
@@ -73,8 +77,9 @@ public class ContentHeaderDriver {
 
 				// HTTP 30x対策。moved先のURLを取得する。
 				// 30xしていなければ、new URL(entry.getLink())したものが返る。
-				URL entryUrl = new Wget(new URL(entry.getLink())).getOriginalUrl();
-				
+				URL entryUrl = new Wget(new URL(entry.getLink()))
+						.getOriginalUrl();
+
 				ch.setUrl(entryUrl.toString());
 				ch.setId(Md5Util.crypt(ch.getUrl()));
 				ch.setTitle(entry.getTitle());
@@ -94,46 +99,28 @@ public class ContentHeaderDriver {
 
 	}
 
-	public List<FeedUrl> getFeedUrl() {
-
-		Session ses = DbUtil.getSessionFactory().openSession();
-		Transaction tx = ses.beginTransaction();
-
-		@SuppressWarnings("unchecked")
-		List<FeedUrl> fs = ses.createCriteria(FeedUrl.class).list();
-		tx.commit();
-
-		return fs;
-	}
-
 	public void importContentHeader(Set<ContentHeader> chs) {
-		Session ses = DbUtil.getSessionFactory().openSession();
-		Transaction tx = ses.beginTransaction();
 		for (ContentHeader ch : chs) {
 			// 投入前に重複チェック
-			ContentHeader ch2 = (ContentHeader) ses.get(ContentHeader.class,
-					ch.getId());
+			ContentHeader ch2 = contentHeaderDao.get(ch.getId());
 			if (ch2 == null) {
 				// キーで探して居なければ投入
-				ses.save(ch);
+				contentHeaderDao.save(ch);
 			}
 		}
-		tx.commit();
-
 	}
 
 	public void run() {
-
-		for (FeedUrl fu : getFeedUrl()) {
+		for (FeedUrl fu : feedUrlDao.findAll()) {
 			// RSS/Atom feed to Set<....>
 			Set<ContentHeader> s = this.fetch(fu);
 			this.importContentHeader(s);
 		}
 	}
-	
-	public static void main(String[] args){
+
+	public static void main(String[] args) {
 		// import RSS/Atom to content_header table.
-		new ContentHeaderDriver().run();		
+		new ContentHeaderDriver().run();
 	}
 
 }
