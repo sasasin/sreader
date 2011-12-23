@@ -21,20 +21,20 @@ package net.sasasin.sreader;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.List;
 
-import org.hibernate.Session;
-import org.hibernate.Transaction;
-import org.hibernate.criterion.Restrictions;
-
+import net.sasasin.sreader.dao.ContentFullTextDao;
+import net.sasasin.sreader.dao.ContentHeaderDao;
 import net.sasasin.sreader.dao.LoginRulesDao;
+import net.sasasin.sreader.dao.SubscriberDao;
+import net.sasasin.sreader.dao.impl.ContentFullTextDaoHibernateImpl;
+import net.sasasin.sreader.dao.impl.ContentHeaderDaoHibernateImpl;
 import net.sasasin.sreader.dao.impl.LoginRulesDaoHibernateImpl;
+import net.sasasin.sreader.dao.impl.SubscriberDaoHibernateImpl;
 import net.sasasin.sreader.orm.ContentFullText;
 import net.sasasin.sreader.orm.ContentHeader;
 import net.sasasin.sreader.orm.FeedUrl;
 import net.sasasin.sreader.orm.LoginRules;
 import net.sasasin.sreader.orm.Subscriber;
-import net.sasasin.sreader.util.DbUtil;
 import net.sasasin.sreader.util.ExtractFullText;
 import net.sasasin.sreader.util.Md5Util;
 import net.sasasin.sreader.util.Wget;
@@ -42,22 +42,17 @@ import net.sasasin.sreader.util.Wget;
 public class ContentFullTextDriver {
 
 	private LoginRulesDao loginRulesDao = new LoginRulesDaoHibernateImpl();
+	private SubscriberDao subscriberDao = new SubscriberDaoHibernateImpl();
+	private ContentHeaderDao contentHeaderDao = new ContentHeaderDaoHibernateImpl();
+	private ContentFullTextDao contentFullTextDao = new ContentFullTextDaoHibernateImpl();
 
 	public ContentFullText fetch(ContentHeader ch) {
 		ContentFullText c = null;
-		String s = null;
-		Session ses = DbUtil.getSessionFactory().openSession();
 		try {
 
 			FeedUrl f = ch.getFeedUrl();
 			// ログインIDとパスワードはSubscriberにある。
-			// TODO 「有効なアカウントの」という条件を付与する。
-			// TODO 「有効なアカウント」をチェックする仕組みを作る。
-			Subscriber sub = (Subscriber) ses.createCriteria(Subscriber.class)
-					.add(Restrictions.eq("feedUrl", f))
-					.add(Restrictions.isNotNull("authName"))
-					.add(Restrictions.isNotNull("authPassword"))
-					.setMaxResults(1).uniqueResult();
+			Subscriber sub = subscriberDao.getByFeedUrl(f);			
 
 			Wget w = new Wget(new URL(ch.getUrl()));
 			// ログインIDとパスワードがあれば
@@ -70,7 +65,7 @@ public class ContentFullTextDriver {
 				w.setLoginPassword(sub.getAuthPassword());
 			}
 			// Wget.read()は、任意の文字コードからUTF-8に変換し、Stringに詰める。
-			s = w.read();
+			String s = w.read();
 			// Stringの文字コードと、HTMLのcharsetに記載された文字コード名が一致していないと
 			// HtmlUnitがパニックを起こす。その対策。
 			s = s.replaceAll("charset=(.*?)\"", "charset=UTF-8\"");
@@ -92,47 +87,17 @@ public class ContentFullTextDriver {
 
 	}
 
-	public List<ContentHeader> getContentHeader() {
-
-		Session ses = DbUtil.getSessionFactory().openSession();
-		Transaction tx = ses.beginTransaction();
-
-		// 本文未取得で、未配信のもの
-		// TODO これでは、誰か一人でも配信されてたら、金輪際配信されなくなる
-		// TODO 正しくは、誰か一人でも配信されていなければ、取得を試みるようにしないと
-		String queryString = "select h.*"
-				+ " from content_header h left outer join content_full_text f"
-				+ " on h.id = f.content_header_id"
-				+ " inner join feed_url fu"
-				+ " on h.feed_url_id = fu.id"
-				+ " where f.id is null"
-				+ " and h.id not in (select content_header_id from publish_log)";
-		@SuppressWarnings("unchecked")
-		List<ContentHeader> l = (List<ContentHeader>) ses
-				.createSQLQuery(queryString).addEntity(ContentHeader.class)
-				.list();
-		tx.commit();
-
-		return l;
-	}
-
 	private void importContentFullText(ContentFullText s) {
-
-		Session ses = DbUtil.getSessionFactory().openSession();
-		Transaction tx = ses.beginTransaction();
-
-		ContentFullText s2 = (ContentFullText) ses
-				.createQuery("from ContentFullText where id = :id")
-				.setParameter("id", s.getId()).uniqueResult();
+		ContentFullText s2 = contentFullTextDao.get(s.getId());
 		if (s2 == null) {
-			ses.save(s);
+			contentFullTextDao.save(s);
 		}
-		tx.commit();
 	}
 
 	public void run() {
 
-		for (ContentHeader ch : getContentHeader()) {
+		for (ContentHeader ch : contentHeaderDao
+				.findByConditionOfFullTextNotFetched()) {
 			ContentFullText s = this.fetch(ch);
 			if (s != null) {
 				this.importContentFullText(s);

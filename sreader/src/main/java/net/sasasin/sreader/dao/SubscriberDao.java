@@ -19,12 +19,21 @@
  */
 package net.sasasin.sreader.dao;
 
+import net.sasasin.sreader.orm.FeedUrl;
 import net.sasasin.sreader.orm.Subscriber;
 
 /**
  * @author sasasin
- *
+ * 
  */
 public interface SubscriberDao extends GenericDao<Subscriber, String> {
+
+	/**
+	 * FeedUrlと紐付くSubscriberのうち、ログイン情報がNULLではないデータから、任意の一件を取得する。
+	 * 
+	 * @param f
+	 * @return
+	 */
+	public Subscriber getByFeedUrl(FeedUrl f);
 
 }

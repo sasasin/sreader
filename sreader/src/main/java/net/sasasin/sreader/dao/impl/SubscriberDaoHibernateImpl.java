@@ -19,7 +19,11 @@
  */
 package net.sasasin.sreader.dao.impl;
 
+import org.hibernate.Session;
+import org.hibernate.criterion.Restrictions;
+
 import net.sasasin.sreader.dao.SubscriberDao;
+import net.sasasin.sreader.orm.FeedUrl;
 import net.sasasin.sreader.orm.Subscriber;
 
 /**
@@ -28,5 +32,19 @@ import net.sasasin.sreader.orm.Subscriber;
  */
 public class SubscriberDaoHibernateImpl extends
 		GenericDaoHibernateImpl<Subscriber, String> implements SubscriberDao {
+
+	@Override
+	public Subscriber getByFeedUrl(FeedUrl f) {
+		Session ses = getSessionFactory().openSession();
+
+		// TODO 「有効なアカウントの」という条件を付与する。
+		// TODO 「有効なアカウント」をチェックする仕組みを作る。
+		Subscriber sub = (Subscriber) ses.createCriteria(Subscriber.class)
+				.add(Restrictions.eq("feedUrl", f))
+				.add(Restrictions.isNotNull("authName"))
+				.add(Restrictions.isNotNull("authPassword")).setMaxResults(1)
+				.uniqueResult();
+		return sub;
+	}
 
 }
