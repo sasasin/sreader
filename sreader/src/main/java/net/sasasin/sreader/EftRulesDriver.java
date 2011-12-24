@@ -69,7 +69,9 @@ public class EftRulesDriver {
 		// URLとXPathだけ抽出。
 		for (Map m : (List<Map>) JSON.decode(jsonString)) {
 			Map<String, String> data = (Map<String, String>) m.get("data");
-			ldrFullFeed.put(data.get("url"), data.get("xpath"));
+			String url = data.get("url");
+			String xpath = data.get("xpath");
+			ldrFullFeed.put(url, xpath);
 		}
 		return ldrFullFeed;
 	}
@@ -83,10 +85,12 @@ public class EftRulesDriver {
 				er = new EftRules();
 				er.setUrl(key);
 				er.setId(Md5Util.crypt(er.getUrl()));
+				er.setExtractRule(json.get(key));
 				eftRulesDao.save(er);
+			} else {
+				er.setExtractRule(json.get(key));
+				eftRulesDao.update(er);
 			}
-			er.setExtractRule(json.get(key));
-			eftRulesDao.update(er);
 		}
 	}
 }
