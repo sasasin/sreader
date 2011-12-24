@@ -35,9 +35,10 @@ import net.sasasin.sreader.orm.ContentHeader;
 import net.sasasin.sreader.orm.FeedUrl;
 import net.sasasin.sreader.orm.LoginRules;
 import net.sasasin.sreader.orm.Subscriber;
-import net.sasasin.sreader.util.ExtractFullText;
 import net.sasasin.sreader.util.Md5Util;
 import net.sasasin.sreader.util.Wget;
+import net.sasasin.sreader.util.impl.ExtractFullTextImpl;
+import net.sasasin.sreader.util.impl.WgetImpl;
 
 public class ContentFullTextDriver {
 
@@ -52,9 +53,10 @@ public class ContentFullTextDriver {
 
 			FeedUrl f = ch.getFeedUrl();
 			// ログインIDとパスワードはSubscriberにある。
-			Subscriber sub = subscriberDao.getByFeedUrl(f);			
+			Subscriber sub = subscriberDao.getByFeedUrl(f);
 
-			Wget w = new Wget(new URL(ch.getUrl()));
+			Wget w = new WgetImpl();
+			w.setUrl(new URL(ch.getUrl()));
 			// ログインIDとパスワードがあれば
 			if (sub != null) {
 				// ログイン情報も取ってきて
@@ -73,7 +75,7 @@ public class ContentFullTextDriver {
 
 				c = new ContentFullText();
 				c.setId(Md5Util.crypt(ch.getUrl()));
-				c.setFullText(new ExtractFullText().analyse(s,
+				c.setFullText(new ExtractFullTextImpl().analyse(s,
 						new URL(ch.getUrl())));
 				c.setContentHeader(ch);
 
