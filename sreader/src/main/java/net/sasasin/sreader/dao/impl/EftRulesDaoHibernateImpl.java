@@ -19,8 +19,12 @@
  */
 package net.sasasin.sreader.dao.impl;
 
+import java.net.URL;
+
 import net.sasasin.sreader.dao.EftRulesDao;
 import net.sasasin.sreader.orm.EftRules;
+
+import org.hibernate.Session;
 
 /**
  * @author sasasin
@@ -28,4 +32,19 @@ import net.sasasin.sreader.orm.EftRules;
  */
 public class EftRulesDaoHibernateImpl extends
 		GenericDaoHibernateImpl<EftRules, String> implements EftRulesDao {
+
+	@Override
+	public EftRules getByUrl(URL url) {
+		
+		String sql = "select e.* from eft_rules e where :url regexp replace(substring_index(url, '(?!', '1'),'(?:','(') "
+				+ "order by length(replace(substring_index(url, '(?!', '1'),'(?:','(')) desc";
+
+		Session ses = getSessionFactory().openSession();
+
+		EftRules er = (EftRules) ses.createSQLQuery(sql)
+				.addEntity(EftRules.class).setParameter("url", url.toString())
+				.setMaxResults(1).uniqueResult();
+		
+		return er;
+	}
 }

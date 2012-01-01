@@ -23,12 +23,10 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 
+import net.sasasin.sreader.dao.EftRulesDao;
+import net.sasasin.sreader.dao.impl.EftRulesDaoHibernateImpl;
 import net.sasasin.sreader.orm.EftRules;
-import net.sasasin.sreader.util.DbUtil;
 import net.sasasin.sreader.util.ExtractFullText;
-
-import org.hibernate.Session;
-import org.hibernate.Transaction;
 
 import com.gargoylesoftware.htmlunit.StringWebResponse;
 import com.gargoylesoftware.htmlunit.WebClient;
@@ -37,6 +35,8 @@ import com.gargoylesoftware.htmlunit.html.HtmlElement;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 public class ExtractFullTextImpl implements ExtractFullText {
+
+	private EftRulesDao eftRulesDao = new EftRulesDaoHibernateImpl();
 
 	@Override
 	public String analyse(String html, URL url) {
@@ -48,7 +48,11 @@ public class ExtractFullTextImpl implements ExtractFullText {
 			e.printStackTrace();
 		}
 		// 本文抽出のルール取得
-		String xpath = getExtractRule(url);
+		EftRules eftRules = eftRulesDao.getByUrl(url);
+		String xpath = "";
+		if (eftRules != null) {
+			xpath = eftRules.getExtractRule();
+		}
 		// xpath.isEmptyだとHtmlUnitが例外を投げて面倒くさい
 		if (!xpath.isEmpty()) {
 			// xpathで複数抽出されるのもある
@@ -81,25 +85,4 @@ public class ExtractFullTextImpl implements ExtractFullText {
 				url), c.getCurrentWindow());
 		return h;
 	}
-
-	private String getExtractRule(URL url) {
-		String extractRule = null;
-		String sql = "select e.* from eft_rules e where :url regexp replace(substring_index(url, '(?!', '1'),'(?:','(') "
-				+ "order by length(replace(substring_index(url, '(?!', '1'),'(?:','(')) desc";
-
-		Session ses = DbUtil.getSessionFactory().openSession();
-		Transaction tx = ses.beginTransaction();
-
-		EftRules er = (EftRules) ses.createSQLQuery(sql)
-				.addEntity(EftRules.class).setParameter("url", url.toString())
-				.setMaxResults(1).uniqueResult();
-		if (er != null) {
-			extractRule = er.getExtractRule();
-		} else {
-			extractRule = "";
-		}
-		tx.commit();
-		return extractRule;
-	}
-
 }

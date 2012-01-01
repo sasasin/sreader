@@ -19,6 +19,8 @@
  */
 package net.sasasin.sreader.dao;
 
+import java.net.URL;
+
 import net.sasasin.sreader.orm.EftRules;
 
 /**
@@ -26,5 +28,13 @@ import net.sasasin.sreader.orm.EftRules;
  * 
  */
 public interface EftRulesDao extends GenericDao<EftRules, String> {
+	
+	/**
+	 * URLに使用可能と考えられるEftRulesを取得する。
+	 * 
+	 * @param url
+	 * @return
+	 */
+	public EftRules getByUrl(URL url);
 
 }
