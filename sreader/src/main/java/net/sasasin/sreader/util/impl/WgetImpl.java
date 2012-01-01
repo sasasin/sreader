@@ -35,6 +35,7 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpHead;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.params.ClientPNames;
 import org.apache.http.impl.client.DefaultHttpClient;
@@ -196,7 +197,7 @@ public class WgetImpl implements Wget {
 
 		HttpResponse responce = null;
 		try {
-			responce = httpclient.execute(new HttpGet(getUrl().toString()));
+			responce = httpclient.execute(new HttpHead(getUrl().toString()));
 
 			int httpStatusCode = responce.getStatusLine().getStatusCode();
 
