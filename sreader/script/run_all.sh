@@ -23,7 +23,7 @@ BASEDIR=$(cd $(dirname $0);pwd)
 
 cd $BASEDIR/../
 
-$BASEDIR/run_eftrules.sh
+$BASEDIR/run_eftrule.sh
 $BASEDIR/run_feedreader.sh
 $BASEDIR/run_publisher.sh
 
