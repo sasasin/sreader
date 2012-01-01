@@ -37,6 +37,8 @@ import net.sasasin.sreader.util.Md5Util;
 import net.sasasin.sreader.util.impl.WgetImpl;
 
 import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.sun.syndication.feed.synd.SyndEntry;
 import com.sun.syndication.feed.synd.SyndFeed;
@@ -49,18 +51,20 @@ import com.sun.syndication.io.XmlReader;
  * 
  */
 public class ContentHeaderDriver {
+	private static Logger logger = LoggerFactory.getLogger("net.sasasin.sreader");
 
 	private FeedUrlDao feedUrlDao = new FeedUrlDaoHibernateImpl();
 	private ContentHeaderDao contentHeaderDao = new ContentHeaderDaoHibernateImpl();
 
-	// get contents from url
-	// parse feed
-	// return list
+	/**
+	 * FeedUrlで表されるRSSを取得し、ContentHeaderのリストを返す。
+	 * 
+	 * @param f
+	 * @return
+	 */
 	public Set<ContentHeader> fetch(FeedUrl f) {
 		Set<ContentHeader> c = new HashSet<ContentHeader>();
-
 		fetchByRome(f, c);
-		// fetchByDefaultApi(f, c);
 		return c;
 	}
 
@@ -73,6 +77,9 @@ public class ContentHeaderDriver {
 			// Romeパーサー
 			SyndFeed feed = new SyndFeedInput().build(new XmlReader(is));
 			for (SyndEntry entry : (List<SyndEntry>) feed.getEntries()) {
+				
+				logger.info(this.getClass().getSimpleName() + " processing " + entry.getLink());
+				
 				ContentHeader ch = new ContentHeader();
 
 				// HTTP 30x対策。moved先のURLを取得する。
@@ -111,11 +118,15 @@ public class ContentHeaderDriver {
 	}
 
 	public void run() {
+		logger.info(this.getClass().getSimpleName() +" is started.");
+		
 		for (FeedUrl fu : feedUrlDao.findAll()) {
 			// RSS/Atom feed to Set<....>
 			Set<ContentHeader> s = this.fetch(fu);
 			this.importContentHeader(s);
 		}
+		
+		logger.info(this.getClass().getSimpleName() +" is ended.");
 	}
 
 	public static void main(String[] args) {

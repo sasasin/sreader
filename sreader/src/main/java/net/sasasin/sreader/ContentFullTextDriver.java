@@ -22,6 +22,9 @@ package net.sasasin.sreader;
 import java.net.MalformedURLException;
 import java.net.URL;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import net.sasasin.sreader.dao.ContentFullTextDao;
 import net.sasasin.sreader.dao.ContentHeaderDao;
 import net.sasasin.sreader.dao.LoginRulesDao;
@@ -41,6 +44,7 @@ import net.sasasin.sreader.util.impl.ExtractFullTextImpl;
 import net.sasasin.sreader.util.impl.WgetImpl;
 
 public class ContentFullTextDriver {
+	private static Logger logger = LoggerFactory.getLogger("net.sasasin.sreader");
 
 	private LoginRulesDao loginRulesDao = new LoginRulesDaoHibernateImpl();
 	private SubscriberDao subscriberDao = new SubscriberDaoHibernateImpl();
@@ -97,14 +101,20 @@ public class ContentFullTextDriver {
 	}
 
 	public void run() {
-
+		logger.info(this.getClass().getSimpleName() +" is started.");
+		
 		for (ContentHeader ch : contentHeaderDao
 				.findByConditionOfFullTextNotFetched()) {
+			
+			logger.info(this.getClass().getSimpleName() + " fetch " + ch.getUrl());
+			
 			ContentFullText s = this.fetch(ch);
 			if (s != null) {
 				this.importContentFullText(s);
 			}
 		}
+		
+		logger.info(this.getClass().getSimpleName() +" is ended.");
 	}
 
 	public static void main(String[] args) {

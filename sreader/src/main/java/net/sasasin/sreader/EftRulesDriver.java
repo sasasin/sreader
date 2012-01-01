@@ -33,8 +33,12 @@ import net.sasasin.sreader.orm.EftRules;
 import net.sasasin.sreader.util.Md5Util;
 
 import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class EftRulesDriver {
+	private static Logger logger = LoggerFactory.getLogger("net.sasasin.sreader");
+	
 	private URL url = null;
 	private String jsonString = null;
 	private Map<String, String> jsonMap = null;
@@ -48,6 +52,8 @@ public class EftRulesDriver {
 	}
 
 	public void run() {
+		logger.info(this.getClass().getSimpleName() +" is started.");
+		
 		try {
 			url = new URL("http://wedata.net/databases/LDRFullFeed/items.json");
 			try {
@@ -61,6 +67,7 @@ public class EftRulesDriver {
 		} catch (MalformedURLException e) {
 		}
 
+		logger.info(this.getClass().getSimpleName() +" is ended.");
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })

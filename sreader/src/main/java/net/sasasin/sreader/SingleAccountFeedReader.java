@@ -37,8 +37,11 @@ import net.sasasin.sreader.orm.Subscriber;
 import net.sasasin.sreader.util.Md5Util;
 
 import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SingleAccountFeedReader {
+	private static Logger logger = LoggerFactory.getLogger("net.sasasin.sreader");
 
 	private AccountDao accountDao = new AccountDaoHibernateImpl();
 	private FeedUrlDao feedUrlDao = new FeedUrlDaoHibernateImpl();
@@ -48,11 +51,12 @@ public class SingleAccountFeedReader {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		new SingleAccountFeedReader().run(args);
+		new SingleAccountFeedReader().run();
 	}
 
-	public void run(String[] args) {
-
+	public void run() {
+		logger.info(this.getClass().getSimpleName() +" is started.");
+		
 		File path = new File(System.getProperty("user.home")
 				+ File.separatorChar + "sreader.txt");
 
@@ -72,6 +76,7 @@ public class SingleAccountFeedReader {
 		// import path to feed_url table.
 		importSubscribe(lines);
 
+		logger.info(this.getClass().getSimpleName() +" is ended.");
 	}
 
 	private void importSubscribe(List<String> lines) {
