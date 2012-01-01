@@ -25,6 +25,8 @@ import java.util.List;
 import org.hibernate.Transaction;
 import org.hibernate.Session;
 
+import net.sasasin.sreader.dao.PublishLogDao;
+import net.sasasin.sreader.dao.impl.PublishLogDaoHibernateImpl;
 import net.sasasin.sreader.orm.ContentView;
 import net.sasasin.sreader.orm.ContentViewId;
 import net.sasasin.sreader.orm.PublishLog;
@@ -33,6 +35,8 @@ import net.sasasin.sreader.util.Md5Util;
 
 public abstract class AbstractPublisher {
 
+	private PublishLogDao publishLogDao = new PublishLogDaoHibernateImpl();
+	
 	public void run() {
 		List<ContentView> contents = getContent();
 
@@ -66,9 +70,7 @@ public abstract class AbstractPublisher {
 	}
 
 	public void log(ContentViewId content) {
-		Session ses = DbUtil.getSessionFactory().openSession();
-		Transaction tx = ses.beginTransaction();
-
+		
 		PublishLog log = new PublishLog();
 
 		log.setId(Md5Util.crypt(content.getAccountId()
@@ -77,9 +79,7 @@ public abstract class AbstractPublisher {
 		log.setContentHeaderId(content.getContentHeaderId());
 		log.setPublishDate(new Date());
 
-		ses.save(log);
-
-		tx.commit();
+		publishLogDao.save(log);
 
 	}
 
