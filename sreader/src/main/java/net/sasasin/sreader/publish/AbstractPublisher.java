@@ -24,6 +24,8 @@ import java.util.List;
 
 import org.hibernate.Transaction;
 import org.hibernate.Session;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.sasasin.sreader.dao.PublishLogDao;
 import net.sasasin.sreader.dao.impl.PublishLogDaoHibernateImpl;
@@ -35,6 +37,8 @@ import net.sasasin.sreader.util.Md5Util;
 
 public abstract class AbstractPublisher {
 
+	private Logger logger = LoggerFactory.getLogger("net.sasasin.sreader");
+	
 	private PublishLogDao publishLogDao = new PublishLogDaoHibernateImpl();
 	
 	public void run() {
@@ -83,4 +87,7 @@ public abstract class AbstractPublisher {
 
 	}
 
+	public Logger getLogger(){
+		return logger;
+	}
 }
