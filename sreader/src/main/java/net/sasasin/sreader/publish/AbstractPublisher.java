@@ -22,23 +22,23 @@ package net.sasasin.sreader.publish;
 import java.util.Date;
 import java.util.List;
 
-import org.hibernate.Transaction;
-import org.hibernate.Session;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import net.sasasin.sreader.dao.ContentViewDao;
 import net.sasasin.sreader.dao.PublishLogDao;
+import net.sasasin.sreader.dao.impl.ContentViewDaoHibernateImpl;
 import net.sasasin.sreader.dao.impl.PublishLogDaoHibernateImpl;
 import net.sasasin.sreader.orm.ContentView;
 import net.sasasin.sreader.orm.ContentViewId;
 import net.sasasin.sreader.orm.PublishLog;
-import net.sasasin.sreader.util.DbUtil;
 import net.sasasin.sreader.util.Md5Util;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class AbstractPublisher {
 
-	private Logger logger = LoggerFactory.getLogger("net.sasasin.sreader");
+	private static Logger logger = LoggerFactory.getLogger("net.sasasin.sreader");
 	
+	private ContentViewDao contentViewDao = new ContentViewDaoHibernateImpl();
 	private PublishLogDao publishLogDao = new PublishLogDaoHibernateImpl();
 	
 	public void run() {
@@ -61,14 +61,9 @@ public abstract class AbstractPublisher {
 	}
 
 	public List<ContentView> getContent() {
-		Session ses = DbUtil.getSessionFactory().openSession();
-		Transaction tx = ses.beginTransaction();
+		
+		List<ContentView> l = contentViewDao.findAll();
 
-		@SuppressWarnings("unchecked")
-		List<ContentView> l = (List<ContentView>) ses.createCriteria(
-				ContentView.class).list();
-
-		tx.commit();
 		return l;
 
 	}
