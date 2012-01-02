@@ -46,6 +46,7 @@ public class GenericDaoHibernateImpl<T, PK extends Serializable> implements
 			.getGenericSuperclass()).getActualTypeArguments()[0];
 
 	private SessionFactory sessionFactory;
+	private Session session;
 
 	protected SessionFactory getSessionFactory() {
 		if (sessionFactory == null) {
@@ -59,6 +60,13 @@ public class GenericDaoHibernateImpl<T, PK extends Serializable> implements
 		this.sessionFactory = sessionFactory;
 	}
 
+	private Session getSession(){
+		if (session == null || !session.isOpen()){
+			session = getSessionFactory().openSession();
+		}
+		return session;
+	}
+	
 	protected Class<T> getType() {
 
 		return this.type;
@@ -68,7 +76,7 @@ public class GenericDaoHibernateImpl<T, PK extends Serializable> implements
 	@Override
 	public T get(PK id) {
 
-		T entity = (T) getSessionFactory().openSession().get(getType(), id);
+		T entity = (T) getSession().get(getType(), id);
 
 		return entity;
 
@@ -77,7 +85,7 @@ public class GenericDaoHibernateImpl<T, PK extends Serializable> implements
 	@SuppressWarnings("unchecked")
 	@Override
 	public List<T> findAll() {
-		Session s = getSessionFactory().openSession();
+		Session s = getSession();
 
 		List<T> result = s.createCriteria(getType())
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).list();
@@ -88,14 +96,15 @@ public class GenericDaoHibernateImpl<T, PK extends Serializable> implements
 	@SuppressWarnings("unchecked")
 	@Override
 	public PK save(T entity) {
-		Session s = getSessionFactory().openSession();
+		Session s = getSession();
 		Transaction tx = s.beginTransaction();
 		try {
 			PK id = (PK) s.save(entity);
 			tx.commit();
+			s.close();
 			return id;
 		} catch (HibernateException e) {
-			// キー重複によるinsert失敗。ロールバックし、セッションは閉じる。
+			// insert失敗。ロールバックし、セッションは閉じる。
 			e.printStackTrace();
 			tx.rollback();
 			s.close();
@@ -105,11 +114,12 @@ public class GenericDaoHibernateImpl<T, PK extends Serializable> implements
 
 	@Override
 	public void update(T entity) {
-		Session s = getSessionFactory().openSession();
+		Session s = getSession();
 		Transaction tx = s.beginTransaction();
 		try {
 			s.update(entity);
 			tx.commit();
+			s.close();
 		} catch (HibernateException e) {
 			// update失敗。ロールバックし、セッションは閉じる。
 			e.printStackTrace();
@@ -121,11 +131,12 @@ public class GenericDaoHibernateImpl<T, PK extends Serializable> implements
 
 	@Override
 	public void delete(T entity) {
-		Session s = getSessionFactory().openSession();
+		Session s = getSession();
 		Transaction tx = s.beginTransaction();
 		try {
 			s.delete(entity);
 			tx.commit();
+			s.close();
 		} catch (HibernateException e) {
 			// delete失敗。ロールバックし、セッションは閉じる。
 			e.printStackTrace();
