@@ -42,6 +42,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpParams;
+import org.apache.http.params.HttpProtocolParams;
 import org.apache.http.protocol.HTTP;
 import org.apache.http.util.EntityUtils;
 
@@ -156,6 +157,10 @@ public class WgetImpl implements Wget {
 		HttpParams params = new BasicHttpParams();
 		// HTTP 30xを追跡する
 		params.setBooleanParameter(ClientPNames.HANDLE_REDIRECTS, true);
+		
+		// UserAgentを設定。無難にMSIE。
+		String useragent = "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)";
+		HttpProtocolParams.setUserAgent(params, useragent);
 
 		HttpClient httpclient = new DefaultHttpClient(params);
 		HttpResponse response = null;
