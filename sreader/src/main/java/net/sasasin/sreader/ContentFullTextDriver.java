@@ -27,10 +27,12 @@ import org.slf4j.LoggerFactory;
 
 import net.sasasin.sreader.dao.ContentFullTextDao;
 import net.sasasin.sreader.dao.ContentHeaderDao;
+import net.sasasin.sreader.dao.EftRulesDao;
 import net.sasasin.sreader.dao.LoginRulesDao;
 import net.sasasin.sreader.dao.SubscriberDao;
 import net.sasasin.sreader.dao.impl.ContentFullTextDaoHibernateImpl;
 import net.sasasin.sreader.dao.impl.ContentHeaderDaoHibernateImpl;
+import net.sasasin.sreader.dao.impl.EftRulesDaoHibernateImpl;
 import net.sasasin.sreader.dao.impl.LoginRulesDaoHibernateImpl;
 import net.sasasin.sreader.dao.impl.SubscriberDaoHibernateImpl;
 import net.sasasin.sreader.orm.ContentFullText;
@@ -44,12 +46,14 @@ import net.sasasin.sreader.util.impl.ExtractFullTextImpl;
 import net.sasasin.sreader.util.impl.WgetImpl;
 
 public class ContentFullTextDriver {
-	private static Logger logger = LoggerFactory.getLogger("net.sasasin.sreader");
+	private static Logger logger = LoggerFactory
+			.getLogger("net.sasasin.sreader");
 
 	private LoginRulesDao loginRulesDao = new LoginRulesDaoHibernateImpl();
 	private SubscriberDao subscriberDao = new SubscriberDaoHibernateImpl();
 	private ContentHeaderDao contentHeaderDao = new ContentHeaderDaoHibernateImpl();
 	private ContentFullTextDao contentFullTextDao = new ContentFullTextDaoHibernateImpl();
+	private EftRulesDao eftRulesDao = new EftRulesDaoHibernateImpl();
 
 	public ContentFullText fetch(ContentHeader ch) {
 		ContentFullText c = null;
@@ -79,7 +83,7 @@ public class ContentFullTextDriver {
 
 				c = new ContentFullText();
 				c.setId(Md5Util.crypt(ch.getUrl()));
-				c.setFullText(new ExtractFullTextImpl().analyse(s,
+				c.setFullText(new ExtractFullTextImpl(eftRulesDao).analyse(s,
 						new URL(ch.getUrl())));
 				c.setContentHeader(ch);
 
@@ -101,20 +105,21 @@ public class ContentFullTextDriver {
 	}
 
 	public void run() {
-		logger.info(this.getClass().getSimpleName() +" is started.");
-		
+		logger.info(this.getClass().getSimpleName() + " is started.");
+
 		for (ContentHeader ch : contentHeaderDao
 				.findByConditionOfFullTextNotFetched()) {
-			
-			logger.info(this.getClass().getSimpleName() + " fetch " + ch.getUrl());
-			
+
+			logger.info(this.getClass().getSimpleName() + " fetch "
+					+ ch.getUrl());
+
 			ContentFullText s = this.fetch(ch);
 			if (s != null) {
 				this.importContentFullText(s);
 			}
 		}
-		
-		logger.info(this.getClass().getSimpleName() +" is ended.");
+
+		logger.info(this.getClass().getSimpleName() + " is ended.");
 	}
 
 	public static void main(String[] args) {

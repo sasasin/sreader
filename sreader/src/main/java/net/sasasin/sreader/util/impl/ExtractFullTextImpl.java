@@ -24,7 +24,6 @@ import java.net.URL;
 import java.util.List;
 
 import net.sasasin.sreader.dao.EftRulesDao;
-import net.sasasin.sreader.dao.impl.EftRulesDaoHibernateImpl;
 import net.sasasin.sreader.orm.EftRules;
 import net.sasasin.sreader.util.ExtractFullText;
 
@@ -36,8 +35,12 @@ import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 public class ExtractFullTextImpl implements ExtractFullText {
 
-	private EftRulesDao eftRulesDao = new EftRulesDaoHibernateImpl();
+	private EftRulesDao eftRulesDao = null;
 
+	public ExtractFullTextImpl(EftRulesDao eftRulesDao){
+		this.eftRulesDao = eftRulesDao;
+	}
+	
 	@Override
 	public String analyse(String html, URL url) {
 		String result = null;
