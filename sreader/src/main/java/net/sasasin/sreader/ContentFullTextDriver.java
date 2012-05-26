@@ -21,6 +21,7 @@ package net.sasasin.sreader;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ import net.sasasin.sreader.dao.impl.LoginRulesDaoHibernateImpl;
 import net.sasasin.sreader.dao.impl.SubscriberDaoHibernateImpl;
 import net.sasasin.sreader.orm.ContentFullText;
 import net.sasasin.sreader.orm.ContentHeader;
+import net.sasasin.sreader.orm.EftRules;
 import net.sasasin.sreader.orm.FeedUrl;
 import net.sasasin.sreader.orm.LoginRules;
 import net.sasasin.sreader.orm.Subscriber;
@@ -54,6 +56,7 @@ public class ContentFullTextDriver {
 	private ContentHeaderDao contentHeaderDao = new ContentHeaderDaoHibernateImpl();
 	private ContentFullTextDao contentFullTextDao = new ContentFullTextDaoHibernateImpl();
 	private EftRulesDao eftRulesDao = new EftRulesDaoHibernateImpl();
+	private List<EftRules> eftRulesList;
 
 	public ContentFullText fetch(ContentHeader ch) {
 		ContentFullText c = null;
@@ -83,7 +86,7 @@ public class ContentFullTextDriver {
 
 				c = new ContentFullText();
 				c.setId(Md5Util.crypt(ch.getUrl()));
-				c.setFullText(new ExtractFullTextImpl(eftRulesDao).analyse(s,
+				c.setFullText(new ExtractFullTextImpl(eftRulesList).analyse(s,
 						new URL(ch.getUrl())));
 				c.setContentHeader(ch);
 
@@ -98,14 +101,15 @@ public class ContentFullTextDriver {
 	}
 
 	private void importContentFullText(ContentFullText s) {
-		ContentFullText s2 = contentFullTextDao.get(s.getId());
-		if (s2 == null) {
+		if (contentFullTextDao.get(s.getId()) == null) {
 			contentFullTextDao.save(s);
 		}
 	}
 
 	public void run() {
 		logger.info(this.getClass().getSimpleName() + " is started.");
+
+		eftRulesList = eftRulesDao.findAll();
 
 		for (ContentHeader ch : contentHeaderDao
 				.findByConditionOfFullTextNotFetched()) {
