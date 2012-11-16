@@ -19,6 +19,7 @@ SReaderは、RSS/Atomリーダーです。
 
 JDK6、MySQL、Git、Maven3.xをあらかじめPATHの通った場所にインストールしておいてください。
 
+	sudo apt-get install openjdk-6-jdk mysql-server git-core maven
 	git clone git://github.com/sasasin/sreader.git
 	cd sreader/sreader/script
 	./build.sh
@@ -27,6 +28,15 @@ DBを構築します。Gmail配信を使用するため、アカウント情報�
 
 	mysql -u root -p
 	source ddl.mysql.users.sql
+
+	use sreader;
+	source ddl.mysql.tables.sql
+	source dml.sql
+	source gmail.sql
+	commit;
+
+	use sreadertest;
+	source ddl.mysql.tables.sql
 	source dml.sql
 	source gmail.sql
 	commit;

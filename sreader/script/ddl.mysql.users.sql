@@ -26,6 +26,9 @@ set character set utf8;
 grant all privileges on *.* to  'sreader'@'%'
 identified by 'sreader' with grant option;
 
+grant all privileges on *.* to  'sreader'@'localhost'
+identified by 'sreader' with grant option;
+
 create database if not exists sreader;
 
 alter database sreader character set utf8;
@@ -34,16 +37,9 @@ alter database sreader character set utf8;
 grant all privileges on *.* to  'sreadertest'@'%'
 identified by 'sreadertest' with grant option;
 
+grant all privileges on *.* to  'sreadertest'@'localhost'
+identified by 'sreadertest' with grant option;
+
 create database if not exists sreadertest;
 
 alter database sreadertest character set utf8;
-
-
-use sreader;
-
-source ./ddl.mysql.tables.sql
-
-use sreadertest;
-
-source ./ddl.mysql.tables.sql
-
