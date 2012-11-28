@@ -17,9 +17,9 @@ SReaderは、RSS/Atomリーダーです。
 入手方法 & セットアップ手順
 -----------------------
 
-JDK6、MySQL、Git、Maven3.xをあらかじめPATHの通った場所にインストールしておいてください。
+JDK7、MySQL、Git、Maven3.xをあらかじめPATHの通った場所にインストールしておいてください。
 
-	sudo apt-get install openjdk-6-jdk mysql-server git-core maven
+	sudo apt-get install openjdk-7-jdk mysql-server git-core maven
 	git clone git://github.com/sasasin/sreader.git
 	cd sreader/sreader/script
 	./build.sh
