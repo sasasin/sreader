@@ -24,6 +24,7 @@ BASEDIR=$(cd $(dirname $0);pwd)
 cd $BASEDIR/../
 
 # シェルスクリプト実行に必要なライブラリ収集
+rm -f $BASEDIR/../lib_ext/*
 mvn dependency:copy-dependencies -DoutputDirectory=lib_ext
 
 # アプリのコンパイル
