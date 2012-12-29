@@ -21,8 +21,10 @@ package net.sasasin.sreader.util.impl;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.CharacterCodingException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -131,23 +133,24 @@ public class WgetImpl implements Wget {
 
 	private String read(InputStream is) {
 		String result = null;
+		byte[] buf = null;
 		try {
 			// バイト配列に読み込む。
 			// UTF8ではないソースからStringに読み込むと、文字化けるためと、
 			// 文字化けたStringでは、CharDetectorが文字コード判定に失敗するため。
-			byte[] buf = IOUtils.toByteArray(is);
-			// 文字コード名を取得。
-			String enc = CharDetector.detect(buf);
-			if (enc != null) {
-				// 取得した文字コードでStringに変換。
-				result = new String(buf, enc);
-			} else {
-				// 判定に失敗してたら仕方ないのでそのままStringに変換。
-				result = new String(buf);
-			}
+			buf = IOUtils.toByteArray(is);
 		} catch (IOException e) {
 			e.printStackTrace();
 			result = "";
+		}
+		try {
+			// 文字コード名を取得。
+			String enc = CharDetector.detect(buf);
+			// 取得した文字コードでStringに変換。
+			result = new String(buf, enc);
+		} catch (CharacterCodingException | UnsupportedEncodingException e) {
+			// 判定に失敗してたら仕方ないのでそのままStringに変換。
+			result = new String(buf);
 		}
 		return result;
 	}
@@ -157,7 +160,7 @@ public class WgetImpl implements Wget {
 		HttpParams params = new BasicHttpParams();
 		// HTTP 30xを追跡する
 		params.setBooleanParameter(ClientPNames.HANDLE_REDIRECTS, true);
-		
+
 		// UserAgentを設定。無難にMSIE。
 		String useragent = "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)";
 		HttpProtocolParams.setUserAgent(params, useragent);

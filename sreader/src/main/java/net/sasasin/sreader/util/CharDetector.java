@@ -19,20 +19,24 @@
  */
 package net.sasasin.sreader.util;
 
+import java.nio.charset.CharacterCodingException;
+
 import org.mozilla.universalchardet.UniversalDetector;
 
 public class CharDetector {
 
-	public static String detect(byte[] buf) {
+	public static String detect(byte[] buf) throws CharacterCodingException {
 		UniversalDetector detector = new UniversalDetector(null);
 		int len = buf.length;
 		detector.handleData(buf, 0, len);
 		detector.dataEnd();
 		String encoding = detector.getDetectedCharset();
-		if (encoding == null) {
-			encoding = "";
-		}
 		detector.reset();
+		// 判定に失敗していたら、nullが返ってくる
+		if (encoding == null) {
+			// nullではなく、例外として返す
+			throw new CharacterCodingException();
+		}
 		return encoding;
 	}
 
