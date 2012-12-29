@@ -22,7 +22,6 @@ package net.sasasin.sreader.util.impl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.CharacterCodingException;
 import java.util.ArrayList;
@@ -225,21 +224,6 @@ public class WgetImpl implements Wget {
 		}
 		// 30xでなければインスタンス作成時に渡されたURLを返す。
 		return getUrl();
-	}
-
-	public static void main(String[] args) {
-		if (args.length < 1) {
-			return;
-		}
-		try {
-			Wget w = new WgetImpl(new URL(args[0]));
-			String c = w.read();
-			System.out.println(args[0]);
-			System.out.println(c);
-
-		} catch (MalformedURLException e) {
-			e.printStackTrace();
-		}
 	}
 
 }
