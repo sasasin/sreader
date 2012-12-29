@@ -34,7 +34,7 @@ import net.sasasin.sreader.dao.impl.FeedUrlDaoHibernateImpl;
 import net.sasasin.sreader.orm.ContentHeader;
 import net.sasasin.sreader.orm.FeedUrl;
 import net.sasasin.sreader.util.Md5Util;
-import net.sasasin.sreader.util.impl.WgetImpl;
+import net.sasasin.sreader.util.impl.WgetHttpComponentsImpl;
 
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
@@ -73,7 +73,7 @@ public class ContentHeaderDriver {
 		try {
 			// 文字化けるRSS対策
 			InputStream is = IOUtils
-					.toInputStream(new WgetImpl(new URL(f.getUrl())).read());
+					.toInputStream(new WgetHttpComponentsImpl(new URL(f.getUrl())).read());
 			// Romeパーサー
 			SyndFeed feed = new SyndFeedInput().build(new XmlReader(is));
 			for (SyndEntry entry : (List<SyndEntry>) feed.getEntries()) {
@@ -84,7 +84,7 @@ public class ContentHeaderDriver {
 
 				// HTTP 30x対策。moved先のURLを取得する。
 				// 30xしていなければ、new URL(entry.getLink())したものが返る。
-				URL entryUrl = new WgetImpl(new URL(entry.getLink()))
+				URL entryUrl = new WgetHttpComponentsImpl(new URL(entry.getLink()))
 						.getOriginalUrl();
 
 				ch.setUrl(entryUrl.toString());

@@ -45,7 +45,7 @@ import net.sasasin.sreader.orm.Subscriber;
 import net.sasasin.sreader.util.Md5Util;
 import net.sasasin.sreader.util.Wget;
 import net.sasasin.sreader.util.impl.ExtractFullTextImpl;
-import net.sasasin.sreader.util.impl.WgetImpl;
+import net.sasasin.sreader.util.impl.WgetHttpComponentsImpl;
 
 public class ContentFullTextDriver {
 	private static Logger logger = LoggerFactory
@@ -66,7 +66,7 @@ public class ContentFullTextDriver {
 			// ログインIDとパスワードはSubscriberにある。
 			Subscriber sub = subscriberDao.getByFeedUrl(f);
 
-			Wget w = new WgetImpl();
+			Wget w = new WgetHttpComponentsImpl();
 			w.setUrl(new URL(ch.getUrl()));
 			// ログインIDとパスワードがあれば
 			if (sub != null) {

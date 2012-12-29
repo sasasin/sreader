@@ -51,21 +51,21 @@ import net.sasasin.sreader.orm.LoginRules;
 import net.sasasin.sreader.util.CharDetector;
 import net.sasasin.sreader.util.Wget;
 
-public class WgetImpl implements Wget {
+public class WgetHttpComponentsImpl implements Wget {
 
 	private URL url;
 	private LoginRules loginInfo;
 	private String loginId;
 	private String loginPassword;
 
-	public WgetImpl() {
+	public WgetHttpComponentsImpl() {
 		setUrl(null);
 		setLoginInfo(null);
 		setLoginId(null);
 		setLoginPassword(null);
 	}
 
-	public WgetImpl(URL url) {
+	public WgetHttpComponentsImpl(URL url) {
 		setUrl(url);
 		setLoginInfo(null);
 		setLoginId(null);
