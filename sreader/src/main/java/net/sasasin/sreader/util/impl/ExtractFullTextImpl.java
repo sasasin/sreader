@@ -35,6 +35,7 @@ import net.sasasin.sreader.util.ExtractFullText;
 
 import com.gargoylesoftware.htmlunit.StringWebResponse;
 import com.gargoylesoftware.htmlunit.WebClient;
+import com.gargoylesoftware.htmlunit.WebClientOptions;
 import com.gargoylesoftware.htmlunit.html.HTMLParser;
 import com.gargoylesoftware.htmlunit.html.HtmlElement;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
@@ -84,11 +85,12 @@ public class ExtractFullTextImpl implements ExtractFullText {
 
 	private HtmlPage getHtmlPage(String html, URL url) throws IOException {
 		WebClient c = new WebClient();
-		c.setCssEnabled(false);
-		c.setAppletEnabled(false);
-		c.setActiveXNative(false);
-		c.setJavaScriptEnabled(false);
-		c.setPopupBlockerEnabled(true);
+		WebClientOptions copt =c.getOptions();
+		copt.setCssEnabled(false);
+		copt.setAppletEnabled(false);
+		copt.setActiveXNative(false);
+		copt.setJavaScriptEnabled(false);
+		copt.setPopupBlockerEnabled(true);
 
 		HtmlPage h = HTMLParser.parseHtml(new StringWebResponse(html, "UTF-8",
 				url), c.getCurrentWindow());
