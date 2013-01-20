@@ -144,7 +144,8 @@ create table login_rules(
        host_name varchar(96) primary key,
        post_url varchar(8096) not null,
        id_box_name varchar(256) not null,
-       password_box_name varchar(256) not null
+       password_box_name varchar(256) not null,
+       submit_button_name varchar(256) not null
 ) engine=innodb;
 
 

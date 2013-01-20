@@ -14,12 +14,13 @@ import javax.persistence.Table;
 @Table(name = "login_rules")
 public class LoginRules implements java.io.Serializable {
 
-	private static final long serialVersionUID = -8388779913306904792L;
+	private static final long serialVersionUID = -195122070140010214L;
 	private String hostName;
 	private String postUrl;
 	private String idBoxName;
 	private String passwordBoxName;
-
+	private String submitButtonName;
+	
 	public LoginRules() {
 	}
 
@@ -66,6 +67,15 @@ public class LoginRules implements java.io.Serializable {
 
 	public void setPasswordBoxName(String passwordBoxName) {
 		this.passwordBoxName = passwordBoxName;
+	}
+
+	@Column(name = "submit_button_name", nullable = false, length = 256)
+	public String getSubmitButtonName() {
+		return this.submitButtonName;
+	}
+
+	public void setSubmitButtonName(String submitButtonName) {
+		this.submitButtonName = submitButtonName;
 	}
 
 }
