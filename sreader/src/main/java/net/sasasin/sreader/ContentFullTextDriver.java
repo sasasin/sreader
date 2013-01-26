@@ -1,7 +1,7 @@
 /*
  * SReader is RSS/Atom feed reader with full text.
  *
- * Copyright (C) 2011, Shinnosuke Suzuki <sasasin@sasasin.net>
+ * Copyright (C) 2011-2013, Shinnosuke Suzuki <sasasin@sasasin.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as 
@@ -23,9 +23,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import net.sasasin.sreader.dao.ContentFullTextDao;
 import net.sasasin.sreader.dao.ContentHeaderDao;
 import net.sasasin.sreader.dao.EftRulesDao;
@@ -45,7 +42,10 @@ import net.sasasin.sreader.orm.Subscriber;
 import net.sasasin.sreader.util.Md5Util;
 import net.sasasin.sreader.util.Wget;
 import net.sasasin.sreader.util.impl.ExtractFullTextImpl;
-import net.sasasin.sreader.util.impl.WgetHttpComponentsImpl;
+import net.sasasin.sreader.util.impl.WgetHtmlUnitImpl;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ContentFullTextDriver {
 	private static Logger logger = LoggerFactory
@@ -66,7 +66,7 @@ public class ContentFullTextDriver {
 			// ログインIDとパスワードはSubscriberにある。
 			Subscriber sub = subscriberDao.getByFeedUrl(f);
 
-			Wget w = new WgetHttpComponentsImpl();
+			Wget w = new WgetHtmlUnitImpl();
 			w.setUrl(new URL(ch.getUrl()));
 			// ログインIDとパスワードがあれば
 			if (sub != null) {
