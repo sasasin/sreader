@@ -19,14 +19,39 @@
  */
 package net.sasasin.sreader.dao.impl;
 
+import java.util.List;
+
+import org.hibernate.classic.Session;
+
 import net.sasasin.sreader.dao.FeedUrlDao;
 import net.sasasin.sreader.orm.FeedUrl;
 
 /**
  * @author sasasin
- *
+ * 
  */
 public class FeedUrlDaoHibernateImpl extends
 		GenericDaoHibernateImpl<FeedUrl, String> implements FeedUrlDao {
+
+	@Override
+	public List<FeedUrl> findIfExistsSubscriber() {
+
+		// 購読者が一人でも存在するFeedUrlのみを取得
+		String sql = "select f.* from feed_url f"
+				+ " where exists (select 1 from subscriber s where s.feed_url_id = f.id)";
+
+		Session ses = getSessionFactory().openSession();
+
+		@SuppressWarnings("unchecked")
+		List<FeedUrl> fs = (List<FeedUrl>) ses.createSQLQuery(sql)
+				.addEntity(FeedUrl.class).list();
+
+		// LAZYなので
+		for (FeedUrl f : fs) {
+			f.getId();
+		}
+
+		return fs;
+	}
 
 }
