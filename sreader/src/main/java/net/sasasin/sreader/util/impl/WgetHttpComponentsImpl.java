@@ -24,8 +24,13 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+
+import net.sasasin.sreader.orm.LoginRules;
+import net.sasasin.sreader.util.CharDetector;
+import net.sasasin.sreader.util.Wget;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
@@ -44,12 +49,7 @@ import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpParams;
 import org.apache.http.params.HttpProtocolParams;
-import org.apache.http.protocol.HTTP;
 import org.apache.http.util.EntityUtils;
-
-import net.sasasin.sreader.orm.LoginRules;
-import net.sasasin.sreader.util.CharDetector;
-import net.sasasin.sreader.util.Wget;
 
 public class WgetHttpComponentsImpl implements Wget {
 
@@ -186,7 +186,7 @@ public class WgetHttpComponentsImpl implements Wget {
 			nvps.add(new BasicNameValuePair(
 					getLoginInfo().getPasswordBoxName(), getLoginPassword()));
 			httpost.setEntity((HttpEntity) new UrlEncodedFormEntity(nvps,
-					HTTP.UTF_8));
+					Charset.forName("UTF-8")));
 			response = httpclient.execute(httpost);
 			EntityUtils.consume(response.getEntity());
 		}
