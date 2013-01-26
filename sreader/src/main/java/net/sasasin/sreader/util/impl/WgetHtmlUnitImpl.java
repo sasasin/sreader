@@ -234,8 +234,11 @@ public class WgetHtmlUnitImpl implements Wget {
 		}
 
 		try {
+			// ログインIDを入力
 			idBox.setValueAttribute(loginId);
+			// ログインパスワードを入力
 			passwordBox.setValueAttribute(loginPassword);
+			// ログインボタンをクリック
 			loginedPage = submitButton.click();
 
 			c = loginedPage.getWebClient();
