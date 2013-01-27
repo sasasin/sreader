@@ -20,10 +20,16 @@
 package net.sasasin.sreader.util.impl;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.URL;
+import java.nio.charset.CharacterCodingException;
 
 import net.sasasin.sreader.orm.LoginRules;
+import net.sasasin.sreader.util.CharDetector;
 import net.sasasin.sreader.util.Wget;
+
+import org.apache.commons.io.IOUtils;
 
 import com.gargoylesoftware.htmlunit.BrowserVersion;
 import com.gargoylesoftware.htmlunit.ElementNotFoundException;
@@ -31,6 +37,8 @@ import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.gargoylesoftware.htmlunit.SilentCssErrorHandler;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.WebClientOptions;
+import com.gargoylesoftware.htmlunit.WebRequest;
+import com.gargoylesoftware.htmlunit.WebResponse;
 import com.gargoylesoftware.htmlunit.html.HtmlInput;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlPasswordInput;
@@ -105,10 +113,11 @@ public class WgetHtmlUnitImpl implements Wget {
 	public String read() {
 
 		WebClient c = createWebClient();
-		
+
 		try {
-			HtmlPage p = c.getPage(getUrl());
-			String result = p.asText();
+			WebRequest req = new WebRequest(getUrl());
+			WebResponse res = c.loadWebResponse(req);
+			String result = read(res.getContentAsStream());
 			c.closeAllWindows();
 			return result;
 		} catch (FailingHttpStatusCodeException | IOException e) {
@@ -118,14 +127,38 @@ public class WgetHtmlUnitImpl implements Wget {
 		}
 	}
 
+	private String read(InputStream is) {
+		String result = null;
+		byte[] buf = null;
+		try {
+			// バイト配列に読み込む。
+			// UTF8ではないソースからStringに読み込むと、文字化けるためと、
+			// 文字化けたStringでは、CharDetectorが文字コード判定に失敗するため。
+			buf = IOUtils.toByteArray(is);
+		} catch (IOException e) {
+			e.printStackTrace();
+			result = "";
+		}
+		try {
+			// 文字コード名を取得。
+			String enc = CharDetector.detect(buf);
+			// 取得した文字コードでStringに変換。
+			result = new String(buf, enc);
+		} catch (CharacterCodingException | UnsupportedEncodingException e) {
+			// 判定に失敗してたら仕方ないのでそのままStringに変換。
+			result = new String(buf);
+		}
+		return result;
+	}
+
 	private WebClient createWebClient() {
-		
+
 		WebClient c = new WebClient(BrowserVersion.getDefault());
-		
+
 		WebClientOptions copt = c.getOptions();
 		// JavaScriptは有効にするが、JavaScriptエラー時に、Javaの例外として拾わないようにする
 		copt.setJavaScriptEnabled(true);
-		copt.setThrowExceptionOnScriptError(false);		
+		copt.setThrowExceptionOnScriptError(false);
 		// CSSは有効にするが、CSSの構文エラーなどでいちいちエラーを出さないようにする
 		copt.setCssEnabled(true);
 		c.setCssErrorHandler(new SilentCssErrorHandler());
@@ -153,7 +186,9 @@ public class WgetHtmlUnitImpl implements Wget {
 	private void login(WebClient c) {
 
 		WebClientOptions copt = c.getOptions();
+		// JavaScriptは有効にするが、JavaScriptエラー時に、Javaの例外として拾わないようにする
 		copt.setJavaScriptEnabled(true);
+		copt.setThrowExceptionOnScriptError(false);
 
 		HtmlPage loginPage = null;
 		HtmlInput idBox = null;
@@ -240,7 +275,6 @@ public class WgetHtmlUnitImpl implements Wget {
 			passwordBox.setValueAttribute(loginPassword);
 			// ログインボタンをクリック
 			loginedPage = submitButton.click();
-
 			c = loginedPage.getWebClient();
 			return;
 		} catch (FailingHttpStatusCodeException | IOException e) {
