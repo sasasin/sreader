@@ -45,7 +45,7 @@ public class GMailPublisher extends AbstractPublisher {
 			Email email = new SimpleEmail();
 			email.setHostName("smtp.gmail.com");
 			email.setSmtpPort(587);
-			email.setTLS(true);
+			email.setStartTLSEnabled(true);
 			email.setCharset("UTF-8");
 
 			email.setAuthenticator(new DefaultAuthenticator(content.getEmail(),
