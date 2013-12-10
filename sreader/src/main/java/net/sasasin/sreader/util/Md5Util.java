@@ -24,8 +24,6 @@ import java.security.NoSuchAlgorithmException;
 
 import net.sasasin.sreader.exception.UnSupportedAlgorithmError;
 
-import org.springframework.util.Assert;
-
 /**
  * @author sasasin
  * 
@@ -33,7 +31,9 @@ import org.springframework.util.Assert;
 public class Md5Util {
 	public static String crypt(String orig) {
 
-		Assert.hasText(orig);
+		if (orig == null || orig.length() == 0) {
+			throw new IllegalArgumentException();
+		}
 
 		MessageDigest md = null;
 		try {
