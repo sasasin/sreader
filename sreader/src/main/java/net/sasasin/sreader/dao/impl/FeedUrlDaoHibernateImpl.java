@@ -21,7 +21,7 @@ package net.sasasin.sreader.dao.impl;
 
 import java.util.List;
 
-import org.hibernate.classic.Session;
+import org.hibernate.Session;
 
 import net.sasasin.sreader.dao.FeedUrlDao;
 import net.sasasin.sreader.orm.FeedUrl;

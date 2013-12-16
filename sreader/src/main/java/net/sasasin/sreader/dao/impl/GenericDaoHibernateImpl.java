@@ -31,6 +31,8 @@ import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
+import org.hibernate.service.ServiceRegistry;
+import org.hibernate.service.ServiceRegistryBuilder;
 
 /**
  * {@link GenericDao}のHibernateによる実装。
@@ -50,8 +52,12 @@ public class GenericDaoHibernateImpl<T, PK extends Serializable> implements
 
 	protected SessionFactory getSessionFactory() {
 		if (sessionFactory == null) {
+			Configuration configuration = new Configuration().configure();
+			ServiceRegistry serviceRegistry = new ServiceRegistryBuilder()
+					.applySettings(configuration.getProperties())
+					.buildServiceRegistry();
 			sessionFactory = new Configuration().configure()
-					.buildSessionFactory();
+					.buildSessionFactory(serviceRegistry);
 		}
 		return sessionFactory;
 	}
@@ -60,13 +66,13 @@ public class GenericDaoHibernateImpl<T, PK extends Serializable> implements
 		this.sessionFactory = sessionFactory;
 	}
 
-	private Session getSession(){
-		if (session == null || !session.isOpen()){
+	private Session getSession() {
+		if (session == null || !session.isOpen()) {
 			session = getSessionFactory().openSession();
 		}
 		return session;
 	}
-	
+
 	protected Class<T> getType() {
 
 		return this.type;

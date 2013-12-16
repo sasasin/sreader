@@ -10,6 +10,8 @@ import org.dbunit.dataset.IDataSet;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
+import org.hibernate.service.ServiceRegistry;
+import org.hibernate.service.ServiceRegistryBuilder;
 import org.junit.After;
 import org.junit.Before;
 import org.slf4j.Logger;
@@ -32,8 +34,11 @@ public abstract class AbstractHibernateTestCase extends DBTestCase {
 	public void setUp() throws Exception {
 
 		Configuration cfg = new Configuration().configure();
-
-		sessionFactory = cfg.buildSessionFactory();
+		ServiceRegistry serviceRegistry = new ServiceRegistryBuilder()
+				.applySettings(cfg.getProperties())
+				.buildServiceRegistry();
+		sessionFactory = new Configuration().configure().buildSessionFactory(
+				serviceRegistry);
 
 		session = sessionFactory.openSession();
 
