@@ -22,8 +22,6 @@ package net.sasasin.sreader.dao;
 import java.io.Serializable;
 import java.util.List;
 
-import org.hibernate.SessionFactory;
-
 public interface GenericDao<T, PK extends Serializable> {
 
 	/**
@@ -58,5 +56,4 @@ public interface GenericDao<T, PK extends Serializable> {
 	 */
 	public void delete(T entity);
 	
-	public void setSessionFactory(SessionFactory sessionFactory);
 }

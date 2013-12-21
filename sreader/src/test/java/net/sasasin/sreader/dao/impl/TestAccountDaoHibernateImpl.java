@@ -48,7 +48,6 @@ public class TestAccountDaoHibernateImpl extends AbstractHibernateTestCase {
 	public void setUp() throws Exception {
 		super.setUp();
 		testee = new AccountDaoHibernateImpl();
-		testee.setSessionFactory(getSessionFactory());
 
 		// テストデータ投入
 		IDataSet dataSet = new XlsDataSet(getClass().getResourceAsStream(
@@ -64,7 +63,6 @@ public class TestAccountDaoHibernateImpl extends AbstractHibernateTestCase {
 	@Test
 	public void testGetOneResult() throws Exception {
 
-		testee.setSessionFactory(getSessionFactory());
 		Account actual = testee.getOneResult();
 		// 取れていればnullではない
 		assertThat(actual, notNullValue());
@@ -86,7 +84,6 @@ public class TestAccountDaoHibernateImpl extends AbstractHibernateTestCase {
 		DatabaseOperation.DELETE_ALL.execute(getConnection(),
 				new DefaultDataSet(new DefaultTable("account")));
 
-		testee.setSessionFactory(getSessionFactory());
 		Account actual = testee.getOneResult();
 
 		assertThat(actual, nullValue());

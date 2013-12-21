@@ -51,7 +51,6 @@ public class TestEftRulesDaoHibernateImpl extends AbstractHibernateTestCase {
 	public void setUp() throws Exception {
 		super.setUp();
 		testee = new EftRulesDaoHibernateImpl();
-		testee.setSessionFactory(getSessionFactory());
 
 		// テストデータ投入
 		IDataSet dataSet = new XlsDataSet(getClass().getResourceAsStream(
