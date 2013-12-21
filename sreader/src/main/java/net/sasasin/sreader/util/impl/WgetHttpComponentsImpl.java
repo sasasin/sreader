@@ -38,17 +38,15 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
-import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.params.ClientPNames;
-import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.HttpParams;
-import org.apache.http.params.HttpProtocolParams;
 import org.apache.http.util.EntityUtils;
 
 public class WgetHttpComponentsImpl implements Wget {
@@ -57,6 +55,8 @@ public class WgetHttpComponentsImpl implements Wget {
 	private LoginRules loginInfo;
 	private String loginId;
 	private String loginPassword;
+
+	private final static int DEFAULT_TIMEOUT_MILLISECONDS = 3000;
 
 	public WgetHttpComponentsImpl() {
 		setUrl(null);
@@ -115,17 +115,12 @@ public class WgetHttpComponentsImpl implements Wget {
 	@Override
 	public String read() {
 
-		HttpClient httpclient = null;
 		HttpResponse responce = null;
-		try {
-			httpclient = httpClientFactory();
+		try (CloseableHttpClient httpclient = httpClientFactory()) {
 			responce = httpclient.execute(new HttpGet(getUrl().toString()));
 			return read(responce.getEntity().getContent());
-
 		} catch (IOException e) {
 			e.printStackTrace();
-		} finally {
-			httpclient.getConnectionManager().shutdown();
 		}
 		return "";
 	}
@@ -154,17 +149,23 @@ public class WgetHttpComponentsImpl implements Wget {
 		return result;
 	}
 
-	private HttpClient httpClientFactory() throws IOException {
+	private CloseableHttpClient httpClientFactory() throws IOException {
 
-		HttpParams params = new BasicHttpParams();
 		// HTTP 30xを追跡する
-		params.setBooleanParameter(ClientPNames.HANDLE_REDIRECTS, true);
+		RequestConfig config = RequestConfig.custom().setRedirectsEnabled(true)
+				.setConnectTimeout(DEFAULT_TIMEOUT_MILLISECONDS)
+				.setConnectionRequestTimeout(DEFAULT_TIMEOUT_MILLISECONDS)
+				.build();
 
 		// UserAgentを設定。無難にMSIE。
-		String useragent = "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)";
-		HttpProtocolParams.setUserAgent(params, useragent);
+		List<Header> headers = new ArrayList<Header>();
+		headers.add(new BasicHeader("User-Agent",
+				"Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)"));
 
-		HttpClient httpclient = new DefaultHttpClient(params);
+		CloseableHttpClient httpclient = HttpClientBuilder.create()
+				.setDefaultRequestConfig(config).setDefaultHeaders(headers)
+				.build();
+
 		HttpResponse response = null;
 
 		// ログイン情報があれば、ログイン済みのHttpClientを返す。
@@ -196,14 +197,20 @@ public class WgetHttpComponentsImpl implements Wget {
 	@Override
 	public URL getOriginalUrl() {
 
-		HttpParams params = new BasicHttpParams();
 		// HTTP 30xを追跡しない
-		params.setBooleanParameter(ClientPNames.HANDLE_REDIRECTS, false);
+		RequestConfig config = RequestConfig.custom()
+				.setRedirectsEnabled(false).setConnectTimeout(DEFAULT_TIMEOUT_MILLISECONDS)
+				.setConnectionRequestTimeout(DEFAULT_TIMEOUT_MILLISECONDS).build();
 
-		HttpClient httpclient = new DefaultHttpClient(params);
+		// UserAgentを設定。無難にMSIE。
+		List<Header> headers = new ArrayList<Header>();
+		headers.add(new BasicHeader("User-Agent",
+				"Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)"));
 
 		HttpResponse responce = null;
-		try {
+		try (CloseableHttpClient httpclient = HttpClientBuilder.create()
+				.setDefaultRequestConfig(config).setDefaultHeaders(headers)
+				.build()) {
 			responce = httpclient.execute(new HttpHead(getUrl().toString()));
 
 			int httpStatusCode = responce.getStatusLine().getStatusCode();
@@ -219,8 +226,6 @@ public class WgetHttpComponentsImpl implements Wget {
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-		} finally {
-			httpclient.getConnectionManager().shutdown();
 		}
 		// 30xでなければインスタンス作成時に渡されたURLを返す。
 		return getUrl();
