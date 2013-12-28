@@ -28,6 +28,6 @@ rm -f $BASEDIR/../lib_ext/*
 mvn dependency:copy-dependencies -DoutputDirectory=lib_ext
 
 # アプリのコンパイル
-mvn clean compile package
+mvn clean compile package install
 cp $BASEDIR/../target/*.jar $BASEDIR/../lib_ext
 
