@@ -9,36 +9,38 @@ SReaderは、RSS/Atomリーダーです。
 
 **全文取得**。ウェブページには、回線状況がよくない時にはウザいだけの装飾で溢れています。SReaderは、ウェブページから記事本文だけを切り出して配信します。
 
-**認証対応**。携帯端末において、パスワード入力はもっとも煩わしい作業のひとつです。特に、回線状況のよくない時に、失敗すると八つ当りもしたくなります。IDとパスワード、ログイン方法を設定すれば、ログインの必要なウェブサイトの記事も自動収集できます。
+**認証対応**。携帯端末において、パスワード入力はもっとも煩わしい作業のひとつです。IDとパスワード、ログイン方法を設定すれば、ログインの必要なウェブサイトの記事も自動収集できます。
 
 **Gmailで配信**。携帯端末でもっとも軽快に動作し、利用者がもっとも使い慣れたアプリは、電子メールクライアントです。そのため、新たに携帯端末向けのアプリを作るより、電子メールで配信するのがベストだと考えました。
 
 入手方法 & セットアップ手順
 -----------------------
 
-JDK7、MySQL、Git、Maven3.xをあらかじめPATHの通った場所にインストールしておいてください。
+JDK7、MySQL、Git、Maven3.xをあらかじめPATHの通った場所にインストールしてください。
 
 	sudo apt-get install openjdk-7-jdk mysql-server git-core maven
 	git clone git://github.com/sasasin/sreader.git
-	cd sreader/sreader/script
-	./build.sh
 
 DBを構築します。Gmail配信を使用するため、アカウント情報をデータベースに登録します。gmail.sqlは適宜修正して使用してください。
 
 	mysql -u root -p
-	source ddl.mysql.users.sql
+	source ./sreader/commons/script/ddl.mysql.users.sql
 
 	use sreader;
-	source ddl.mysql.tables.sql
-	source dml.sql
-	source gmail.sql
+	source ./sreader/commons/script/ddl.mysql.tables.sql
+	source ./sreader/commons/script/dml.sql
+	source ./sreader/commons/script/gmail.sql
 	commit;
 
 	use sreadertest;
-	source ddl.mysql.tables.sql
-	source dml.sql
-	source gmail.sql
+	source ./sreader/commons/script/ddl.mysql.tables.sql
+	source ./sreader/commons/script/dml.sql
+	source ./sreader/commons/script/gmail.sql
 	commit;
+
+sreaderをセットアップします。
+
+	./sreader/build_all.sh
 
 $HOME/sreader.txtを作成し、収集対象のRSS/AtomのURLを、一行にひとつずつ記載してください。
 
@@ -48,7 +50,7 @@ $HOME/sreader.txtを作成し、収集対象のRSS/AtomのURLを、一行にひ�
 	
 cronなどに、下記スクリプトを任意の間隔で実行するよう設定してください。
 
-	./run_feedreader.sh
+	./sreader/batch/run_feedreader.sh
 
 
 認証情報の設定方法
@@ -65,4 +67,3 @@ SReaderは、この情報と、login_rulesテーブルの設定で、ログイ�
 ------
 
 本プログラムはフリーソフトウェアです。LGPL (the GNU General Public License)バージョン3、またはそれ以降のバージョンに示す条件で本プログラムを再配布できます。LGPLについてはLICENSEファイルを参照して下さい。
-
