@@ -111,7 +111,7 @@
 	</repositories>
 	<build>
 		<sourceDirectory>./src/main/java</sourceDirectory>
-		<scriptSourceDirectory>./src/main/scripts</scriptSourceDirectory>
+		<scriptSourceDirectory>./script</scriptSourceDirectory>
 		<testSourceDirectory>./src/test/java</testSourceDirectory>
 		<outputDirectory>./target/classes</outputDirectory>
 		<testOutputDirectory>./target/test-classes</testOutputDirectory>

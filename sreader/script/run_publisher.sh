@@ -26,6 +26,6 @@ cd $BASEDIR/../
 # GMailで配信
 # gmail_login_infoテーブルに、データを入れておかないと、空回りして悲しい
 java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
-    net.sasasin.sreader.publish.GMailPublisher
+    net.sasasin.sreader.batch.publish.GMailPublisher
 
 cd $BASEDIR

@@ -25,12 +25,12 @@ cd $BASEDIR/../
 
 # RSS/AtomのURLリストは$HOME/sreader.txt
 java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
-    net.sasasin.sreader.SingleAccountFeedReader
+    net.sasasin.sreader.batch.SingleAccountFeedReader
 
 java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
-    net.sasasin.sreader.ContentHeaderDriver
+    net.sasasin.sreader.batch.ContentHeaderDriver
 
 java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
-    net.sasasin.sreader.ContentFullTextDriver
+    net.sasasin.sreader.batch.ContentFullTextDriver
 
 cd $BASEDIR

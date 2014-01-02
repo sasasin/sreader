@@ -10,14 +10,14 @@
 		<property name="hibernate.connection.driver_class">com.mysql.jdbc.Driver</property>
 		<property name="hibernate.bytecode.use_reflection_optimizer">false</property>
 		<property name="hibernate.search.autoregister_listeners">false</property>
-		<mapping class="net.sasasin.sreader.orm.Account" />
-		<mapping class="net.sasasin.sreader.orm.ContentHeader" />
-		<mapping class="net.sasasin.sreader.orm.Subscriber" />
-		<mapping class="net.sasasin.sreader.orm.PublishLog" />
-		<mapping class="net.sasasin.sreader.orm.ContentView" />
-		<mapping class="net.sasasin.sreader.orm.FeedUrl" />
-		<mapping class="net.sasasin.sreader.orm.EftRules" />
-		<mapping class="net.sasasin.sreader.orm.LoginRules" />
-		<mapping class="net.sasasin.sreader.orm.ContentFullText" />
+		<mapping class="net.sasasin.sreader.commons.entity.Account" />
+		<mapping class="net.sasasin.sreader.commons.entity.ContentHeader" />
+		<mapping class="net.sasasin.sreader.commons.entity.Subscriber" />
+		<mapping class="net.sasasin.sreader.commons.entity.PublishLog" />
+		<mapping class="net.sasasin.sreader.commons.entity.ContentView" />
+		<mapping class="net.sasasin.sreader.commons.entity.FeedUrl" />
+		<mapping class="net.sasasin.sreader.commons.entity.EftRules" />
+		<mapping class="net.sasasin.sreader.commons.entity.LoginRules" />
+		<mapping class="net.sasasin.sreader.commons.entity.ContentFullText" />
 	</session-factory>
 </hibernate-configuration>

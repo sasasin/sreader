@@ -25,6 +25,6 @@ cd $BASEDIR/../
 
 # FeedReaderの実行
 java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
-    net.sasasin.sreader.EftRulesDriver
+    net.sasasin.sreader.batch.EftRulesDriver
 
 cd $BASEDIR
