@@ -32,7 +32,6 @@
 		<easymockclassextension.version>3.1</easymockclassextension.version>
 		<junit.version>4.13.2</junit.version>
 		<poi.version>3.7</poi.version>
-		<commons-email.version>1.3.3</commons-email.version>
 		<rome.version>1.0.0</rome.version>
 		<jsonic.version>1.3.10</jsonic.version>
 		<httpclient.version>4.3.6</httpclient.version>
@@ -114,11 +113,6 @@
 				<groupId>org.apache.poi</groupId>
 				<artifactId>poi</artifactId>
 				<version>${poi.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.apache.commons</groupId>
-				<artifactId>commons-email</artifactId>
-				<version>${commons-email.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>net.java.dev.rome</groupId>

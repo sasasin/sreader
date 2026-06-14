@@ -19,8 +19,6 @@
  */
 package net.sasasin.sreader.commons.dao;
 
-import java.util.List;
-
 import net.sasasin.sreader.commons.entity.FeedUrl;
 
 /**
@@ -28,12 +26,5 @@ import net.sasasin.sreader.commons.entity.FeedUrl;
  *
  */
 public interface FeedUrlDao extends GenericDao<FeedUrl, String> {
-	
-	/**
-	 * Subscriberの存在するFeedUrlのみ取得する。
-	 * 
-	 * @return
-	 */
-	public List<FeedUrl> findIfExistsSubscriber();
 
 }
