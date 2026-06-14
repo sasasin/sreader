@@ -1,100 +1,84 @@
-SReaderとは
-==========
+SReader
+=======
 
-SReaderは、RSS/Atomリーダーです。
+SReader は、RSS/Atom リーダーです。現在は、約 13 年間停止していた
+codebase を Docker Compose / Maven multi-module / Flyway / MySQL 8.4
+ベースへ現代化している途中です。
 
-携帯電話などの端末で、回線状況のよくない状況で、快適に記事を読むことができることを目標に、設計されています。
+現在サポートする範囲は、認証不要な公開 RSS/Atom feed を取得し、記事
+URL とタイトルを `content_header` に保存し、記事本文を抽出して
+`content_full_text` に保存するところまでです。
 
-**サーバーで動作**。SReaderは、携帯端末よりパワフルで、回線状況が安定していて、定期的に記事を収集できる、オフィスや自宅に据え置くパソコンで動作します。
+## 廃止した機能
 
-**全文取得**。ウェブページには、回線状況がよくない時にはウザいだけの装飾で溢れています。SReaderは、ウェブページから記事本文だけを切り出して配信します。
+運用安全性を優先し、以下の機能は削除しました。
 
-**認証対応**。携帯端末において、パスワード入力はもっとも煩わしい作業のひとつです。IDとパスワード、ログイン方法を設定すれば、ログインの必要なウェブサイトの記事も自動収集できます。
+- Gmail アカウントを用いたメール配信
+- SMTP / JavaMail / commons-email によるメール送信
+- Gmail password を DB に保存する設計
+- 購読先ログイン ID/password と `login_rules` による認証付き取得
+- 購読先 password を DB に保存する設計
 
-**Gmailで配信**。携帯端末でもっとも軽快に動作し、利用者がもっとも使い慣れたアプリは、電子メールクライアントです。そのため、新たに携帯端末向けのアプリを作るより、電子メールで配信するのがベストだと考えました。
+OAuth2 や secret manager への置き換えではなく、認証情報を扱う機能
+そのものを廃止しています。
 
-入手方法 & セットアップ手順
------------------------
+## Docker Compose セットアップ
 
-現代化中の推奨手順は、ホスト OS に JDK/Maven/MySQL client/Flyway を入れず、Docker Compose と Flyway service で DB と build/test を再現する方法です。詳細は `docs/modernization.md` を参照してください。
+ホスト OS に JDK/Maven/MySQL client/Flyway を入れず、Docker Compose
+経由で実行します。
 
-代表的な手順:
+```sh
+docker compose config
+docker compose up -d mysql
+docker compose run --rm flyway info
+docker compose run --rm flyway migrate
+docker compose run --rm flyway info
+docker compose run --rm flyway "-url=jdbc:mysql://mysql:3306/sreadertest?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC" -user=sreadertest -password=sreadertest migrate
+docker compose run --rm maven mvn clean verify
+```
 
-	docker compose config
-	docker compose up -d mysql
-	docker compose run --rm flyway migrate
-	docker compose run --rm flyway "-url=jdbc:mysql://mysql:3306/sreadertest?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC" -user=sreadertest -password=sreadertest migrate
-	docker compose run --rm maven mvn clean verify
+既存 Docker volume がある場合は、新しい Flyway migration を適用して
+schema を移行してください。開発 DB を作り直す場合は次を実行できますが、
+`docker compose down -v` はローカル DB volume を削除します。
 
-### Legacy setup
+```sh
+docker compose down -v
+docker compose up -d mysql
+docker compose run --rm flyway migrate
+```
 
-以下は更新停止前の legacy 手順です。現代化後の標準手順では、`commons/script/ddl.mysql.users.sql` や `ddl.mysql.tables.sql` をホストの `mysql` コマンドから直接実行しません。Gmail アカウントなどの実データも migration には含めません。
+## Feed URL の登録
 
-JDK7、MySQL、Git、Maven3.xをあらかじめPATHの通った場所にインストールしてください。
+`$HOME/sreader.txt` に、認証不要な公開 RSS/Atom feed URL を 1 行に 1 つ
+記載します。
 
-	sudo apt-get install openjdk-7-jdk mysql-server git-core maven
-	git clone git://github.com/sasasin/sreader.git
+```text
+https://example.com/rss.xml
+https://example.net/atom.xml
+```
 
-DBを構築します。Gmail配信を使用するため、アカウント情報をデータベースに登録します。gmail.sqlは適宜修正して使用してください。
+現代化後の標準手順では、ID/password をタブ区切りで記載する形式は使いません。
 
-	mysql -u root -p
-	source ./sreader/commons/script/ddl.mysql.users.sql
+batch の legacy shell script を使う場合の流れは次の通りです。
 
-	use sreader;
-	source ./sreader/commons/script/ddl.mysql.tables.sql
-	source ./sreader/commons/script/dml.sql
-	source ./sreader/commons/script/gmail.sql
-	commit;
+```sh
+./batch/script/run_feedreader.sh
+```
 
-	use sreadertest;
-	source ./sreader/commons/script/ddl.mysql.tables.sql
-	source ./sreader/commons/script/dml.sql
-	source ./sreader/commons/script/gmail.sql
-	commit;
+## Legacy SQL
 
-sreaderをセットアップします。
+`commons/script/` 配下の SQL は legacy reference です。現代化後の標準
+セットアップでは、`ddl.mysql.users.sql`、`ddl.mysql.tables.sql`、
+`dml.sql`、`gmail.sql` をホストの `mysql` コマンドで直接実行しません。
 
-	./sreader/build_all.sh
-
-$HOME/sreader.txtを作成し、収集対象のRSS/AtomのURLを、一行にひとつずつ記載してください。
-
-	http://example.com/rss.xml\n
-	http://hoge.co.jp/atom.xml\n
-	http://foo.baa.net/?feed\n
-	
-cronなどに、下記スクリプトを任意の間隔で実行するよう設定してください。
-
-	./sreader/batch/run_feedreader.sh
-
-
-認証情報の設定方法
----------------
-
-下記形式で、sreader.txtに記載してください。
-
-	http://foo.baa.net/?feed\tアカウントID\tパスワード\n
-
-SReaderは、この情報と、login_rulesテーブルの設定で、ログインを試みます。dml.sqlを参考に、ドメイン名、formがPOSTを飛ばすURL、IDを入力するテキストボックスのname属性、パスワードを入力するテキストボックスのname属性を設定してください。
-
-Docker Composeによる検証
---------------------
-
-現在のリハビリ用ビルド手順は、ホストOSにJDK/Maven/MySQL client/Flywayを入れず、Docker Compose経由で実行します。
-
-詳細は `docs/modernization.md` を参照してください。
-
-代表的な検証コマンド:
-
-	docker compose config
-	docker compose up -d mysql
-	docker compose run --rm flyway migrate
-	docker compose run --rm flyway "-url=jdbc:mysql://mysql:3306/sreadertest?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC" -user=sreadertest -password=sreadertest migrate
-	docker compose run --rm maven mvn -version
-	docker compose run --rm maven java -version
-	docker compose run --rm maven mvn clean verify
-
+特に `gmail.sql` は Gmail 配信廃止後の標準手順では使いません。
+`login_rules` も廃止済みです。DB schema と development seed data は
+`db/migration/` の Flyway migration で管理します。
 
 配布条件
 ------
 
-本プログラムはフリーソフトウェアです。LGPL (the GNU General Public License)バージョン3、またはそれ以降のバージョンに示す条件で本プログラムを再配布できます。LGPLについてはLICENSEファイルを参照して下さい。
+本プログラムはフリーソフトウェアです。LGPL (the GNU Lesser General
+Public License) バージョン 3、またはそれ以降のバージョンに示す条件で
+本プログラムを再配布できます。LGPL については LICENSE ファイルを参照して
+ください。
