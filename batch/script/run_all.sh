@@ -25,6 +25,5 @@ cd $BASEDIR/../
 
 $BASEDIR/run_eftrule.sh
 $BASEDIR/run_feedreader.sh
-$BASEDIR/run_publisher.sh
 
 cd $BASEDIR

@@ -20,17 +20,21 @@
 #
 
 BASEDIR=$(cd $(dirname $0);pwd)
+REPO_DIR=$(cd "$BASEDIR/../..";pwd)
 
-cd $BASEDIR/../
+cd "$REPO_DIR"
 
 # RSS/AtomのURLリストは$HOME/sreader.txt
-java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
+docker compose run --rm -v "$HOME:/host-home:ro" -e JAVA_TOOL_OPTIONS="-Duser.home=/host-home" \
+    maven java -cp "/workspace/batch/lib/*:/workspace/batch/lib_ext/*" \
     net.sasasin.sreader.batch.SingleAccountFeedReader
 
-java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
+docker compose run --rm \
+    maven java -cp "/workspace/batch/lib/*:/workspace/batch/lib_ext/*" \
     net.sasasin.sreader.batch.ContentHeaderDriver
 
-java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
+docker compose run --rm \
+    maven java -cp "/workspace/batch/lib/*:/workspace/batch/lib_ext/*" \
     net.sasasin.sreader.batch.ContentFullTextDriver
 
-cd $BASEDIR
+cd "$BASEDIR"
