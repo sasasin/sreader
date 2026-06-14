@@ -1,12 +1,35 @@
 services:
   maven:
-    image: ${MAVEN_IMAGE:-maven:3.9-eclipse-temurin-17}
+    image: ${MAVEN_IMAGE:-maven:3.9.11-eclipse-temurin-25}
     working_dir: /workspace
     volumes:
       - .:/workspace
       - maven-repository:/root/.m2
     environment:
       MAVEN_OPTS: ${MAVEN_OPTS:-}
+      SREADER_JOOQ_JDBC_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-sreader}
+      SREADER_JOOQ_JDBC_USERNAME: ${POSTGRES_USER:-sreader}
+      SREADER_JOOQ_JDBC_PASSWORD: ${POSTGRES_PASSWORD:-sreader}
+      SREADER_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_TEST_DB:-sreadertest}
+      SREADER_DATASOURCE_USERNAME: ${POSTGRES_TEST_USER:-sreadertest}
+      SREADER_DATASOURCE_PASSWORD: ${POSTGRES_TEST_PASSWORD:-sreadertest}
+      SREADER_SCHEDULER_ENABLED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    environment:
+      SREADER_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-sreader}
+      SREADER_DATASOURCE_USERNAME: ${POSTGRES_USER:-sreader}
+      SREADER_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-sreader}
+      SREADER_SCHEDULER_ENABLED: ${SREADER_SCHEDULER_ENABLED:-true}
+      SREADER_SCHEDULER_CRON: ${SREADER_SCHEDULER_CRON:-0 */15 * * * *}
+      SREADER_HTTP_USER_AGENT: ${SREADER_HTTP_USER_AGENT:-SReader/0.1}
+      SREADER_SEED_FEED_URLS: ${SREADER_SEED_FEED_URLS:-}
     depends_on:
       postgres:
         condition: service_healthy
