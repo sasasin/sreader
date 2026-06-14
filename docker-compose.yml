@@ -32,6 +32,19 @@ services:
       timeout: 5s
       retries: 12
 
+  flyway:
+    image: ${FLYWAY_IMAGE:-redgate/flyway:12.8.1}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./db/migration:/flyway/migrations:ro
+    environment:
+      FLYWAY_URL: "jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-sreader}?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC"
+      FLYWAY_USER: ${MYSQL_USER:-sreader}
+      FLYWAY_PASSWORD: ${MYSQL_PASSWORD:-sreader}
+      FLYWAY_LOCATIONS: filesystem:/flyway/migrations
+
 volumes:
   maven-repository:
   mysql-data:

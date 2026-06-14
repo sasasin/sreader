@@ -18,6 +18,10 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
+-- Legacy reference only.
+-- Modern Docker/Flyway setup does not execute this file directly.
+-- Database and development users are created by docker/mysql/init/*.sql.
+
 -- show warnings
 \W
 
