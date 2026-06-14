@@ -26,19 +26,12 @@ import java.util.List;
 import net.sasasin.sreader.commons.dao.ContentFullTextDao;
 import net.sasasin.sreader.commons.dao.ContentHeaderDao;
 import net.sasasin.sreader.commons.dao.EftRulesDao;
-import net.sasasin.sreader.commons.dao.LoginRulesDao;
-import net.sasasin.sreader.commons.dao.SubscriberDao;
 import net.sasasin.sreader.commons.dao.impl.ContentFullTextDaoHibernateImpl;
 import net.sasasin.sreader.commons.dao.impl.ContentHeaderDaoHibernateImpl;
 import net.sasasin.sreader.commons.dao.impl.EftRulesDaoHibernateImpl;
-import net.sasasin.sreader.commons.dao.impl.LoginRulesDaoHibernateImpl;
-import net.sasasin.sreader.commons.dao.impl.SubscriberDaoHibernateImpl;
 import net.sasasin.sreader.commons.entity.ContentFullText;
 import net.sasasin.sreader.commons.entity.ContentHeader;
 import net.sasasin.sreader.commons.entity.EftRules;
-import net.sasasin.sreader.commons.entity.FeedUrl;
-import net.sasasin.sreader.commons.entity.LoginRules;
-import net.sasasin.sreader.commons.entity.Subscriber;
 import net.sasasin.sreader.commons.util.Md5Util;
 import net.sasasin.sreader.commons.util.Wget;
 import net.sasasin.sreader.commons.util.impl.ExtractFullTextImpl;
@@ -51,8 +44,6 @@ public class ContentFullTextDriver {
 	private static Logger logger = LoggerFactory
 			.getLogger("net.sasasin.sreader.batch");
 
-	private LoginRulesDao loginRulesDao = new LoginRulesDaoHibernateImpl();
-	private SubscriberDao subscriberDao = new SubscriberDaoHibernateImpl();
 	private ContentHeaderDao contentHeaderDao = new ContentHeaderDaoHibernateImpl();
 	private ContentFullTextDao contentFullTextDao = new ContentFullTextDaoHibernateImpl();
 	private EftRulesDao eftRulesDao = new EftRulesDaoHibernateImpl();
@@ -62,21 +53,8 @@ public class ContentFullTextDriver {
 		ContentFullText c = null;
 		try {
 
-			FeedUrl f = ch.getFeedUrl();
-			// ログインIDとパスワードはSubscriberにある。
-			Subscriber sub = subscriberDao.getByFeedUrl(f);
-
 			Wget w = new WgetHtmlUnitImpl();
 			w.setUrl(new URL(ch.getUrl()));
-			// ログインIDとパスワードがあれば
-			if (sub != null) {
-				// ログイン情報も取ってきて
-				LoginRules lr = loginRulesDao
-						.getByHostname(new URL(ch.getUrl()).getHost());
-				w.setLoginInfo(lr);
-				w.setLoginId(sub.getAuthName());
-				w.setLoginPassword(sub.getAuthPassword());
-			}
 			// Wget.read()は、任意の文字コードからUTF-8に変換し、Stringに詰める。
 			String s = w.read();
 			// Stringの文字コードと、HTMLのcharsetに記載された文字コード名が一致していないと

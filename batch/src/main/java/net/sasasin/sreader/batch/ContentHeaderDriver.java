@@ -120,7 +120,7 @@ public class ContentHeaderDriver {
 	public void run() {
 		logger.info(this.getClass().getSimpleName() +" is started.");
 		
-		for (FeedUrl fu : feedUrlDao.findIfExistsSubscriber()) {
+		for (FeedUrl fu : feedUrlDao.findAll()) {
 			// RSS/Atom feed to Set<....>
 			Set<ContentHeader> s = this.fetch(fu);
 			this.importContentHeader(s);

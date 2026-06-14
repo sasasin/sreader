@@ -22,18 +22,11 @@ package net.sasasin.sreader.batch;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Date;
 import java.util.List;
 
-import net.sasasin.sreader.commons.dao.AccountDao;
 import net.sasasin.sreader.commons.dao.FeedUrlDao;
-import net.sasasin.sreader.commons.dao.SubscriberDao;
-import net.sasasin.sreader.commons.dao.impl.AccountDaoHibernateImpl;
 import net.sasasin.sreader.commons.dao.impl.FeedUrlDaoHibernateImpl;
-import net.sasasin.sreader.commons.dao.impl.SubscriberDaoHibernateImpl;
-import net.sasasin.sreader.commons.entity.Account;
 import net.sasasin.sreader.commons.entity.FeedUrl;
-import net.sasasin.sreader.commons.entity.Subscriber;
 import net.sasasin.sreader.commons.util.Md5Util;
 
 import org.apache.commons.io.IOUtils;
@@ -43,9 +36,7 @@ import org.slf4j.LoggerFactory;
 public class SingleAccountFeedReader {
 	private static Logger logger = LoggerFactory.getLogger("net.sasasin.sreader.batch");
 
-	private AccountDao accountDao = new AccountDaoHibernateImpl();
 	private FeedUrlDao feedUrlDao = new FeedUrlDaoHibernateImpl();
-	private SubscriberDao subscriberDao = new SubscriberDaoHibernateImpl();
 
 	/**
 	 * @param args
@@ -73,20 +64,16 @@ public class SingleAccountFeedReader {
 			return;
 		}
 
-		// import path to feed_url table.
-		importSubscribe(lines);
+		importFeedUrls(lines);
 
 		logger.info(this.getClass().getSimpleName() +" is ended.");
 	}
 
-	private void importSubscribe(List<String> lines) {
-
-		Account a = accountDao.getOneResult();
-		if (a == null) {
-			return;
-		}
-
+	private void importFeedUrls(List<String> lines) {
 		for (String line : lines) {
+			if (line.trim().length() == 0) {
+				continue;
+			}
 			String[] str = line.split("\t");
 
 			FeedUrl f = feedUrlDao.get(Md5Util.crypt(str[0]));
@@ -95,23 +82,6 @@ public class SingleAccountFeedReader {
 				f.setId(Md5Util.crypt(str[0]));
 				f.setUrl(str[0]);
 				feedUrlDao.save(f);
-			}
-
-			Subscriber s = subscriberDao.get(Md5Util.crypt(a.getId()
-					+ f.getId()));
-			if (s == null) {
-				s = new Subscriber();
-				s.setId(Md5Util.crypt(a.getId() + f.getId()));
-				s.setAccount(a);
-				s.setFeedUrl(f);
-				s.setSubscribeDate(new Date());
-				subscriberDao.save(s);
-			}
-			if (str.length == 3) {
-				s.setAuthName(str[1]);
-				s.setAuthPassword(str[2]);
-				s.setAuthCheckDate(new Date());
-				subscriberDao.update(s);
 			}
 		}
 	}

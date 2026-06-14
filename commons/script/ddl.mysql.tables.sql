@@ -18,6 +18,11 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
+-- Legacy reference only.
+-- The modern Docker Compose/Flyway setup does not use this file. It still
+-- reflects the historical schema, including removed Gmail delivery and
+-- authenticated-fetch tables, for archaeology only.
+
 -- show warnings
 \W
 

@@ -20,11 +20,13 @@
 #
 
 BASEDIR=$(cd $(dirname $0);pwd)
+REPO_DIR=$(cd "$BASEDIR/../..";pwd)
 
-cd $BASEDIR/../
+cd "$REPO_DIR"
 
 # FeedReaderの実行
-java -cp $BASEDIR/../lib/\*:$BASEDIR/../lib_ext/\* \
+docker compose run --rm \
+    maven java -cp "/workspace/batch/lib/*:/workspace/batch/lib_ext/*" \
     net.sasasin.sreader.batch.EftRulesDriver
 
-cd $BASEDIR
+cd "$BASEDIR"

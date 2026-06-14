@@ -18,6 +18,10 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
+-- Legacy reference only.
+-- The modern Docker Compose/Flyway setup does not use this file. Its historical
+-- login_rules seed data belongs to the removed authenticated-fetch feature.
+
 -- ログインルールのサンプル。
 delete from login_rules;
 
