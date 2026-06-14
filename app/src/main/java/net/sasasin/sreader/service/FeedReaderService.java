@@ -33,7 +33,7 @@ public class FeedReaderService {
 	public JobResult runOnce() {
 		int seeded = feedRegistrationService.registerFeedUrls(properties.seedFeedUrls());
 		int headers = 0;
-		for (FeedUrl feedUrl : feedUrlRepository.findAll()) {
+		for (FeedUrl feedUrl : feedUrlRepository.findActiveForReading()) {
 			headers += feedEntryImportService.importEntries(feedUrl);
 		}
 		int fullTexts = fullTextExtractionService.extractPending(100);
