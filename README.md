@@ -4,19 +4,8 @@ SReader
 SReader は、認証不要な公開 RSS/Atom feed を取得し、記事 URL/タイトルと
 本文抽出結果を PostgreSQL に保存する lightweight feed reader です。
 
-このリライトで標準アプリケーションは Java 25 + Spring Boot + jOOQ +
-Flyway + PostgreSQL 16.x の `app` module になりました。旧 Hibernate
-entity/DAO、JPA、legacy batch shell script は削除済みです。
-
-## 廃止済み機能
-
-運用安全性を優先し、以下の機能は復活させていません。
-
-- Gmail アカウントを用いたメール配信
-- SMTP / JavaMail / commons-email によるメール送信
-- Gmail password を DB に保存する設計
-- 購読先ログイン ID/password と `login_rules` による認証付き取得
-- 購読先 password を DB に保存する設計
+標準アプリケーションは Java 25 + Spring Boot + jOOQ + Flyway +
+PostgreSQL 16.x の `app` module です。
 
 ## 標準構成
 
@@ -25,8 +14,7 @@ entity/DAO、JPA、legacy batch shell script は削除済みです。
   `feed_url`、`content_header`、`content_full_text`、`eft_rules` だけを作成
 - `docker-compose.yml`: `postgres`、`flyway`、`maven`、`app`
 
-旧 `commons/` と `batch/` module は削除済みです。標準 build/runtime path は
-Spring Boot 版 `app/` module だけを対象にします。
+標準 build/runtime path は `app/` module を対象にします。
 
 ホスト OS に Java / Maven / PostgreSQL client / Flyway を入れないでください。
 標準操作は Docker Compose 経由です。
@@ -42,8 +30,7 @@ docker compose exec postgres psql -U sreader -d sreader -c "SELECT version();"
 ```
 
 `docker compose down -v` はローカル PostgreSQL volume を削除します。既存の
-開発 DB データが必要な場合は実行しないでください。既存 MySQL volume /
-schema history との互換性は標準サポート外です。
+開発 DB データが必要な場合は実行しないでください。
 
 ## Flyway
 
@@ -83,8 +70,7 @@ app container は `/app/app.jar` を実行します。
 
 ## Scheduler
 
-旧 cron script 方式は削除済みです。Spring Scheduler が
-アプリケーションコンテナ内で job を実行します。
+Spring Scheduler がアプリケーションコンテナ内で job を実行します。
 
 主な環境変数:
 
@@ -110,7 +96,6 @@ docker compose run --rm app java -jar /app/app.jar --sreader.scheduler.enabled=f
 
 ## 残課題
 
-- 本番データ移行
 - 本格 Web UI
 - production monitoring / secret manager 設計
 - distributed scheduler lock
