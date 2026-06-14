@@ -2,7 +2,7 @@ SReader
 =======
 
 SReader は、RSS/Atom リーダーです。現在は、約 13 年間停止していた
-codebase を Docker Compose / Maven multi-module / Flyway / MySQL 8.4
+codebase を Docker Compose / Maven multi-module / Flyway / PostgreSQL 16.x
 ベースへ現代化している途中です。
 
 現在サポートする範囲は、認証不要な公開 RSS/Atom feed を取得し、記事
@@ -24,16 +24,19 @@ OAuth2 や secret manager への置き換えではなく、認証情報を扱う
 
 ## Docker Compose セットアップ
 
-ホスト OS に JDK/Maven/MySQL client/Flyway を入れず、Docker Compose
-経由で実行します。
+ホスト OS に JDK/Maven/PostgreSQL client/Flyway を入れず、Docker Compose
+経由で実行します。標準 DB は PostgreSQL 16.x です。
 
 ```sh
 docker compose config
-docker compose up -d mysql
+docker compose up -d postgres
+docker compose ps
 docker compose run --rm flyway info
 docker compose run --rm flyway migrate
 docker compose run --rm flyway info
-docker compose run --rm flyway "-url=jdbc:mysql://mysql:3306/sreadertest?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC" -user=sreadertest -password=sreadertest migrate
+docker compose run --rm flyway -url=jdbc:postgresql://postgres:5432/sreadertest -user=sreadertest -password=sreadertest info
+docker compose run --rm flyway -url=jdbc:postgresql://postgres:5432/sreadertest -user=sreadertest -password=sreadertest migrate
+docker compose run --rm flyway -url=jdbc:postgresql://postgres:5432/sreadertest -user=sreadertest -password=sreadertest info
 docker compose run --rm maven mvn clean verify
 ```
 
@@ -43,9 +46,15 @@ schema を移行してください。開発 DB を作り直す場合は次を実
 
 ```sh
 docker compose down -v
-docker compose up -d mysql
+docker compose up -d postgres
 docker compose run --rm flyway migrate
 ```
+
+> **注意**: `docker compose down -v` は `postgres-data` volume を削除し、
+> ローカルの開発 DB データをすべて失います。実行前に確認してください。
+
+> **注意**: 既存の MySQL volume / Flyway schema history は標準サポート外です。
+> PostgreSQL 化後は fresh PostgreSQL database に対して migration を適用してください。
 
 ## Feed URL の登録
 
