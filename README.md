@@ -117,12 +117,13 @@ docker compose run --rm -v ./feeds.toml:/tmp/feeds.toml:ro app --sreader.schedul
 TOML schema:
 
 ```toml
-schema_version = 1
+schema_version = 2
 generated_at = "2026-06-14T12:00:00+09:00"
 
 [[feeds]]
 url = "https://example.com/feed.xml"
 status = "active"
+full_text_method = "http"
 
 [[feeds]]
 url = "https://closed.example/rss.xml"
@@ -130,9 +131,12 @@ status = "unsubscribed"
 unsubscribe_reason = "site_closed"
 unsubscribed_at = "2026-06-14T12:00:00+09:00"
 note = "サイト閉鎖を確認したため"
+full_text_method = "http"
 ```
 
-`schema_version = 1` と `feeds[].url` は必須です。`status` は省略時 `active` です。URL は trim され、`http` / `https` の absolute URI のみ許可します。userinfo を含む URL は認証付き取得につながるため拒否します。同一 TOML 内で正規化後 URL が重複した場合も validation error です。
+`schema_version = 2`（エクスポート時の現在のバージョン）と `feeds[].url` は必須です。import では `schema_version = 1`（後方互換）も受け付けます（`full_text_method` 未指定時は `"http"` として扱います）。`status` は省略時 `active` です。`full_text_method` は省略時 `"http"` です。
+
+URL は trim され、`http` / `https` の absolute URI のみ許可します。userinfo を含む URL は認証付き取得につながるため拒否します。同一 TOML 内で正規化後 URL が重複した場合も validation error です。
 
 `unsubscribe_reason` は `unsubscribed` 用の任意項目です。省略時は `other` として扱います。
 
