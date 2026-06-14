@@ -2,6 +2,9 @@
 #
 # SReader is RSS/Atom feed reader with full text.
 #
+# LEGACY-ONLY: the standard runtime is now the Spring Boot app scheduler.
+# Do not use this script for the Docker Compose app workflow.
+#
 # Copyright (C) 2011, Shinnosuke Suzuki <sasasin@sasasin.net>
 #
 # This program is free software: you can redistribute it and/or modify
