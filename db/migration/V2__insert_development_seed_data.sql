@@ -1,8 +1,5 @@
-INSERT INTO login_rules(host_name, post_url, id_box_name, password_box_name, submit_button_name)
-VALUES('example.com', 'https://example.com/login', 'username', 'password', 'submit');
-
-INSERT INTO login_rules(host_name, post_url, id_box_name, password_box_name, submit_button_name)
-VALUES('news.example.test', 'https://news.example.test/session', 'login', 'password', 'login-button');
-
-INSERT INTO account(id, email, password)
-VALUES('1', 'reader@example.test', 'development-password');
+-- Development seed data intentionally avoids real subscriptions and secrets.
+-- Feed URLs can be supplied with SREADER_SEED_FEED_URLS or inserted manually.
+INSERT INTO eft_rules(id, url_pattern, extract_rule)
+VALUES('d41d8cd98f00b204e9800998ecf8427e', 'https://example.com/articles/', '//article')
+ON CONFLICT (id) DO NOTHING;

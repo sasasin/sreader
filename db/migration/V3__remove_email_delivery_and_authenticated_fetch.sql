@@ -1,6 +1,3 @@
-DROP VIEW IF EXISTS content_view;
-
-DROP TABLE IF EXISTS publish_log;
-DROP TABLE IF EXISTS subscriber;
-DROP TABLE IF EXISTS account;
-DROP TABLE IF EXISTS login_rules;
+-- No-op marker: the Spring Boot rewrite schema no longer creates Gmail delivery
+-- or authenticated-fetch tables. Fresh databases contain only feed_url,
+-- content_header, content_full_text, and eft_rules.
