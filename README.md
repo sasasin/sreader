@@ -1,13 +1,11 @@
 SReader
 =======
 
-SReader は、認証不要な公開 RSS/Atom feed を取得し、記事 URL/タイトルと
-本文抽出結果を PostgreSQL に保存する lightweight feed reader です。
+SReader は、認証不要な公開 RSS/Atom feed を取得し、記事 URL/タイトルと本文抽出結果を PostgreSQL に保存する lightweight feed reader です。
 
-標準アプリケーションは Java 25 + Spring Boot + jOOQ + Flyway +
-PostgreSQL 16.x の `app` module です。
+テックスタックは Java 25 + Spring Boot + jOOQ + Flyway + PostgreSQL 16.x です。
 
-## 標準構成
+## ディレクトリ構成
 
 - `app/`: Spring Boot application
 - `db/migration/`: Flyway migration。fresh development DB 前提で
@@ -16,8 +14,7 @@ PostgreSQL 16.x の `app` module です。
 
 標準 build/runtime path は `app/` module を対象にします。
 
-ホスト OS に Java / Maven / PostgreSQL client / Flyway を入れないでください。
-標準操作は Docker Compose 経由です。
+Docker Compose 経由で操作可能です。ホスト OS に Java / Maven / PostgreSQL client / Flyway を入れる必要はありません。
 
 ## セットアップ
 
@@ -29,8 +26,7 @@ docker compose ps
 docker compose exec postgres psql -U sreader -d sreader -c "SELECT version();"
 ```
 
-`docker compose down -v` はローカル PostgreSQL volume を削除します。既存の
-開発 DB データが必要な場合は実行しないでください。
+`docker compose down -v` はローカル PostgreSQL volume を削除します。既存の開発 DB データが必要な場合は実行しないでください。
 
 ## Flyway
 
@@ -45,8 +41,7 @@ Spring Boot app 起動時にも Flyway auto migration が有効です。
 
 ## jOOQ / build / test
 
-jOOQ code generation は Docker Compose の PostgreSQL schema から
-`target/generated-sources/jooq` へ生成します。生成コードは Git 管理しません。
+jOOQ code generation は Docker Compose の PostgreSQL schema から `target/generated-sources/jooq` へ生成します。生成コードは Git 管理しません。
 
 ```sh
 docker compose run --rm maven mvn -version
@@ -55,9 +50,7 @@ docker compose run --rm maven mvn clean generate-sources
 docker compose run --rm maven mvn clean verify
 ```
 
-`maven` service は jOOQ codegen 用に `sreader` DB へ接続し、test 実行時は
-`sreadertest` DB に接続します。`docker/postgres/init/00-create-test-database.sql`
-が test DB/role を作成します。
+`maven` service は jOOQ codegen 用に `sreader` DB へ接続し、test 実行時は `sreadertest` DB に接続します。`docker/postgres/init/00-create-test-database.sql` が test DB/role を作成します。
 
 ## app 起動
 
@@ -104,7 +97,4 @@ docker compose run --rm app java -jar /app/app.jar --sreader.scheduler.enabled=f
 配布条件
 ------
 
-本プログラムはフリーソフトウェアです。LGPL (the GNU Lesser General
-Public License) バージョン 3、またはそれ以降のバージョンに示す条件で
-本プログラムを再配布できます。LGPL については LICENSE ファイルを参照して
-ください。
+本プログラムはフリーソフトウェアです。LGPL (the GNU Lesser General Public License) バージョン 3、またはそれ以降のバージョンに示す条件で本プログラムを再配布できます。LGPL については LICENSE ファイルを参照してください。
