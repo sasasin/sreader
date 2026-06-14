@@ -26,12 +26,11 @@ Spring Boot は現時点で Java 25 との組み合わせを優先し、Spring B
 ## module 構成
 
 - `app`: 標準 Spring Boot application
-- `commons`: legacy reference。標準 build から除外
-- `batch`: legacy reference。標準 build から除外
 - `db/migration`: app と Flyway service が共有する migration
 
 root `pom.xml` の reactor は `app` のみです。旧 Hibernate / DAO / shell
 script を延命せず、新 app 側に service/repository として移植しました。
+旧 `commons/` と `batch/` module は Spring Boot 版への移行後に削除済みです。
 
 ## 移植したドメインロジック
 
@@ -127,12 +126,13 @@ docker compose up app
 
 ## Legacy code の扱い
 
-`commons` / `batch` には Hibernate entity/DAO、JUnit 4/DBUnit、旧
-`batch/script/run_feedreader.sh` が残っていますが、標準 reactor と app runtime
-には含めません。参照用 legacy-only code です。
+旧 `commons/` / `batch/` module にあった Hibernate entity/DAO、JUnit 4/DBUnit、
+旧 cron script は削除済みです。現在のソースツリーには存在せず、標準 reactor と
+app runtime は `app/` の Spring Boot application だけを対象にします。
 
-標準手順では `batch/script/run_feedreader.sh` を実行しません。README からも
-cron 前提の手順を削除しました。
+標準手順では Docker Compose 経由で build/test/app 起動を行い、定期実行は
+Spring Scheduler が担当します。Gmail/SMTP、認証付き取得、Hibernate、MySQL
+依存は復活していません。
 
 ## 残課題
 
