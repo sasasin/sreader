@@ -1,0 +1,52 @@
+package net.sasasin.sreader.repository;
+
+import static net.sasasin.sreader.jooq.Tables.CONTENT_FULL_TEXT;
+import static net.sasasin.sreader.jooq.Tables.CONTENT_HEADER;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import net.sasasin.sreader.domain.ContentHeader;
+import org.jooq.DSLContext;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class ContentHeaderRepository {
+
+	private final DSLContext dsl;
+
+	public ContentHeaderRepository(DSLContext dsl) {
+		this.dsl = dsl;
+	}
+
+	public boolean insertIfAbsent(ContentHeader header) {
+		OffsetDateTime now = OffsetDateTime.now();
+		return dsl.insertInto(CONTENT_HEADER)
+				.set(CONTENT_HEADER.ID, header.id())
+				.set(CONTENT_HEADER.FEED_URL_ID, header.feedUrlId())
+				.set(CONTENT_HEADER.URL, header.url())
+				.set(CONTENT_HEADER.TITLE, header.title())
+				.set(CONTENT_HEADER.PUBLISHED_AT, header.publishedAt())
+				.set(CONTENT_HEADER.CREATED_AT, now)
+				.set(CONTENT_HEADER.UPDATED_AT, now)
+				.onConflict(CONTENT_HEADER.ID)
+				.doNothing()
+				.execute() == 1;
+	}
+
+	public List<ContentHeader> findWithoutFullText(int limit) {
+		return dsl.select(CONTENT_HEADER.ID, CONTENT_HEADER.FEED_URL_ID, CONTENT_HEADER.URL,
+						CONTENT_HEADER.TITLE, CONTENT_HEADER.PUBLISHED_AT)
+				.from(CONTENT_HEADER)
+				.leftJoin(CONTENT_FULL_TEXT)
+				.on(CONTENT_HEADER.ID.eq(CONTENT_FULL_TEXT.CONTENT_HEADER_ID))
+				.where(CONTENT_FULL_TEXT.ID.isNull())
+				.orderBy(CONTENT_HEADER.CREATED_AT.asc())
+				.limit(limit)
+				.fetch(record -> new ContentHeader(
+						record.get(CONTENT_HEADER.ID),
+						record.get(CONTENT_HEADER.FEED_URL_ID),
+						record.get(CONTENT_HEADER.URL),
+						record.get(CONTENT_HEADER.TITLE),
+						record.get(CONTENT_HEADER.PUBLISHED_AT)));
+	}
+}

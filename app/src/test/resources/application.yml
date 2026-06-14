@@ -1,0 +1,9 @@
+sreader:
+  scheduler:
+    enabled: false
+    cron: 0 */15 * * * *
+spring:
+  datasource:
+    url: ${SREADER_DATASOURCE_URL:jdbc:postgresql://postgres:5432/sreadertest}
+    username: ${SREADER_DATASOURCE_USERNAME:sreadertest}
+    password: ${SREADER_DATASOURCE_PASSWORD:sreadertest}
