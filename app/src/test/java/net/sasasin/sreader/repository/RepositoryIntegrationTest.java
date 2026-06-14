@@ -7,6 +7,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import net.sasasin.sreader.domain.ContentFullText;
 import net.sasasin.sreader.domain.ContentHeader;
+import net.sasasin.sreader.domain.FeedStatus;
+import net.sasasin.sreader.domain.FeedUrl;
 import org.jooq.DSLContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,7 +43,29 @@ class RepositoryIntegrationTest {
 				.isTrue();
 		assertThat(feedUrlRepository.insertIfAbsent("feed0000000000000000000000000001", "https://example.test/rss.xml"))
 				.isFalse();
-		assertThat(feedUrlRepository.findAll()).hasSize(1);
+		assertThat(feedUrlRepository.findActiveForReading()).hasSize(1);
+	}
+
+	@Test
+	void activeReaderQueryExcludesUnsubscribedFeeds() {
+		feedUrlRepository.insertFromImport(new FeedUrl(
+				"feed0000000000000000000000000003",
+				"https://example.test/active.xml",
+				FeedStatus.ACTIVE.value(),
+				null,
+				null,
+				null));
+		feedUrlRepository.insertFromImport(new FeedUrl(
+				"feed0000000000000000000000000004",
+				"https://example.test/old.xml",
+				FeedStatus.UNSUBSCRIBED.value(),
+				"site_closed",
+				null,
+				"closed"));
+
+		assertThat(feedUrlRepository.findActiveForReading())
+				.extracting(FeedUrl::url)
+				.containsExactly("https://example.test/active.xml");
 	}
 
 	@Test
