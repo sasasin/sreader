@@ -2,12 +2,12 @@ CREATE TABLE account(
        id char(32) primary key,
        email varchar(1024) not null,
        password varchar(1024) not null
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);
 
 CREATE TABLE feed_url(
        id char(32) primary key,
        url text not null
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);
 
 CREATE TABLE subscriber(
        id char(32) primary key,
@@ -19,7 +19,7 @@ CREATE TABLE subscriber(
        auth_check_date date,
        CONSTRAINT subscriber_fkey01 FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE,
        CONSTRAINT subscriber_fkey02 FOREIGN KEY (feed_url_id) REFERENCES feed_url(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);
 
 CREATE TABLE content_header(
        id char(32) primary key,
@@ -27,21 +27,21 @@ CREATE TABLE content_header(
        title varchar(1024),
        feed_url_id char(32) not null,
        CONSTRAINT content_header_fkey01 FOREIGN KEY (feed_url_id) REFERENCES feed_url(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);
 
 CREATE TABLE content_full_text(
        id char(32) primary key,
-       full_text longtext,
+       full_text text,
        content_header_id char(32) not null,
        CONSTRAINT content_full_text_fkey01 FOREIGN KEY (content_header_id) REFERENCES content_header(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);
 
 CREATE TABLE publish_log(
        id char(32) primary key,
        account_id char(32) not null,
        content_header_id char(32) not null,
        publish_date date not null
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);
 
 CREATE TABLE login_rules(
        host_name varchar(96) primary key,
@@ -49,13 +49,13 @@ CREATE TABLE login_rules(
        id_box_name varchar(256) not null,
        password_box_name varchar(256) not null,
        submit_button_name varchar(256) not null
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);
 
 CREATE TABLE eft_rules(
        id char(32) primary key,
        url text not null,
        extract_rule text not null
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);
 
 CREATE OR REPLACE VIEW content_view AS
 SELECT a.id AS account_id
