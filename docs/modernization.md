@@ -2,19 +2,37 @@
 
 ## 目的
 
-このマイルストーンでは、古い Java/Maven/MySQL プロジェクトに対して、Docker だけで再現できる作業基盤を作ります。Maven、JDK、Java コマンド、MySQL client コマンド、Flyway は、ホスト OS ではなく Docker コンテナ内で実行する方針です。
+このマイルストーンでは、古い Java/Maven/MySQL プロジェクトを、Docker
+だけで再現できる作業基盤へ移行しています。Maven、JDK、Java コマンド、
+MySQL client コマンド、Flyway は、ホスト OS ではなく Docker コンテナ内で
+実行する方針です。
 
-今回の追加作業では、MySQL 初期化の責務を分離しました。Docker Compose の MySQL entrypoint が実行する SQL は database/user 作成だけを担当し、table、view、development seed data は Flyway migration で管理します。現代化後の標準手順では `commons/script/ddl.mysql.users.sql` を `mysql` コマンドで直接実行しません。
+今回の追加作業では、運用安全性を優先して Gmail 配信機能と外部サイトへの
+認証付き取得機能を廃止しました。認証情報を暗号化する方向ではなく、DB と
+codebase から Gmail password、購読先 login ID/password、`login_rules` を
+扱う機能を削除しています。
+
+## 現在の機能範囲
+
+- 認証不要な公開 RSS/Atom feed URL の登録
+- 公開 RSS/Atom feed から記事 URL とタイトルを取得
+- 認証不要ページの本文抽出
+- `feed_url`、`content_header`、`content_full_text`、`eft_rules` への保存
+
+メール配信、SMTP relay、Gmail OAuth2、外部サイトログイン、secret manager
+連携は現在の scope では実装しません。
 
 ## リポジトリ構成
 
-- `commons` には、共通 entity、DAO 実装、utility、legacy SQL script、および大半の test が含まれています。
-- `batch` には、feed 取り込み、全文抽出、配信を行う command-line job が含まれています。
-- `batch` は `commons` に依存しており、現在は Maven reactor module dependency として接続しています。
-- `db/migration` には、Docker Compose の Flyway service から実行する migration SQL を置きます。
-- `commons/script` 配下の元 SQL file は legacy reference として残しますが、現代化中の標準セットアップでは実行しません。
-
-Flyway migration は root の `db/migration` に配置します。DB migration は Java artifact の resource ではなく開発環境と DB lifecycle の責務として扱いたいため、Maven module 配下ではなく Compose service から直接 mount しやすい場所を選びました。
+- `commons` には、残存 schema に対応する entity、DAO、utility、legacy SQL
+  script、および test が含まれています。
+- `batch` には、feed URL 登録、feed 取り込み、全文抽出を行う command-line
+  job が含まれています。
+- `db/migration` には、Docker Compose の Flyway service から実行する
+  migration SQL を置きます。
+- `docker/mysql/init/` は database/user 作成だけを担当します。
+- `commons/script` 配下の元 SQL file は legacy reference です。現代化後の
+  標準セットアップでは実行しません。
 
 ## Docker Compose
 
@@ -40,33 +58,18 @@ docker compose run --rm flyway "-url=jdbc:mysql://mysql:3306/sreadertest?allowPu
 docker compose run --rm flyway "-url=jdbc:mysql://mysql:3306/sreadertest?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC" -user=sreadertest -password=sreadertest info
 ```
 
-Maven コンテナ内で Maven と Java を確認します。
-
-```sh
-docker compose run --rm maven mvn -version
-docker compose run --rm maven java -version
-```
-
-reactor 全体を build/test します。test は `commons/src/test/resources/hibernate.cfg.xml` により `sreadertest` database へ接続するため、事前に `sreadertest` へ Flyway migration を適用してください。
+reactor 全体を build/test します。test は `sreadertest` database へ接続する
+ため、事前に `sreadertest` へ Flyway migration を適用してください。
 
 ```sh
 docker compose run --rm maven mvn clean verify
 ```
 
-MySQL コンテナ内の client で DB を確認します。
-
-```sh
-docker compose exec mysql mysql -uroot -psreaderroot -e "SHOW DATABASES;"
-docker compose exec mysql mysql -uroot -psreaderroot -e "SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema IN ('sreader', 'sreadertest') ORDER BY table_schema, table_name;"
-docker compose exec mysql mysql -uroot -psreaderroot -e "SELECT * FROM sreader.flyway_schema_history;"
-docker compose exec mysql mysql -uroot -psreaderroot -e "SELECT * FROM sreadertest.flyway_schema_history;"
-```
-
-Maven local repository は `maven-repository` Docker volume に保存します。MySQL data は `mysql-data` Docker volume に保存します。
-
 ## MySQL 初期化
 
-Docker Compose は `docker/mysql/init/` を MySQL container の `/docker-entrypoint-initdb.d` に mount します。ここに置く SQL は MySQL container の初回起動時、つまり `mysql-data` volume が空の時だけ実行されます。
+Docker Compose は `docker/mysql/init/` を MySQL container の
+`/docker-entrypoint-initdb.d` に mount します。ここに置く SQL は MySQL
+container の初回起動時、つまり `mysql-data` volume が空の時だけ実行されます。
 
 `docker/mysql/init/00-create-databases-and-users.sql` の責務は以下だけです。
 
@@ -76,79 +79,87 @@ Docker Compose は `docker/mysql/init/` を MySQL container の `/docker-entrypo
 - テスト用 `sreadertest` user の作成
 - それぞれの database への最小限の権限付与
 
-この初期化 SQL には `CREATE TABLE`、`CREATE VIEW`、seed data の `INSERT`、Gmail や購読情報などの利用者データを含めません。テストは `sreadertest` user で `sreadertest` database に接続するため、`sreader` user へ `sreadertest` の権限は付与していません。
+この初期化 SQL には `CREATE TABLE`、`CREATE VIEW`、seed data の `INSERT`、
+Gmail や購読先認証情報などの利用者データを含めません。
 
-既存 Docker volume がある場合、MySQL entrypoint の init SQL は再実行されません。DB/user 作成 SQL からやり直す必要がある場合は、ローカル開発 DB を破棄する操作であることを理解したうえで、次を実行してください。
+既存 Docker volume がある場合、MySQL entrypoint の init SQL は再実行されません。
+schema 更新は Flyway migration を適用してください。DB/user 作成 SQL から
+やり直す必要がある場合は、ローカル開発 DB を破棄する操作であることを理解
+したうえで、次を実行してください。
 
 ```sh
 docker compose down -v
 docker compose up -d mysql
 ```
 
-`docker compose down -v` は `mysql-data` volume を削除し、ローカルの開発 DB データを失います。
+`docker compose down -v` は `mysql-data` volume を削除し、ローカルの開発 DB
+データを失います。
 
 ## Flyway migration
 
-Flyway は専用 Compose service として定義しています。DB migration を Maven build と別責務にでき、CI や将来の自動化でも database ごとに同じ service を再利用しやすいためです。image は `redgate/flyway:12.8.1` に固定しています。
+Flyway は専用 Compose service として定義しています。DB migration を Maven
+build と別責務にでき、CI や将来の自動化でも database ごとに同じ service を
+再利用しやすいためです。image は `redgate/flyway:12.8.1` に固定しています。
 
-- `db/migration/V1__create_schema.sql` は `account`、`feed_url`、`subscriber`、`content_header`、`content_full_text`、`publish_log`、`login_rules`、`eft_rules`、`content_view` を作成します。
-- `db/migration/V2__insert_development_seed_data.sql` は開発・テスト用の dummy seed data だけを投入します。
+- `V1__create_schema.sql` は legacy schema を作成します。
+- `V2__insert_development_seed_data.sql` は V1 時点の dummy seed data を投入します。
+- `V3__remove_email_delivery_and_authenticated_fetch.sql` は Gmail 配信と認証付き取得の
+  廃止に伴い、`content_view`、`publish_log`、`subscriber`、`account`、
+  `login_rules` を削除します。
 
-`V1` は `commons/script/ddl.mysql.tables.sql` と旧 Docker schema SQL を元に、MySQL 8.4 / `utf8mb4` で動く形へ整理しています。legacy SQL の `varchar(8096)` は `utf8mb4` の row-size limit を避けるため、旧 Docker schema と同じく `text` にしています。migration 内では `CREATE DATABASE` や `CREATE USER` を行わず、接続先 database に対して適用される前提です。
+既存 migration は master に入っているため checksum 不一致を避ける目的で
+直接編集していません。fresh DB では V1/V2 の後に V3 が適用され、一時的に
+古い table/seed が作られてから削除されます。将来、migration を squash するかは
+別作業として判断してください。
 
-`V2` は dummy data だけです。`commons/script/gmail.sql` のような利用者が個別に編集すべき Gmail アカウント情報は取り込みません。
+期待する現行 schema は、`feed_url`、`content_header`、`content_full_text`、
+`eft_rules` と Flyway 管理 table です。Gmail password、購読先 password、
+`login_rules`、Gmail 配信用 `content_view`、メール送信済み管理専用
+`publish_log` は残しません。
 
 ## Maven の変更
 
-- root `pom.xml` を追加し、packaging `pom` として `commons` / `batch` module を定義しました。
-- 依存 version と plugin version を parent POM 側に移しました。
-- module POM から Maven version range を削除しました。
-- legacy な `system` scope の `juniversalchardet` jar を、Maven Central の artifact `com.googlecode.juniversalchardet:juniversalchardet:1.0.3` に置き換えました。
-- この codebase はもともと JDK 7 向けに作られているため、Java source/target は `1.7` のまま維持しています。Docker の Maven image は、ホストへ JDK を入れずに済むよう、より新しい JDK を使用します。
-- compiler、resources、surefire、enforcer の plugin management を追加しました。
-- Hibernate 4/Javassist が legacy な reflective proxy generation を使うため、Java 17 での test 実行用に Surefire の `--add-opens` option を追加しました。
+- root `pom.xml` は packaging `pom` として `commons` / `batch` module を定義します。
+- 依存 version と plugin version は parent POM 側で固定しています。
+- Java source/target は既存 codebase に合わせて `1.7` を維持しています。
+- HtmlUnit は認証不要ページの本文抽出にも使うため残しています。
+- `commons-email` は Gmail/SMTP 配信専用だったため削除しました。
 
-## 依存バージョン固定方針
+## Legacy SQL
 
-version は意図的に保守的に固定しています。目的は framework の全面 upgrade ではなく、再現可能な build 挙動を作ることです。
+`commons/script/` 配下の SQL は現代化前の host-oriented setup 用 reference です。
+標準手順では実行しません。
 
-- 大きな ORM 移行を避けるため、Hibernate は `4.2.7.SP1` のまま維持しました。
-- Docker の MySQL 8 service で現行 driver artifact を使えるよう、MySQL Connector/J は `com.mysql:mysql-connector-j:8.0.33` に移しました。
-- HtmlUnit は modern API へ一気に上げず、既存 code の時代に近い `2.13` に固定しました。
-- DBUnit、EasyMock、JUnit、POI などの test library は、現在の code と互換性のある明示 version に固定しました。
-- このマイルストーンでは、Hibernate 4 から modern Hibernate への移行は行っていません。
+- `gmail.sql` は Gmail 配信廃止により使用しません。
+- `dml.sql` に含まれる historical `login_rules` seed は廃止済み機能の記録です。
+- `ddl.mysql.tables.sql` は historical schema reference であり、現行 schema の定義元ではありません。
+- `ddl.mysql.users.sql` をホストの `mysql` command で直接実行する旧手順は標準手順ではありません。
 
-## 残課題
+## 検証
 
-- Hibernate 4 から modern Hibernate への移行は別作業として計画してください。
-- Java language level の引き上げは別作業として計画してください。
-- Spring Boot 化は今回の scope 外です。
-- Gmail authentication modernization は別作業として計画してください。
-- 本番向け secret management は今回の scope 外です。
-- DB schema の大規模再設計は今回の scope 外です。
-- `mvn clean verify` は Java 17 で obsolete な `source`/`target` value `1.7` に対する warning を出す可能性があります。
-- DBUnit は MySQL 利用時に `DefaultDataTypeFactory` に関する warning を出す可能性があります。
-- `slf4j-log4j12:1.7.36` は `slf4j-reload4j` に relocated されています。dependency behavior の影響範囲を広げないため、このマイルストーンでは変更していません。
-- legacy な host-oriented shell script は、削除・書き換え・Docker Compose wrapper 化のいずれかを検討してください。
-
-## 検証実行
-
-以下の command を host から実行し、Maven、Java、MySQL client、Flyway の作業が Docker コンテナ内で行われることを確認します。
+代表的な検証 command は次の通りです。
 
 ```sh
 docker compose config
 docker compose down -v
 docker compose up -d mysql
-docker compose ps
 docker compose run --rm flyway info
 docker compose run --rm flyway migrate
 docker compose run --rm flyway info
+docker compose exec mysql mysql -uroot -psreaderroot -e "SHOW DATABASES;"
+docker compose exec mysql mysql -uroot -psreaderroot -e "SELECT table_name FROM information_schema.tables WHERE table_schema = 'sreader' ORDER BY table_name;"
+docker compose exec mysql mysql -uroot -psreaderroot -e "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'sreader' AND (column_name LIKE '%password%' OR column_name LIKE 'auth_%' OR table_name = 'login_rules') ORDER BY table_name, column_name;"
 docker compose run --rm flyway "-url=jdbc:mysql://mysql:3306/sreadertest?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC" -user=sreadertest -password=sreadertest info
 docker compose run --rm flyway "-url=jdbc:mysql://mysql:3306/sreadertest?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC" -user=sreadertest -password=sreadertest migrate
-docker compose run --rm flyway "-url=jdbc:mysql://mysql:3306/sreadertest?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC" -user=sreadertest -password=sreadertest info
-docker compose exec mysql mysql -uroot -psreaderroot -e "SHOW DATABASES;"
-docker compose exec mysql mysql -uroot -psreaderroot -e "SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema IN ('sreader', 'sreadertest') ORDER BY table_schema, table_name;"
-docker compose exec mysql mysql -uroot -psreaderroot -e "SELECT * FROM sreader.flyway_schema_history;"
-docker compose exec mysql mysql -uroot -psreaderroot -e "SELECT * FROM sreadertest.flyway_schema_history;"
+docker compose exec mysql mysql -uroot -psreaderroot -e "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'sreadertest' AND (column_name LIKE '%password%' OR column_name LIKE 'auth_%' OR table_name = 'login_rules') ORDER BY table_name, column_name;"
 docker compose run --rm maven mvn clean verify
 ```
+
+## 残課題
+
+- Hibernate 4 から modern Hibernate への移行
+- Java language level の引き上げ
+- Spring Boot 化
+- DB schema migration の将来的な squash
+- legacy な host-oriented shell script の Docker Compose wrapper 化または削除
+- 本番運用設計

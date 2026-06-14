@@ -20,14 +20,10 @@
 #
 
 BASEDIR=$(cd $(dirname $0);pwd)
+REPO_DIR=$(cd "$BASEDIR/../..";pwd)
 
-cd $BASEDIR/../
+cd "$REPO_DIR"
 
 # シェルスクリプト実行に必要なライブラリ収集
-rm -f $BASEDIR/../lib_ext/*
-mvn dependency:copy-dependencies -DoutputDirectory=lib_ext
-
-# アプリのコンパイル
-mvn clean compile package install
-cp $BASEDIR/../target/*.jar $BASEDIR/../lib_ext
-
+docker compose run --rm maven sh -c \
+    'mkdir -p batch/lib_ext && rm -f batch/lib_ext/* && mvn -pl batch -am clean package install dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=/workspace/batch/lib_ext && cp commons/target/*.jar batch/target/*.jar batch/lib_ext'

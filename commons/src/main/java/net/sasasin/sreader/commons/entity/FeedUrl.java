@@ -2,13 +2,9 @@ package net.sasasin.sreader.commons.entity;
 
 // Generated Sep 11, 2011 1:46:23 AM by Hibernate Tools 3.4.0.CR1
 
-import java.util.HashSet;
-import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
 import javax.persistence.Table;
 
 /**
@@ -21,8 +17,6 @@ public class FeedUrl implements java.io.Serializable {
 	private static final long serialVersionUID = -6036927080531714949L;
 	private String id;
 	private String url;
-	private Set<Subscriber> subscribers = new HashSet<Subscriber>(0);
-	private Set<ContentHeader> contentHeaders = new HashSet<ContentHeader>(0);
 
 	public FeedUrl() {
 	}
@@ -30,14 +24,6 @@ public class FeedUrl implements java.io.Serializable {
 	public FeedUrl(String id, String url) {
 		this.id = id;
 		this.url = url;
-	}
-
-	public FeedUrl(String id, String url, Set<Subscriber> subscribers,
-			Set<ContentHeader> contentHeaders) {
-		this.id = id;
-		this.url = url;
-		this.subscribers = subscribers;
-		this.contentHeaders = contentHeaders;
 	}
 
 	@Id
@@ -57,24 +43,6 @@ public class FeedUrl implements java.io.Serializable {
 
 	public void setUrl(String url) {
 		this.url = url;
-	}
-
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "feedUrl")
-	public Set<Subscriber> getSubscribers() {
-		return this.subscribers;
-	}
-
-	public void setSubscribers(Set<Subscriber> subscribers) {
-		this.subscribers = subscribers;
-	}
-
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "feedUrl")
-	public Set<ContentHeader> getContentHeaders() {
-		return this.contentHeaders;
-	}
-
-	public void setContentHeaders(Set<ContentHeader> contentHeaders) {
-		this.contentHeaders = contentHeaders;
 	}
 
 }

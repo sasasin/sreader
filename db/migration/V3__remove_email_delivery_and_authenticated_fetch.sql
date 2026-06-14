@@ -1,0 +1,6 @@
+DROP VIEW IF EXISTS content_view;
+
+DROP TABLE IF EXISTS publish_log;
+DROP TABLE IF EXISTS subscriber;
+DROP TABLE IF EXISTS account;
+DROP TABLE IF EXISTS login_rules;

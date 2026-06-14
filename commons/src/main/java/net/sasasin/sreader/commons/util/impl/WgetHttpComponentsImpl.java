@@ -24,52 +24,35 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.nio.charset.CharacterCodingException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.sasasin.sreader.commons.entity.LoginRules;
 import net.sasasin.sreader.commons.util.CharDetector;
 import net.sasasin.sreader.commons.util.Wget;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
-import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
-import org.apache.http.NameValuePair;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
-import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.message.BasicHeader;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.util.EntityUtils;
 
 public class WgetHttpComponentsImpl implements Wget {
 
 	private URL url;
-	private LoginRules loginInfo;
-	private String loginId;
-	private String loginPassword;
 
 	private final static int DEFAULT_TIMEOUT_MILLISECONDS = 3000;
 
 	public WgetHttpComponentsImpl() {
 		setUrl(null);
-		setLoginInfo(null);
-		setLoginId(null);
-		setLoginPassword(null);
 	}
 
 	public WgetHttpComponentsImpl(URL url) {
 		setUrl(url);
-		setLoginInfo(null);
-		setLoginId(null);
-		setLoginPassword(null);
 	}
 
 	@Override
@@ -80,36 +63,6 @@ public class WgetHttpComponentsImpl implements Wget {
 	@Override
 	public URL getUrl() {
 		return url;
-	}
-
-	@Override
-	public LoginRules getLoginInfo() {
-		return loginInfo;
-	}
-
-	@Override
-	public void setLoginInfo(LoginRules loginInfo) {
-		this.loginInfo = loginInfo;
-	}
-
-	@Override
-	public String getLoginId() {
-		return loginId;
-	}
-
-	@Override
-	public void setLoginId(String loginId) {
-		this.loginId = loginId;
-	}
-
-	@Override
-	public String getLoginPassword() {
-		return loginPassword;
-	}
-
-	@Override
-	public void setLoginPassword(String loginPassword) {
-		this.loginPassword = loginPassword;
 	}
 
 	@Override
@@ -166,31 +119,6 @@ public class WgetHttpComponentsImpl implements Wget {
 				.setDefaultRequestConfig(config).setDefaultHeaders(headers)
 				.build();
 
-		HttpResponse response = null;
-
-		// ログイン情報があれば、ログイン済みのHttpClientを返す。
-		if (getLoginId() != null && getLoginPassword() != null
-				&& getLoginInfo() != null) {
-
-			// access top page.
-			response = httpclient.execute(new HttpGet("http://"
-					+ getLoginInfo().getHostName()));
-			EntityUtils.consume(response.getEntity());
-
-			// login
-			HttpPost httpost = new HttpPost(getLoginInfo().getPostUrl());
-			List<NameValuePair> nvps = new ArrayList<NameValuePair>();
-			// ログインID入力欄の名前と、ログインIDをセット
-			nvps.add(new BasicNameValuePair(getLoginInfo().getIdBoxName(),
-					getLoginId()));
-			// パスワード入力欄の名前と、パスワードをセット
-			nvps.add(new BasicNameValuePair(
-					getLoginInfo().getPasswordBoxName(), getLoginPassword()));
-			httpost.setEntity((HttpEntity) new UrlEncodedFormEntity(nvps,
-					Charset.forName("UTF-8")));
-			response = httpclient.execute(httpost);
-			EntityUtils.consume(response.getEntity());
-		}
 		return httpclient;
 	}
 
