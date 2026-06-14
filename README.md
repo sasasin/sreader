@@ -84,15 +84,69 @@ docker compose run --rm -e SREADER_SCHEDULER_ENABLED=false app
 1 回だけ job を実行:
 
 ```sh
-docker compose run --rm app java -jar /app/app.jar --sreader.scheduler.enabled=false --sreader.job.run-once=true
+docker compose run --rm app --sreader.scheduler.enabled=false --sreader.job.run-once=true
 ```
+
+## feed URL TOML import / export
+
+`feed_url` は購読状態を持つ購読レコードです。
+
+- `active`: 記事取得対象です。
+- `unsubscribed`: 購読停止済みです。DELETE ではなく tombstone として残し、過去に停止した feed が別環境や古い TOML import で誤って復活しにくいようにします。
+
+export はデフォルトで `active` と `unsubscribed` の両方を URL 昇順で出力します。
+
+```sh
+docker compose run --rm app --sreader.scheduler.enabled=false feeds export --output /tmp/feeds.toml
+docker compose run --rm app --sreader.scheduler.enabled=false feeds export --active-only --output /tmp/active-feeds.toml
+```
+
+import は safe merge です。TOML に存在する feed だけを insert/update し、TOML に存在しない DB 側 feed はデフォルトでは変更しません。dry-run で件数と conflict を確認できます。
+
+```sh
+docker compose run --rm -v ./feeds.toml:/tmp/feeds.toml:ro app --sreader.scheduler.enabled=false feeds import --input /tmp/feeds.toml --dry-run
+docker compose run --rm -v ./feeds.toml:/tmp/feeds.toml:ro app --sreader.scheduler.enabled=false feeds import --input /tmp/feeds.toml
+```
+
+DB 側が `unsubscribed`、TOML 側が `active` の場合、デフォルトでは復活させず conflict として報告します。明示的に復活させる場合だけ `--resubscribe` を付けます。
+
+```sh
+docker compose run --rm -v ./feeds.toml:/tmp/feeds.toml:ro app --sreader.scheduler.enabled=false feeds import --input /tmp/feeds.toml --resubscribe
+```
+
+TOML schema:
+
+```toml
+schema_version = 1
+generated_at = "2026-06-14T12:00:00+09:00"
+
+[[feeds]]
+url = "https://example.com/feed.xml"
+status = "active"
+
+[[feeds]]
+url = "https://closed.example/rss.xml"
+status = "unsubscribed"
+unsubscribe_reason = "site_closed"
+unsubscribed_at = "2026-06-14T12:00:00+09:00"
+note = "サイト閉鎖を確認したため"
+```
+
+`schema_version = 1` と `feeds[].url` は必須です。`status` は省略時 `active` です。URL は trim され、`http` / `https` の absolute URI のみ許可します。userinfo を含む URL は認証付き取得につながるため拒否します。同一 TOML 内で正規化後 URL が重複した場合も validation error です。
+
+`unsubscribe_reason` は `unsubscribed` 用の任意項目です。省略時は `other` として扱います。
+
+- `not_interested`: もう関心がない。
+- `site_closed`: サイト閉鎖。
+- `feed_dead`: feed が取得不能・壊れている。
+- `moved`: 移転済み。
+- `other`: その他。
 
 ## 残課題
 
 - 本格 Web UI
 - production monitoring / secret manager 設計
 - distributed scheduler lock
-- feed URL 管理用の運用 API
 
 配布条件
 ------
