@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: sreader
+  datasource:
+    url: ${SREADER_DATASOURCE_URL:jdbc:postgresql://postgres:5432/sreader}
+    username: ${SREADER_DATASOURCE_USERNAME:sreader}
+    password: ${SREADER_DATASOURCE_PASSWORD:sreader}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jooq:
+    sql-dialect: postgres
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+sreader:
+  scheduler:
+    enabled: ${SREADER_SCHEDULER_ENABLED:true}
+    cron: ${SREADER_SCHEDULER_CRON:0 */15 * * * *}
+  job:
+    run-once: ${SREADER_JOB_RUN_ONCE:false}
+  http:
+    user-agent: ${SREADER_HTTP_USER_AGENT:SReader/0.1}
+    connect-timeout: ${SREADER_HTTP_CONNECT_TIMEOUT:5s}
+    read-timeout: ${SREADER_HTTP_READ_TIMEOUT:20s}
+    retry-count: ${SREADER_HTTP_RETRY_COUNT:1}
+  seed-feed-urls: ${SREADER_SEED_FEED_URLS:}
