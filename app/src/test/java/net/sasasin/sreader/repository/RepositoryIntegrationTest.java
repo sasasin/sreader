@@ -4,6 +4,7 @@ import static net.sasasin.sreader.jooq.Tables.CONTENT_FULL_TEXT;
 import static net.sasasin.sreader.jooq.Tables.CONTENT_HEADER;
 import static net.sasasin.sreader.jooq.Tables.FEED_URL;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import net.sasasin.sreader.domain.ContentFullText;
 import net.sasasin.sreader.domain.ContentHeader;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @SpringBootTest
 class RepositoryIntegrationTest {
@@ -82,6 +84,29 @@ class RepositoryIntegrationTest {
         assertThat(feedUrlRepository.findActiveForReading())
             .extracting(FeedUrl::url)
             .containsExactly("https://example.test/active.xml");
+    }
+
+    @Test
+    void fullTextMethodMigrationDefaultAndConstraintAreApplied() {
+        dsl.insertInto(FEED_URL)
+            .set(FEED_URL.ID, "feed0000000000000000000000000005")
+            .set(FEED_URL.URL, "https://example.test/default-method.xml")
+            .execute();
+
+        assertThat(
+            feedUrlRepository
+                .findByUrl("https://example.test/default-method.xml")
+                .orElseThrow()
+                .fullTextMethod()
+        ).isEqualTo("http");
+
+        assertThatThrownBy(() ->
+            dsl.insertInto(FEED_URL)
+                .set(FEED_URL.ID, "feed0000000000000000000000000006")
+                .set(FEED_URL.URL, "https://example.test/bad-method.xml")
+                .set(FEED_URL.FULL_TEXT_METHOD, "bad_method")
+                .execute()
+        ).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
