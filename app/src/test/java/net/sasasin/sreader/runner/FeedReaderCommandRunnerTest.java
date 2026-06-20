@@ -5,9 +5,10 @@ import static org.mockito.Mockito.verify;
 
 import java.time.Duration;
 import java.util.List;
+import net.sasasin.sreader.cli.PicocliFactory;
+import net.sasasin.sreader.cli.SreaderCommand;
 import net.sasasin.sreader.config.FeedReaderProperties;
 import net.sasasin.sreader.scheduler.FeedReaderScheduler;
-import net.sasasin.sreader.service.FeedTomlService;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ConfigurableApplicationContext;
 
@@ -23,10 +24,12 @@ class FeedReaderCommandRunnerTest {
             null,
             List.of());
     FeedReaderScheduler scheduler = mock(FeedReaderScheduler.class);
-    FeedTomlService feedTomlService = mock(FeedTomlService.class);
     ConfigurableApplicationContext context = mock(ConfigurableApplicationContext.class);
+    SreaderCommand sreaderCommand = mock(SreaderCommand.class);
+    PicocliFactory picocliFactory = mock(PicocliFactory.class);
 
-    new FeedReaderCommandRunner(properties, scheduler, feedTomlService, context).run();
+    new FeedReaderCommandRunner(properties, scheduler, context, sreaderCommand, picocliFactory)
+        .run();
 
     verify(scheduler).runIfIdle();
     verify(context).close();
