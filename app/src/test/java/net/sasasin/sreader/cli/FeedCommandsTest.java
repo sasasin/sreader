@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import net.sasasin.sreader.scheduler.FeedReaderScheduler;
 import net.sasasin.sreader.service.FeedTomlService;
 import net.sasasin.sreader.service.FeedTomlService.ImportOptions;
 import net.sasasin.sreader.service.FeedTomlService.ImportResult;
@@ -135,6 +136,36 @@ class FeedCommandsTest {
     String out2 = baos.toString(StandardCharsets.UTF_8);
     assertEquals(0, exit2);
     assertTrue(out2.contains("import") || out2.contains("export"));
+  }
+
+  @Test
+  void feedsWithoutSubcommandShowsUsageError() {
+    SreaderCommand root = new SreaderCommand();
+    CommandLine cli = new CommandLine(root);
+
+    ByteArrayOutputStream err = new ByteArrayOutputStream();
+    PrintWriter pw = new PrintWriter(err);
+    cli.setErr(pw);
+
+    int exit = cli.execute("feeds");
+    pw.flush();
+    String errText = err.toString(StandardCharsets.UTF_8);
+
+    assertEquals(2, exit);
+    assertTrue(errText.contains("Usage:"));
+    assertTrue(errText.contains("import") || errText.contains("export"));
+  }
+
+  @Test
+  void runOnceCommandTriggersScheduler() {
+    FeedReaderScheduler scheduler = mock(FeedReaderScheduler.class);
+    RunOnceCommand cmd = new RunOnceCommand(scheduler);
+    CommandLine cli = new CommandLine(cmd);
+
+    int exit = cli.execute();
+
+    assertEquals(0, exit);
+    verify(scheduler).runIfIdle();
   }
 
   @Test

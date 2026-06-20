@@ -1,7 +1,11 @@
 package net.sasasin.sreader.cli;
 
+import java.util.concurrent.Callable;
 import org.springframework.stereotype.Component;
+import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Spec;
 
 @Command(
     name = "feeds",
@@ -10,10 +14,13 @@ import picocli.CommandLine.Command;
     subcommands = {FeedImportCommand.class, FeedExportCommand.class},
     usageHelpWidth = 100)
 @Component
-public class FeedsCommand implements Runnable {
+public class FeedsCommand implements Callable<Integer> {
+
+  @Spec private CommandSpec spec;
 
   @Override
-  public void run() {
-    // When "feeds" is given without subcommand, picocli automatically shows usage help.
+  public Integer call() {
+    spec.commandLine().usage(spec.commandLine().getErr());
+    return CommandLine.ExitCode.USAGE;
   }
 }

@@ -46,13 +46,13 @@ public class FeedReaderCommandRunner implements CommandLineRunner {
       // Map execution exceptions (runtime errors inside commands) to 1.
       cli.setExitCodeExceptionMapper(ex -> 1);
       int exitCode = cli.execute(filtered);
-      SpringApplication.exit(applicationContext, () -> exitCode);
+      exitApplication(exitCode);
       return;
     }
 
     if (properties.job().runOnce()) {
       scheduler.runIfIdle();
-      SpringApplication.exit(applicationContext, () -> 0);
+      exitApplication(0);
     }
     // otherwise fall through: application keeps running as daemon
     // (scheduler will trigger periodic jobs per sreader.scheduler.* config)
@@ -77,10 +77,21 @@ public class FeedReaderCommandRunner implements CommandLineRunner {
       return false;
     }
     for (String a : args) {
-      if ("feeds".equals(a) || "--help".equals(a) || "-h".equals(a) || "-?".equals(a)) {
+      if ("feeds".equals(a)
+          || "run-once".equals(a)
+          || "--help".equals(a)
+          || "-h".equals(a)
+          || "-?".equals(a)) {
         return true;
       }
     }
     return false;
+  }
+
+  private void exitApplication(int exitCode) {
+    int resolvedExitCode = SpringApplication.exit(applicationContext, () -> exitCode);
+    if (resolvedExitCode != 0) {
+      System.exit(resolvedExitCode);
+    }
   }
 }
