@@ -1,113 +1,97 @@
 package net.sasasin.sreader.runner;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.List;
+import net.sasasin.sreader.cli.PicocliFactory;
+import net.sasasin.sreader.cli.SreaderCommand;
 import net.sasasin.sreader.config.FeedReaderProperties;
 import net.sasasin.sreader.scheduler.FeedReaderScheduler;
-import net.sasasin.sreader.service.FeedTomlService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.stereotype.Component;
+import picocli.CommandLine;
 
 @Component
 public class FeedReaderCommandRunner implements CommandLineRunner {
 
+  private static final List<String> SPRING_PROP_PREFIXES =
+      List.of("--spring.", "--sreader.", "--server.", "--management.");
+
   private final FeedReaderProperties properties;
   private final FeedReaderScheduler scheduler;
-  private final FeedTomlService feedTomlService;
   private final ConfigurableApplicationContext applicationContext;
+  private final SreaderCommand sreaderCommand;
+  private final PicocliFactory picocliFactory;
 
   public FeedReaderCommandRunner(
       FeedReaderProperties properties,
       FeedReaderScheduler scheduler,
-      FeedTomlService feedTomlService,
-      ConfigurableApplicationContext applicationContext) {
+      ConfigurableApplicationContext applicationContext,
+      SreaderCommand sreaderCommand,
+      PicocliFactory picocliFactory) {
     this.properties = properties;
     this.scheduler = scheduler;
-    this.feedTomlService = feedTomlService;
     this.applicationContext = applicationContext;
+    this.sreaderCommand = sreaderCommand;
+    this.picocliFactory = picocliFactory;
   }
 
   @Override
-  public void run(String... args) throws IOException {
-    int feedsCommand = Arrays.asList(args).indexOf("feeds");
-    if (feedsCommand >= 0) {
-      runFeedsCommand(Arrays.copyOfRange(args, feedsCommand + 1, args.length));
-      SpringApplication.exit(applicationContext, () -> 0);
-    } else if (properties.job().runOnce()) {
+  public void run(String... args) throws Exception {
+    String[] filtered = filterSpringBootOptions(args);
+    if (isExplicitCliInvocation(filtered)) {
+      CommandLine cli = new CommandLine(sreaderCommand, picocliFactory);
+      // picocli default: 2 for usage errors (bad option / missing required).
+      // Map execution exceptions (runtime errors inside commands) to 1.
+      cli.setExitCodeExceptionMapper(ex -> 1);
+      int exitCode = cli.execute(filtered);
+      exitApplication(exitCode);
+      return;
+    }
+
+    if (properties.job().runOnce()) {
       scheduler.runIfIdle();
-      SpringApplication.exit(applicationContext, () -> 0);
+      exitApplication(0);
     }
+    // otherwise fall through: application keeps running as daemon
+    // (scheduler will trigger periodic jobs per sreader.scheduler.* config)
   }
 
-  private void runFeedsCommand(String[] args) throws IOException {
+  /**
+   * Remove Spring Boot / sreader property arguments before passing to picocli. Supports usage like:
+   * java -jar app.jar --sreader.scheduler.enabled=false feeds import --input feeds.toml
+   */
+  private String[] filterSpringBootOptions(String[] args) {
+    return Arrays.stream(args)
+        .filter(a -> SPRING_PROP_PREFIXES.stream().noneMatch(a::startsWith))
+        .toArray(String[]::new);
+  }
+
+  /**
+   * Returns true when the (filtered) args indicate an explicit CLI subcommand or help request.
+   * Non-matching cases fall back to the run-once property / normal daemon startup behavior.
+   */
+  private boolean isExplicitCliInvocation(String[] args) {
     if (args.length == 0) {
-      throw new IllegalArgumentException("feeds command requires export or import");
+      return false;
     }
-    switch (args[0]) {
-      case "export" -> exportFeeds(args);
-      case "import" -> importFeeds(args);
-      default -> throw new IllegalArgumentException("unsupported feeds command: " + args[0]);
-    }
-  }
-
-  private void exportFeeds(String[] args) throws IOException {
-    boolean activeOnly = hasFlag(args, "--active-only");
-    String output = optionValue(args, "--output");
-    String toml = feedTomlService.exportToml(activeOnly);
-    if (output == null) {
-      System.out.print(toml);
-    } else {
-      Files.writeString(Path.of(output), toml, StandardCharsets.UTF_8);
-      System.out.println("Exported feeds to " + output);
-    }
-  }
-
-  private void importFeeds(String[] args) throws IOException {
-    String input = optionValue(args, "--input");
-    if (input == null) {
-      throw new IllegalArgumentException("feeds import requires --input <path>");
-    }
-    String toml = Files.readString(Path.of(input), StandardCharsets.UTF_8);
-    FeedTomlService.ImportResult result =
-        feedTomlService.importToml(
-            toml,
-            new FeedTomlService.ImportOptions(
-                hasFlag(args, "--dry-run"), hasFlag(args, "--resubscribe")));
-    System.out.println(
-        "Import result: inserted="
-            + result.inserted()
-            + ", updated="
-            + result.updated()
-            + ", unchanged="
-            + result.unchanged()
-            + ", unsubscribed="
-            + result.unsubscribed()
-            + ", resubscribed="
-            + result.resubscribed()
-            + ", conflicts="
-            + result.conflicts()
-            + ", errors="
-            + result.errors().size());
-    for (String conflict : result.conflictMessages()) {
-      System.out.println("Conflict: " + conflict);
-    }
-  }
-
-  private boolean hasFlag(String[] args, String flag) {
-    return Arrays.asList(args).contains(flag);
-  }
-
-  private String optionValue(String[] args, String option) {
-    for (int i = 0; i < args.length - 1; i++) {
-      if (option.equals(args[i])) {
-        return args[i + 1];
+    for (String a : args) {
+      if ("feeds".equals(a)
+          || "run-once".equals(a)
+          || "--help".equals(a)
+          || "-h".equals(a)
+          || "-?".equals(a)) {
+        return true;
       }
     }
-    return null;
+    return false;
+  }
+
+  private void exitApplication(int exitCode) {
+    int resolvedExitCode = SpringApplication.exit(applicationContext, () -> exitCode);
+    if (resolvedExitCode != 0) {
+      System.exit(resolvedExitCode);
+    }
   }
 }
