@@ -21,6 +21,7 @@ class FeedReaderSchedulerTest {
             new FeedReaderProperties.Scheduler(false, "0 */15 * * * *"),
             new FeedReaderProperties.Job(false),
             new FeedReaderProperties.Http("test", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
+            null,
             List.of());
     FeedReaderScheduler scheduler = new FeedReaderScheduler(properties, service);
 
@@ -37,6 +38,7 @@ class FeedReaderSchedulerTest {
             new FeedReaderProperties.Scheduler(true, "0 */15 * * * *"),
             new FeedReaderProperties.Job(false),
             new FeedReaderProperties.Http("test", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
+            null,
             List.of());
     FeedReaderScheduler scheduler = new FeedReaderScheduler(properties, service);
 

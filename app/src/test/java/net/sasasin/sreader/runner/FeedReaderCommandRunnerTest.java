@@ -20,6 +20,7 @@ class FeedReaderCommandRunnerTest {
             new FeedReaderProperties.Scheduler(false, "0 */15 * * * *"),
             new FeedReaderProperties.Job(true),
             new FeedReaderProperties.Http("test", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
+            null,
             List.of());
     FeedReaderScheduler scheduler = mock(FeedReaderScheduler.class);
     FeedTomlService feedTomlService = mock(FeedTomlService.class);

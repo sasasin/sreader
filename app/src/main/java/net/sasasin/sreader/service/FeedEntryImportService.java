@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Date;
+import java.util.Optional;
 import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FeedUrl;
 import net.sasasin.sreader.domain.FullTextMethod;
@@ -55,20 +56,23 @@ public class FeedEntryImportService {
           continue;
         }
         URI articleUri = httpFetchService.resolveRedirect(URI.create(entry.getLink()));
+        Optional<String> feedText =
+            feedUrl.fullTextMethod() == FullTextMethod.FEED
+                ? feedEntryFullTextExtractor.extract(entry)
+                : Optional.empty();
         ContentHeader header =
             new ContentHeader(
                 HashIds.md5(articleUri.toString()),
                 feedUrl.id(),
                 articleUri.toString(),
                 entry.getTitle(),
-                toOffsetDateTime(entry.getPublishedDate()));
+                toOffsetDateTime(entry.getPublishedDate()),
+                feedText.orElse(null));
         if (contentHeaderRepository.insertIfAbsent(header)) {
           inserted++;
         }
         if (feedUrl.fullTextMethod() == FullTextMethod.FEED) {
-          feedEntryFullTextExtractor
-              .extract(entry)
-              .ifPresent(fullText -> contentFullTextWriter.saveIfAbsent(header, fullText));
+          feedText.ifPresent(fullText -> contentFullTextWriter.saveIfAbsent(header, fullText));
         }
       }
       return inserted;
