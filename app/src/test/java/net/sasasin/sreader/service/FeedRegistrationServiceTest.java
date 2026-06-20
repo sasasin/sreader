@@ -11,18 +11,20 @@ import org.junit.jupiter.api.Test;
 
 class FeedRegistrationServiceTest {
 
-	@Test
-	void ignoresBlankCommentsAndLegacyTabFields() {
-		FeedUrlRepository repository = mock(FeedUrlRepository.class);
-		when(repository.insertIfAbsent(anyString(), anyString())).thenReturn(true, false);
-		FeedRegistrationService service = new FeedRegistrationService(repository);
+  @Test
+  void ignoresBlankCommentsAndLegacyTabFields() {
+    FeedUrlRepository repository = mock(FeedUrlRepository.class);
+    when(repository.insertIfAbsent(anyString(), anyString())).thenReturn(true, false);
+    FeedRegistrationService service = new FeedRegistrationService(repository);
 
-		int inserted = service.registerFeedUrls(List.of(
-				"",
-				"# comment",
-				"https://example.test/feed.xml\tlegacy-user\tlegacy-password",
-				"https://example.test/feed.xml"));
+    int inserted =
+        service.registerFeedUrls(
+            List.of(
+                "",
+                "# comment",
+                "https://example.test/feed.xml\tlegacy-user\tlegacy-password",
+                "https://example.test/feed.xml"));
 
-		assertThat(inserted).isEqualTo(1);
-	}
+    assertThat(inserted).isEqualTo(1);
+  }
 }

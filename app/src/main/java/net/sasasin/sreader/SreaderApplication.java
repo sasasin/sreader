@@ -11,7 +11,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableConfigurationProperties(FeedReaderProperties.class)
 public class SreaderApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(SreaderApplication.class, args);
-	}
+  public static void main(String[] args) {
+    SpringApplication.run(SreaderApplication.class, args);
+  }
 }

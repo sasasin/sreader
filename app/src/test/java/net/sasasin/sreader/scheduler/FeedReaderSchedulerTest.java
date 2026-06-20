@@ -13,32 +13,34 @@ import org.junit.jupiter.api.Test;
 
 class FeedReaderSchedulerTest {
 
-	@Test
-	void disabledSchedulerDoesNotRunPeriodicJob() {
-		FeedReaderService service = mock(FeedReaderService.class);
-		FeedReaderProperties properties = new FeedReaderProperties(
-				new FeedReaderProperties.Scheduler(false, "0 */15 * * * *"),
-				new FeedReaderProperties.Job(false),
-				new FeedReaderProperties.Http("test", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
-				List.of());
-		FeedReaderScheduler scheduler = new FeedReaderScheduler(properties, service);
+  @Test
+  void disabledSchedulerDoesNotRunPeriodicJob() {
+    FeedReaderService service = mock(FeedReaderService.class);
+    FeedReaderProperties properties =
+        new FeedReaderProperties(
+            new FeedReaderProperties.Scheduler(false, "0 */15 * * * *"),
+            new FeedReaderProperties.Job(false),
+            new FeedReaderProperties.Http("test", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
+            List.of());
+    FeedReaderScheduler scheduler = new FeedReaderScheduler(properties, service);
 
-		scheduler.runScheduled();
+    scheduler.runScheduled();
 
-		verify(service, never()).runOnce();
-	}
+    verify(service, never()).runOnce();
+  }
 
-	@Test
-	void runIfIdleRunsOnce() {
-		FeedReaderService service = mock(FeedReaderService.class);
-		FeedReaderProperties properties = new FeedReaderProperties(
-				new FeedReaderProperties.Scheduler(true, "0 */15 * * * *"),
-				new FeedReaderProperties.Job(false),
-				new FeedReaderProperties.Http("test", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
-				List.of());
-		FeedReaderScheduler scheduler = new FeedReaderScheduler(properties, service);
+  @Test
+  void runIfIdleRunsOnce() {
+    FeedReaderService service = mock(FeedReaderService.class);
+    FeedReaderProperties properties =
+        new FeedReaderProperties(
+            new FeedReaderProperties.Scheduler(true, "0 */15 * * * *"),
+            new FeedReaderProperties.Job(false),
+            new FeedReaderProperties.Http("test", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
+            List.of());
+    FeedReaderScheduler scheduler = new FeedReaderScheduler(properties, service);
 
-		assertThat(scheduler.runIfIdle()).isTrue();
-		verify(service).runOnce();
-	}
+    assertThat(scheduler.runIfIdle()).isTrue();
+    verify(service).runOnce();
+  }
 }

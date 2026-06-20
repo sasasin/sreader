@@ -12,25 +12,27 @@ import org.junit.jupiter.api.Test;
 
 class FeedEntryImportServiceTest {
 
-	@Test
-	void importsFeedEntriesAndSuppressesDuplicateArticleUrls() throws Exception {
-		HttpFetchService http = mock(HttpFetchService.class);
-		ContentHeaderRepository repository = mock(ContentHeaderRepository.class);
-		FeedEntryImportService service = new FeedEntryImportService(http, repository);
-		String xml = """
-				<?xml version="1.0" encoding="UTF-8"?>
-				<rss version="2.0"><channel><title>Feed</title>
-				<item><title>One</title><link>https://example.test/a</link></item>
-				<item><title>Two</title><link>https://example.test/b</link></item>
-				</channel></rss>
-				""";
-		when(http.get(URI.create("https://example.test/rss.xml")))
-				.thenReturn(new HttpFetchService.FetchedResource(URI.create("https://example.test/rss.xml"), xml));
-		when(http.resolveRedirect(any())).thenAnswer(invocation -> invocation.getArgument(0));
-		when(repository.insertIfAbsent(any())).thenReturn(true, false);
+  @Test
+  void importsFeedEntriesAndSuppressesDuplicateArticleUrls() throws Exception {
+    HttpFetchService http = mock(HttpFetchService.class);
+    ContentHeaderRepository repository = mock(ContentHeaderRepository.class);
+    FeedEntryImportService service = new FeedEntryImportService(http, repository);
+    String xml =
+        """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0"><channel><title>Feed</title>
+        <item><title>One</title><link>https://example.test/a</link></item>
+        <item><title>Two</title><link>https://example.test/b</link></item>
+        </channel></rss>
+        """;
+    when(http.get(URI.create("https://example.test/rss.xml")))
+        .thenReturn(
+            new HttpFetchService.FetchedResource(URI.create("https://example.test/rss.xml"), xml));
+    when(http.resolveRedirect(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    when(repository.insertIfAbsent(any())).thenReturn(true, false);
 
-		int inserted = service.importEntries(new FeedUrl("feed", "https://example.test/rss.xml"));
+    int inserted = service.importEntries(new FeedUrl("feed", "https://example.test/rss.xml"));
 
-		assertThat(inserted).isEqualTo(1);
-	}
+    assertThat(inserted).isEqualTo(1);
+  }
 }
