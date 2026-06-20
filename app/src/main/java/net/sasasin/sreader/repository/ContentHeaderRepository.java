@@ -2,10 +2,13 @@ package net.sasasin.sreader.repository;
 
 import static net.sasasin.sreader.jooq.Tables.CONTENT_FULL_TEXT;
 import static net.sasasin.sreader.jooq.Tables.CONTENT_HEADER;
+import static net.sasasin.sreader.jooq.Tables.FEED_URL;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 import net.sasasin.sreader.domain.ContentHeader;
+import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.domain.PendingFullTextTarget;
 import org.jooq.DSLContext;
 import org.springframework.stereotype.Repository;
 
@@ -55,5 +58,38 @@ public class ContentHeaderRepository {
                     record.get(CONTENT_HEADER.URL),
                     record.get(CONTENT_HEADER.TITLE),
                     record.get(CONTENT_HEADER.PUBLISHED_AT)));
+  }
+
+  public List<PendingFullTextTarget> findWithoutFullTextForUrlExtraction(int limit) {
+    return dsl.select(
+            CONTENT_HEADER.ID,
+            CONTENT_HEADER.FEED_URL_ID,
+            CONTENT_HEADER.URL,
+            CONTENT_HEADER.TITLE,
+            CONTENT_HEADER.PUBLISHED_AT,
+            FEED_URL.FULL_TEXT_METHOD)
+        .from(CONTENT_HEADER)
+        .join(FEED_URL)
+        .on(CONTENT_HEADER.FEED_URL_ID.eq(FEED_URL.ID))
+        .leftJoin(CONTENT_FULL_TEXT)
+        .on(CONTENT_HEADER.ID.eq(CONTENT_FULL_TEXT.CONTENT_HEADER_ID))
+        .where(CONTENT_FULL_TEXT.ID.isNull())
+        .and(FEED_URL.FULL_TEXT_METHOD.ne(FullTextMethod.FEED.value()))
+        .orderBy(CONTENT_HEADER.CREATED_AT.asc())
+        .limit(limit)
+        .fetch(
+            record ->
+                new PendingFullTextTarget(
+                    new ContentHeader(
+                        record.get(CONTENT_HEADER.ID),
+                        record.get(CONTENT_HEADER.FEED_URL_ID),
+                        record.get(CONTENT_HEADER.URL),
+                        record.get(CONTENT_HEADER.TITLE),
+                        record.get(CONTENT_HEADER.PUBLISHED_AT)),
+                    toFullTextMethod(record.get(FEED_URL.FULL_TEXT_METHOD))));
+  }
+
+  private FullTextMethod toFullTextMethod(String value) {
+    return value == null ? FullTextMethod.HTTP : FullTextMethod.fromValue(value);
   }
 }

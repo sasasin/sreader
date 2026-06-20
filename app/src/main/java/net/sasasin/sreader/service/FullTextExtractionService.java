@@ -3,9 +3,9 @@ package net.sasasin.sreader.service;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
-import net.sasasin.sreader.domain.ContentFullText;
 import net.sasasin.sreader.domain.ContentHeader;
-import net.sasasin.sreader.repository.ContentFullTextRepository;
+import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.domain.PendingFullTextTarget;
 import net.sasasin.sreader.repository.ContentHeaderRepository;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -20,34 +20,40 @@ public class FullTextExtractionService {
   private static final Logger logger = LoggerFactory.getLogger(FullTextExtractionService.class);
 
   private final ContentHeaderRepository contentHeaderRepository;
-  private final ContentFullTextRepository contentFullTextRepository;
+  private final ContentFullTextWriter contentFullTextWriter;
   private final ExtractRuleService extractRuleService;
   private final HttpFetchService httpFetchService;
 
   public FullTextExtractionService(
       ContentHeaderRepository contentHeaderRepository,
-      ContentFullTextRepository contentFullTextRepository,
+      ContentFullTextWriter contentFullTextWriter,
       ExtractRuleService extractRuleService,
       HttpFetchService httpFetchService) {
     this.contentHeaderRepository = contentHeaderRepository;
-    this.contentFullTextRepository = contentFullTextRepository;
+    this.contentFullTextWriter = contentFullTextWriter;
     this.extractRuleService = extractRuleService;
     this.httpFetchService = httpFetchService;
   }
 
   public int extractPending(int limit) {
-    List<ContentHeader> headers = contentHeaderRepository.findWithoutFullText(limit);
+    List<PendingFullTextTarget> targets =
+        contentHeaderRepository.findWithoutFullTextForUrlExtraction(limit);
     int inserted = 0;
-    for (ContentHeader header : headers) {
+    for (PendingFullTextTarget target : targets) {
       try {
-        String fullText = extract(header);
-        ContentFullText content =
-            new ContentFullText(HashIds.md5(header.url()), header.id(), fullText);
-        if (contentFullTextRepository.insertIfAbsent(content)) {
+        if (target.method() != FullTextMethod.HTTP) {
+          logger.warn(
+              "Skipping unsupported full text method {} for {}",
+              target.method().value(),
+              target.header().url());
+          continue;
+        }
+        String fullText = extract(target.header());
+        if (contentFullTextWriter.saveIfAbsent(target.header(), fullText)) {
           inserted++;
         }
       } catch (Exception e) {
-        logger.warn("Failed to extract full text from {}", header.url(), e);
+        logger.warn("Failed to extract full text from {}", target.header().url(), e);
       }
     }
     return inserted;

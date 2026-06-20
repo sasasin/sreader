@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import net.sasasin.sreader.domain.FeedStatus;
 import net.sasasin.sreader.domain.FeedUrl;
+import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.repository.FeedUrlRepository;
 import org.junit.jupiter.api.Test;
 
@@ -152,7 +153,7 @@ class FeedTomlServiceTest {
                     "site_closed",
                     null,
                     "ignored",
-                    "http"),
+                    FullTextMethod.HTTP),
                 new FeedUrl(
                     "2",
                     "https://z.example/feed.xml",
@@ -160,7 +161,7 @@ class FeedTomlServiceTest {
                     "site_closed",
                     OffsetDateTime.parse("2026-06-14T12:00:00+09:00"),
                     "サイト閉鎖",
-                    "http")));
+                    FullTextMethod.HTTP)));
 
     String toml = service.exportToml(false);
 
@@ -220,7 +221,7 @@ class FeedTomlServiceTest {
                     null,
                     null,
                     null,
-                    "http")));
+                    FullTextMethod.HTTP)));
     when(repository.findByUrl("https://example.test/stop.xml"))
         .thenReturn(
             Optional.of(
@@ -231,7 +232,7 @@ class FeedTomlServiceTest {
                     null,
                     null,
                     null,
-                    "http")));
+                    FullTextMethod.HTTP)));
     when(repository.findByUrl("https://example.test/meta.xml"))
         .thenReturn(
             Optional.of(
@@ -242,7 +243,7 @@ class FeedTomlServiceTest {
                     "other",
                     null,
                     null,
-                    "http")));
+                    FullTextMethod.HTTP)));
     when(repository.findByUrl("https://example.test/conflict.xml"))
         .thenReturn(
             Optional.of(
@@ -253,7 +254,7 @@ class FeedTomlServiceTest {
                     "other",
                     null,
                     null,
-                    "http")));
+                    FullTextMethod.HTTP)));
 
     FeedTomlService.ImportResult result =
         service.importToml(
@@ -298,7 +299,7 @@ class FeedTomlServiceTest {
                     "other",
                     null,
                     null,
-                    "http")));
+                    FullTextMethod.HTTP)));
 
     FeedTomlService.ImportResult result =
         service.importToml(
@@ -400,7 +401,7 @@ class FeedTomlServiceTest {
                     null,
                     null,
                     null,
-                    "http")));
+                    FullTextMethod.HTTP)));
 
     FeedTomlService.ImportResult result =
         service.importToml(

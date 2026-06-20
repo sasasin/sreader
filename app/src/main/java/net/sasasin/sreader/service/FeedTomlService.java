@@ -43,7 +43,9 @@ public class FeedTomlService {
       toml.append("status = \"").append(feed.status()).append("\"\n");
       toml.append("full_text_method = \"")
           .append(
-              feed.fullTextMethod() != null ? feed.fullTextMethod() : FullTextMethod.HTTP.value())
+              feed.fullTextMethod() != null
+                  ? feed.fullTextMethod().value()
+                  : FullTextMethod.HTTP.value())
           .append("\"\n");
       if (FeedStatus.UNSUBSCRIBED.value().equals(feed.status())) {
         appendString(toml, "unsubscribe_reason", feed.unsubscribeReason());
@@ -77,7 +79,9 @@ public class FeedTomlService {
 
       FeedUrl current = existing.get();
       String currentMethod =
-          current.fullTextMethod() != null ? current.fullTextMethod() : FullTextMethod.HTTP.value();
+          current.fullTextMethod() != null
+              ? current.fullTextMethod().value()
+              : FullTextMethod.HTTP.value();
       String feedMethod =
           feed.fullTextMethod() != null ? feed.fullTextMethod() : FullTextMethod.HTTP.value();
       boolean methodChanged = !currentMethod.equals(feedMethod);
@@ -405,7 +409,13 @@ public class FeedTomlService {
       String fullTextMethod) {
     FeedUrl toFeedUrl() {
       return new FeedUrl(
-          HashIds.md5(url), url, status, unsubscribeReason, unsubscribedAt, note, fullTextMethod);
+          HashIds.md5(url),
+          url,
+          status,
+          unsubscribeReason,
+          unsubscribedAt,
+          note,
+          FullTextMethod.fromValue(fullTextMethod));
     }
   }
 
