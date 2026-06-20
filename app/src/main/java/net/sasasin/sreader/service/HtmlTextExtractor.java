@@ -21,6 +21,22 @@ public class HtmlTextExtractor {
   }
 
   public String extract(String url, String html, ExtractionPlan.ExtractorKind extractorKind) {
+    return extract(url, html, extractorKind, Optional.empty());
+  }
+
+  public String extract(
+      String url,
+      String html,
+      ExtractionPlan.ExtractorKind extractorKind,
+      Optional<String> xpathOverride) {
+    if (xpathOverride != null && xpathOverride.isPresent()) {
+      String xp = xpathOverride.get();
+      if (xp == null || xp.isBlank()) {
+        return "";
+      }
+      Document document = Jsoup.parse(html, url);
+      return extractByXpath(document, xp).orElse("");
+    }
     return switch (extractorKind) {
       case XPATH_OR_BODY_TEXT -> extractByXpathOrBody(url, html);
       case READABILITY -> extractByReadability(url, html);
