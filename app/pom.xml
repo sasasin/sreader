@@ -59,6 +59,16 @@
 			<version>${jsoup.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>net.dankito.readability4j</groupId>
+			<artifactId>readability4j</artifactId>
+			<version>${readability4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.microsoft.playwright</groupId>
+			<artifactId>playwright</artifactId>
+			<version>${playwright.version}</version>
+		</dependency>
+		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>

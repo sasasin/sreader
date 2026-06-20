@@ -24,6 +24,8 @@
 		<postgresql.version>42.7.7</postgresql.version>
 		<rome.version>2.1.0</rome.version>
 		<jsoup.version>1.21.2</jsoup.version>
+		<playwright.version>1.56.0</playwright.version>
+		<readability4j.version>1.0.8</readability4j.version>
 		<spotless-maven-plugin.version>2.46.1</spotless-maven-plugin.version>
 		<google-java-format.version>1.28.0</google-java-format.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
