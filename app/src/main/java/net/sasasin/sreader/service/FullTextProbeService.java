@@ -68,8 +68,7 @@ public class FullTextProbeService {
         }
       }
       case PLAYWRIGHT -> {
-        RenderedPage page =
-            playwrightHtmlSource.renderPage(articleUrl.toString(), plan.useInfyScroll());
+        RenderedPage page = renderPage(articleUrl, plan);
         finalUrl = page.finalUri() != null ? page.finalUri() : articleUrl;
         html = page.html();
         usedUrlForExtract = finalUrl.toString();
@@ -90,16 +89,16 @@ public class FullTextProbeService {
       FeedEntrySelection selection,
       Optional<String> xpathOverride) {
     SyndFeed syndFeed = feedDocumentService.fetch(feedUrl);
-    Optional<SyndEntry> picked = feedEntryPicker.pick(syndFeed, selection);
+    boolean requireEntryLink = method != FullTextMethod.FEED;
+    Optional<SyndEntry> picked = feedEntryPicker.pick(syndFeed, selection, requireEntryLink);
     if (picked.isEmpty()) {
       throw new NoMatchingEntryException("No feed entry matched selection for " + feedUrl);
     }
     SyndEntry entry = picked.get();
 
     URI entryLink = null;
-    if (entry.getLink() != null && !entry.getLink().isBlank()) {
+    if (method != FullTextMethod.FEED && entry.getLink() != null && !entry.getLink().isBlank()) {
       try {
-        // best effort resolve redirect for verbose final
         entryLink = httpFetchService.resolveRedirect(URI.create(entry.getLink()));
       } catch (Exception ignored) {
         entryLink = URI.create(entry.getLink());
@@ -144,8 +143,7 @@ public class FullTextProbeService {
         }
       }
       case PLAYWRIGHT -> {
-        RenderedPage page =
-            playwrightHtmlSource.renderPage(entryLink.toString(), plan.useInfyScroll());
+        RenderedPage page = renderPage(entryLink, plan);
         finalUrl = page.finalUri() != null ? page.finalUri() : entryLink;
         html = page.html();
         usedUrl = finalUrl.toString();
@@ -163,6 +161,14 @@ public class FullTextProbeService {
         && !properties.playwright().enabled()) {
       throw new PlaywrightDisabledException(
           "Playwright is required for method but is disabled or misconfigured");
+    }
+  }
+
+  private RenderedPage renderPage(URI url, ExtractionPlan plan) {
+    try {
+      return playwrightHtmlSource.renderPage(url.toString(), plan.useInfyScroll());
+    } catch (IllegalStateException e) {
+      throw new PlaywrightDisabledException(e.getMessage());
     }
   }
 

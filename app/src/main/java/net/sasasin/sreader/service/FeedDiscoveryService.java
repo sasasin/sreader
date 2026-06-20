@@ -22,8 +22,13 @@ public class FeedDiscoveryService {
   }
 
   public List<URI> discover(URI siteUrl) {
+    return discoverWithResult(siteUrl).feedUrls();
+  }
+
+  public DiscoveryResult discoverWithResult(URI siteUrl) {
     RenderedPage rendered = playwrightHtmlSource.renderPage(siteUrl.toString(), false);
-    String base = rendered.finalUri() != null ? rendered.finalUri().toString() : siteUrl.toString();
+    URI finalUri = rendered.finalUri() != null ? rendered.finalUri() : siteUrl;
+    String base = finalUri.toString();
     Document doc = Jsoup.parse(rendered.html(), base);
 
     Elements links = doc.select("link[rel~=(?i)\\balternate\\b][href]");
@@ -57,7 +62,7 @@ public class FeedDiscoveryService {
         }
       }
     }
-    return results;
+    return new DiscoveryResult(siteUrl, finalUri, results);
   }
 
   private boolean isFeedType(String type) {
@@ -71,4 +76,6 @@ public class FeedDiscoveryService {
         || t.equals("application/xml")
         || t.equals("text/xml");
   }
+
+  public record DiscoveryResult(URI inputUrl, URI finalUrl, List<URI> feedUrls) {}
 }

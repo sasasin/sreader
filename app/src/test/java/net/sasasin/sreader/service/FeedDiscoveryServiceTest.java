@@ -69,4 +69,23 @@ class FeedDiscoveryServiceTest {
     List<URI> res = svc.discover(URI.create("https://ex.com/"));
     assertThat(res).hasSize(2);
   }
+
+  @Test
+  void exposesFinalUrlForVerboseDiagnostics() {
+    PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
+    when(pw.renderPage("https://ex.com/start", false))
+        .thenReturn(
+            new RenderedPage(
+                URI.create("https://ex.com/final"),
+                """
+                <link rel="alternate" type="application/rss+xml" href="feed.xml">
+                """));
+
+    FeedDiscoveryService svc = new FeedDiscoveryService(pw);
+    FeedDiscoveryService.DiscoveryResult res =
+        svc.discoverWithResult(URI.create("https://ex.com/start"));
+
+    assertThat(res.finalUrl()).isEqualTo(URI.create("https://ex.com/final"));
+    assertThat(res.feedUrls()).containsExactly(URI.create("https://ex.com/feed.xml"));
+  }
 }
