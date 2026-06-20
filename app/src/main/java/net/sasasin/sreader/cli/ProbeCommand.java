@@ -8,17 +8,14 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Spec;
 
 @Command(
-    name = "feeds",
-    description = "Import or export feed subscriptions as TOML.",
+    name = "probe",
+    description =
+        "Probe article or feed URL with a chosen full text extraction method (no DB writes).",
     mixinStandardHelpOptions = true,
-    subcommands = {
-      FeedImportCommand.class,
-      FeedExportCommand.class,
-      FeedsDiscoverCommand.class,
-    },
+    subcommands = {ProbeArticleCommand.class, ProbeFeedCommand.class},
     usageHelpWidth = 100)
 @Component
-public class FeedsCommand implements Callable<Integer> {
+public class ProbeCommand implements Callable<Integer> {
 
   @Spec private CommandSpec spec;
 
