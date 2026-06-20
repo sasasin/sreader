@@ -14,6 +14,7 @@ import java.time.ZoneOffset;
 import java.util.Date;
 import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FeedUrl;
+import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.repository.ContentHeaderRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,11 +27,18 @@ public class FeedEntryImportService {
 
   private final HttpFetchService httpFetchService;
   private final ContentHeaderRepository contentHeaderRepository;
+  private final FeedEntryFullTextExtractor feedEntryFullTextExtractor;
+  private final ContentFullTextWriter contentFullTextWriter;
 
   public FeedEntryImportService(
-      HttpFetchService httpFetchService, ContentHeaderRepository contentHeaderRepository) {
+      HttpFetchService httpFetchService,
+      ContentHeaderRepository contentHeaderRepository,
+      FeedEntryFullTextExtractor feedEntryFullTextExtractor,
+      ContentFullTextWriter contentFullTextWriter) {
     this.httpFetchService = httpFetchService;
     this.contentHeaderRepository = contentHeaderRepository;
+    this.feedEntryFullTextExtractor = feedEntryFullTextExtractor;
+    this.contentFullTextWriter = contentFullTextWriter;
   }
 
   public int importEntries(FeedUrl feedUrl) {
@@ -56,6 +64,11 @@ public class FeedEntryImportService {
                 toOffsetDateTime(entry.getPublishedDate()));
         if (contentHeaderRepository.insertIfAbsent(header)) {
           inserted++;
+        }
+        if (feedUrl.fullTextMethod() == FullTextMethod.FEED) {
+          feedEntryFullTextExtractor
+              .extract(entry)
+              .ifPresent(fullText -> contentFullTextWriter.saveIfAbsent(header, fullText));
         }
       }
       return inserted;
