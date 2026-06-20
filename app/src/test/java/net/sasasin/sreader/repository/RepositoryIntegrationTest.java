@@ -124,7 +124,7 @@ class RepositoryIntegrationTest {
   }
 
   @Test
-  void pendingUrlExtractionExcludesFeedMethodAndKeepsHttpAndUnsupportedMethods() {
+  void pendingUrlExtractionIncludesConfiguredMethodAndFeedText() {
     feedUrlRepository.insertFromImport(
         new FeedUrl(
             "feed0000000000000000000000000010",
@@ -177,6 +177,9 @@ class RepositoryIntegrationTest {
 
     assertThat(contentHeaderRepository.findWithoutFullTextForUrlExtraction(10))
         .extracting(target -> target.header().url())
-        .containsExactly("https://example.test/http", "https://example.test/playwright");
+        .containsExactly(
+            "https://example.test/http",
+            "https://example.test/feed",
+            "https://example.test/playwright");
   }
 }
