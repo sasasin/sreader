@@ -10,6 +10,7 @@ import net.sasasin.sreader.domain.ContentFullText;
 import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FeedStatus;
 import net.sasasin.sreader.domain.FeedUrl;
+import net.sasasin.sreader.domain.FullTextMethod;
 import org.jooq.DSLContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,7 +59,7 @@ class RepositoryIntegrationTest {
             null,
             null,
             null,
-            "http"));
+            FullTextMethod.HTTP));
     feedUrlRepository.insertFromImport(
         new FeedUrl(
             "feed0000000000000000000000000004",
@@ -67,7 +68,7 @@ class RepositoryIntegrationTest {
             "site_closed",
             null,
             "closed",
-            "http"));
+            FullTextMethod.HTTP));
 
     assertThat(feedUrlRepository.findActiveForReading())
         .extracting(FeedUrl::url)
@@ -86,7 +87,7 @@ class RepositoryIntegrationTest {
                 .findByUrl("https://example.test/default-method.xml")
                 .orElseThrow()
                 .fullTextMethod())
-        .isEqualTo("http");
+        .isEqualTo(FullTextMethod.HTTP);
 
     assertThatThrownBy(
             () ->
@@ -120,5 +121,62 @@ class RepositoryIntegrationTest {
     assertThat(contentFullTextRepository.insertIfAbsent(fullText)).isTrue();
     assertThat(contentFullTextRepository.insertIfAbsent(fullText)).isFalse();
     assertThat(contentHeaderRepository.findWithoutFullText(10)).isEmpty();
+  }
+
+  @Test
+  void pendingUrlExtractionExcludesFeedMethodAndKeepsHttpAndUnsupportedMethods() {
+    feedUrlRepository.insertFromImport(
+        new FeedUrl(
+            "feed0000000000000000000000000010",
+            "https://example.test/http.xml",
+            FeedStatus.ACTIVE.value(),
+            null,
+            null,
+            null,
+            FullTextMethod.HTTP));
+    feedUrlRepository.insertFromImport(
+        new FeedUrl(
+            "feed0000000000000000000000000011",
+            "https://example.test/feed.xml",
+            FeedStatus.ACTIVE.value(),
+            null,
+            null,
+            null,
+            FullTextMethod.FEED));
+    feedUrlRepository.insertFromImport(
+        new FeedUrl(
+            "feed0000000000000000000000000012",
+            "https://example.test/playwright.xml",
+            FeedStatus.ACTIVE.value(),
+            null,
+            null,
+            null,
+            FullTextMethod.PLAYWRIGHT));
+
+    contentHeaderRepository.insertIfAbsent(
+        new ContentHeader(
+            "head0000000000000000000000000010",
+            "feed0000000000000000000000000010",
+            "https://example.test/http",
+            "HTTP",
+            null));
+    contentHeaderRepository.insertIfAbsent(
+        new ContentHeader(
+            "head0000000000000000000000000011",
+            "feed0000000000000000000000000011",
+            "https://example.test/feed",
+            "FEED",
+            null));
+    contentHeaderRepository.insertIfAbsent(
+        new ContentHeader(
+            "head0000000000000000000000000012",
+            "feed0000000000000000000000000012",
+            "https://example.test/playwright",
+            "PLAYWRIGHT",
+            null));
+
+    assertThat(contentHeaderRepository.findWithoutFullTextForUrlExtraction(10))
+        .extracting(target -> target.header().url())
+        .containsExactly("https://example.test/http", "https://example.test/playwright");
   }
 }
