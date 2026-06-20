@@ -7,6 +7,8 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.LoadState;
 import com.microsoft.playwright.options.WaitUntilState;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -30,6 +32,10 @@ public class PlaywrightHtmlSource implements SmartLifecycle {
   }
 
   public synchronized String render(String url, boolean useInfyScroll) {
+    return renderPage(url, useInfyScroll).html();
+  }
+
+  public synchronized RenderedPage renderPage(String url, boolean useInfyScroll) {
     if (!properties.playwright().enabled()) {
       throw new IllegalStateException("Playwright full text extraction is disabled");
     }
@@ -40,7 +46,7 @@ public class PlaywrightHtmlSource implements SmartLifecycle {
     return renderWithoutInfy(url);
   }
 
-  private String renderWithoutInfy(String url) {
+  private RenderedPage renderWithoutInfy(String url) {
     BrowserContext context =
         browser.newContext(
             new Browser.NewContextOptions()
@@ -55,13 +61,14 @@ public class PlaywrightHtmlSource implements SmartLifecycle {
               .setWaitUntil(WaitUntilState.DOMCONTENTLOADED)
               .setTimeout(properties.playwright().navigationTimeout().toMillis()));
       waitNetworkIdleBestEffort(page);
-      return page.content();
+      URI finalUri = safeUri(page.url(), url);
+      return new RenderedPage(finalUri, page.content());
     } finally {
       context.close();
     }
   }
 
-  private String renderWithInfy(String url) {
+  private RenderedPage renderWithInfy(String url) {
     BrowserContext context = ensureInfyContext();
     Page page = context.newPage();
     try {
@@ -73,7 +80,8 @@ public class PlaywrightHtmlSource implements SmartLifecycle {
       waitNetworkIdleBestEffort(page);
       driveInfyScroll(page);
       cleanupInfyUi(page);
-      return page.content();
+      URI finalUri = safeUri(page.url(), url);
+      return new RenderedPage(finalUri, page.content());
     } finally {
       page.close();
     }
@@ -201,6 +209,25 @@ public class PlaywrightHtmlSource implements SmartLifecycle {
               .setTimeout(properties.playwright().networkIdleTimeout().toMillis()));
     } catch (RuntimeException e) {
       // Long polling pages can prevent NETWORKIDLE; rendered DOM is still usable.
+    }
+  }
+
+  private URI safeUri(String pageUrl, String fallback) {
+    if (pageUrl == null || pageUrl.isBlank()) {
+      try {
+        return URI.create(fallback);
+      } catch (IllegalArgumentException e) {
+        return null;
+      }
+    }
+    try {
+      return new URI(pageUrl);
+    } catch (URISyntaxException e) {
+      try {
+        return URI.create(fallback);
+      } catch (IllegalArgumentException ex) {
+        return null;
+      }
     }
   }
 

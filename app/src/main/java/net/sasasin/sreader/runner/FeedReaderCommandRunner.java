@@ -79,6 +79,7 @@ public class FeedReaderCommandRunner implements CommandLineRunner {
     for (String a : args) {
       if ("feeds".equals(a)
           || "run-once".equals(a)
+          || "probe".equals(a)
           || "--help".equals(a)
           || "-h".equals(a)
           || "-?".equals(a)) {

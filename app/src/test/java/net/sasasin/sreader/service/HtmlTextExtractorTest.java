@@ -60,4 +60,57 @@ class HtmlTextExtractorTest {
                 ExtractionPlan.ExtractorKind.READABILITY))
         .contains("main article text");
   }
+
+  @Test
+  void xpathOverrideIgnoresDbRuleAndReturnsOnlyMatching() {
+    ExtractRuleService rules = mock(ExtractRuleService.class);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    String url = "https://example.test/a";
+    // even if rule exists, override should win
+    when(rules.findBestRule(url)).thenReturn(Optional.of(new ExtractRule("r", url, "//article")));
+
+    String out =
+        extractor.extract(
+            url,
+            "<html><body><h1>Skip</h1><p class=\"c\">Hit</p><p class=\"c\">Two</p></body></html>",
+            ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
+            Optional.of("//p[@class='c']"));
+    assertThat(out).isEqualTo("Hit\n\nTwo");
+  }
+
+  @Test
+  void xpathOverrideReturnsEmptyOnNoMatchOrBadXpath() {
+    ExtractRuleService rules = mock(ExtractRuleService.class);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+
+    String out1 =
+        extractor.extract(
+            "u",
+            "<html><body><div>no</div></body></html>",
+            ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
+            Optional.of("//p"));
+    assertThat(out1).isEqualTo("");
+
+    String out2 =
+        extractor.extract(
+            "u",
+            "<html><body><div>no</div></body></html>",
+            ExtractionPlan.ExtractorKind.READABILITY,
+            Optional.of("///bad["));
+    assertThat(out2).isEqualTo("");
+  }
+
+  @Test
+  void xpathOverrideWithReadabilityKindStillUsesXpath() {
+    ExtractRuleService rules = mock(ExtractRuleService.class);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+
+    String out =
+        extractor.extract(
+            "u",
+            "<html><body><article>Main</article></body></html>",
+            ExtractionPlan.ExtractorKind.READABILITY,
+            Optional.of("//article"));
+    assertThat(out).isEqualTo("Main");
+  }
 }

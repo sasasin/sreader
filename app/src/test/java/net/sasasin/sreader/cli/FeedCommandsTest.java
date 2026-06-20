@@ -14,10 +14,15 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.domain.ProbeResult;
 import net.sasasin.sreader.scheduler.FeedReaderScheduler;
+import net.sasasin.sreader.service.FeedDiscoveryService;
+import net.sasasin.sreader.service.FeedDiscoveryService.DiscoveryResult;
 import net.sasasin.sreader.service.FeedTomlService;
 import net.sasasin.sreader.service.FeedTomlService.ImportOptions;
 import net.sasasin.sreader.service.FeedTomlService.ImportResult;
+import net.sasasin.sreader.service.FullTextProbeService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
@@ -113,7 +118,7 @@ class FeedCommandsTest {
   @Test
   void rootHelpAndFeedsHelpReturnZeroAndContainUsage() {
     SreaderCommand root = new SreaderCommand();
-    CommandLine cli = new CommandLine(root);
+    CommandLine cli = new CommandLine(root, new TestPicocliFactory());
 
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     PrintWriter pw = new PrintWriter(baos);
@@ -141,7 +146,7 @@ class FeedCommandsTest {
   @Test
   void feedsWithoutSubcommandShowsUsageError() {
     SreaderCommand root = new SreaderCommand();
-    CommandLine cli = new CommandLine(root);
+    CommandLine cli = new CommandLine(root, new TestPicocliFactory());
 
     ByteArrayOutputStream err = new ByteArrayOutputStream();
     PrintWriter pw = new PrintWriter(err);
@@ -180,5 +185,237 @@ class FeedCommandsTest {
     int exit = cli.execute("--no-such-option");
     // usage error for invalid option should be 2 per picocli convention used by this app
     assertEquals(2, exit);
+  }
+
+  @Test
+  void probeArticleCallsServiceAndReturnsZero() {
+    FullTextProbeService probeService = mock(FullTextProbeService.class);
+    ProbeResult result =
+        new ProbeResult(
+            java.net.URI.create("https://example.com/a"),
+            java.net.URI.create("https://example.com/a"),
+            "T",
+            FullTextMethod.HTTP,
+            "body text here");
+    when(probeService.probeArticle(any(java.net.URI.class), eq(FullTextMethod.HTTP), any()))
+        .thenReturn(result);
+
+    ProbeArticleCommand cmd = new ProbeArticleCommand(probeService);
+    CommandLine cli = new CommandLine(cmd);
+
+    int exit = cli.execute("--url", "https://example.com/a", "--method", "http");
+
+    assertEquals(0, exit);
+    verify(probeService).probeArticle(any(java.net.URI.class), eq(FullTextMethod.HTTP), any());
+  }
+
+  @Test
+  void probeArticleRejectsMethodFeedAsUsageError() {
+    FullTextProbeService probeService = mock(FullTextProbeService.class);
+    ProbeArticleCommand cmd = new ProbeArticleCommand(probeService);
+    CommandLine cli = new CommandLine(cmd);
+
+    ByteArrayOutputStream err = new ByteArrayOutputStream();
+    cli.setErr(new PrintWriter(err));
+
+    int exit = cli.execute("--url", "https://example.com/a", "--method", "feed");
+
+    assertEquals(2, exit);
+  }
+
+  @Test
+  void probeArticleInvalidUrlIsUsageError() {
+    FullTextProbeService probeService = mock(FullTextProbeService.class);
+    ProbeArticleCommand cmd = new ProbeArticleCommand(probeService);
+    CommandLine cli = new CommandLine(cmd);
+
+    int exit = cli.execute("--url", "not-a-url", "--method", "http");
+    assertEquals(2, exit);
+  }
+
+  @Test
+  void probeFeedCallsService() {
+    FullTextProbeService probeService = mock(FullTextProbeService.class);
+    ProbeResult result =
+        new ProbeResult(
+            java.net.URI.create("https://example.com/f.xml"),
+            java.net.URI.create("https://example.com/a"),
+            "T",
+            FullTextMethod.HTTP,
+            "body");
+    when(probeService.probeFeed(any(java.net.URI.class), eq(FullTextMethod.HTTP), any(), any()))
+        .thenReturn(result);
+
+    ProbeFeedCommand cmd = new ProbeFeedCommand(probeService);
+    CommandLine cli = new CommandLine(cmd);
+
+    int exit = cli.execute("--feed-url", "https://example.com/f.xml", "--method", "http");
+
+    assertEquals(0, exit);
+    verify(probeService).probeFeed(any(java.net.URI.class), eq(FullTextMethod.HTTP), any(), any());
+  }
+
+  @Test
+  void probeFeedMethodFeedWithXpathYieldsUsage() {
+    FullTextProbeService probeService = mock(FullTextProbeService.class);
+    ProbeFeedCommand cmd = new ProbeFeedCommand(probeService);
+    CommandLine cli = new CommandLine(cmd);
+
+    int exit =
+        cli.execute(
+            "--feed-url", "https://example.com/f.xml", "--method", "feed", "--xpath", "//p");
+    assertEquals(2, exit);
+  }
+
+  @Test
+  void feedsDiscoverCallsService() {
+    FeedDiscoveryService disc = mock(FeedDiscoveryService.class);
+    when(disc.discoverWithResult(any(java.net.URI.class)))
+        .thenReturn(
+            new DiscoveryResult(
+                java.net.URI.create("https://example.com/"),
+                java.net.URI.create("https://example.com/"),
+                List.of(java.net.URI.create("https://example.com/rss.xml"))));
+
+    FeedsDiscoverCommand cmd = new FeedsDiscoverCommand(disc);
+    CommandLine cli = new CommandLine(cmd);
+
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    cli.setOut(new PrintWriter(out));
+
+    int exit = cli.execute("--site-url", "https://example.com/");
+
+    assertEquals(0, exit);
+    verify(disc).discoverWithResult(any(java.net.URI.class));
+  }
+
+  @Test
+  void feedsDiscoverTomlReflectsMethod() {
+    FeedDiscoveryService disc = mock(FeedDiscoveryService.class);
+    when(disc.discoverWithResult(any(java.net.URI.class)))
+        .thenReturn(
+            new DiscoveryResult(
+                java.net.URI.create("https://example.com/"),
+                java.net.URI.create("https://example.com/"),
+                List.of(
+                    java.net.URI.create("https://example.com/rss.xml"),
+                    java.net.URI.create("https://example.com/atom.xml"))));
+
+    FeedsDiscoverCommand cmd = new FeedsDiscoverCommand(disc);
+    CommandLine cli = new CommandLine(cmd);
+
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    cli.setOut(new PrintWriter(out));
+
+    int exit =
+        cli.execute(
+            "--site-url",
+            "https://example.com/",
+            "--format",
+            "toml",
+            "--method",
+            "playwright_readability");
+
+    cli.getOut().flush();
+    assertEquals(0, exit);
+    String s = out.toString(StandardCharsets.UTF_8);
+    assertTrue(s.contains("full_text_method = \"playwright_readability\""));
+  }
+
+  @Test
+  void feedsDiscoverInvalidFormatIsUsageError() {
+    FeedDiscoveryService disc = mock(FeedDiscoveryService.class);
+    FeedsDiscoverCommand cmd = new FeedsDiscoverCommand(disc);
+    CommandLine cli = new CommandLine(cmd);
+
+    int exit = cli.execute("--site-url", "https://example.com/", "--format", "tml");
+
+    assertEquals(2, exit);
+  }
+
+  @Test
+  void feedsDiscoverVerboseIncludesFinalUrl() {
+    FeedDiscoveryService disc = mock(FeedDiscoveryService.class);
+    when(disc.discoverWithResult(any(java.net.URI.class)))
+        .thenReturn(
+            new DiscoveryResult(
+                java.net.URI.create("https://example.com/"),
+                java.net.URI.create("https://example.com/final"),
+                List.of()));
+
+    FeedsDiscoverCommand cmd = new FeedsDiscoverCommand(disc);
+    CommandLine cli = new CommandLine(cmd);
+
+    ByteArrayOutputStream err = new ByteArrayOutputStream();
+    cli.setErr(new PrintWriter(err));
+
+    int exit = cli.execute("--site-url", "https://example.com/", "--verbose");
+
+    cli.getErr().flush();
+    assertEquals(0, exit);
+    assertTrue(err.toString(StandardCharsets.UTF_8).contains("finalUrl=https://example.com/final"));
+  }
+
+  @Test
+  void feedsDiscoverPlaywrightDisabledReturnsFive() {
+    FeedDiscoveryService disc = mock(FeedDiscoveryService.class);
+    when(disc.discoverWithResult(any(java.net.URI.class)))
+        .thenThrow(new IllegalStateException("Playwright full text extraction is disabled"));
+
+    FeedsDiscoverCommand cmd = new FeedsDiscoverCommand(disc);
+    CommandLine cli = new CommandLine(cmd);
+
+    int exit = cli.execute("--site-url", "https://example.com/");
+
+    assertEquals(5, exit);
+  }
+
+  @Test
+  void rootHelpIncludesProbeAndDiscover() {
+    SreaderCommand root = new SreaderCommand();
+    CommandLine cli = new CommandLine(root, new TestPicocliFactory());
+
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    PrintWriter pw = new PrintWriter(baos);
+    cli.setOut(pw);
+
+    int exit = cli.execute("--help");
+    pw.flush();
+    String out = baos.toString(StandardCharsets.UTF_8);
+
+    assertEquals(0, exit);
+    assertTrue(out.contains("probe") || out.contains("Probe"));
+  }
+
+  /** Simple factory for bare CommandLine construction in help tests (no Spring). */
+  private static class TestPicocliFactory implements picocli.CommandLine.IFactory {
+
+    @Override
+    public <K> K create(Class<K> cls) throws Exception {
+      if (cls == ProbeCommand.class) {
+        return (K) new ProbeCommand();
+      }
+      if (cls == ProbeArticleCommand.class) {
+        return (K) new ProbeArticleCommand(mock(FullTextProbeService.class));
+      }
+      if (cls == ProbeFeedCommand.class) {
+        return (K) new ProbeFeedCommand(mock(FullTextProbeService.class));
+      }
+      if (cls == FeedsDiscoverCommand.class) {
+        return (K) new FeedsDiscoverCommand(mock(FeedDiscoveryService.class));
+      }
+      if (cls == RunOnceCommand.class) {
+        return (K) new RunOnceCommand(mock(FeedReaderScheduler.class));
+      }
+      // Fallback for commands with no-arg ctor or other
+      try {
+        return cls.getDeclaredConstructor().newInstance();
+      } catch (Exception e) {
+        // last resort
+        return (K)
+            java.lang.reflect.Proxy.newProxyInstance(
+                cls.getClassLoader(), new Class<?>[] {cls}, (p, m, a) -> null);
+      }
+    }
   }
 }
