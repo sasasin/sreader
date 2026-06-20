@@ -43,7 +43,7 @@ public class FeedUrlRepository {
                     record.get(FEED_URL.UNSUBSCRIBE_REASON),
                     record.get(FEED_URL.UNSUBSCRIBED_AT),
                     record.get(FEED_URL.NOTE),
-                    record.get(FEED_URL.FULL_TEXT_METHOD)));
+                    toFullTextMethod(record.get(FEED_URL.FULL_TEXT_METHOD))));
   }
 
   public List<FeedUrl> findAllForExport(boolean activeOnly) {
@@ -69,7 +69,7 @@ public class FeedUrlRepository {
                     record.get(FEED_URL.UNSUBSCRIBE_REASON),
                     record.get(FEED_URL.UNSUBSCRIBED_AT),
                     record.get(FEED_URL.NOTE),
-                    record.get(FEED_URL.FULL_TEXT_METHOD)));
+                    toFullTextMethod(record.get(FEED_URL.FULL_TEXT_METHOD))));
   }
 
   public Optional<FeedUrl> findByUrl(String url) {
@@ -92,7 +92,7 @@ public class FeedUrlRepository {
                     record.get(FEED_URL.UNSUBSCRIBE_REASON),
                     record.get(FEED_URL.UNSUBSCRIBED_AT),
                     record.get(FEED_URL.NOTE),
-                    record.get(FEED_URL.FULL_TEXT_METHOD)));
+                    toFullTextMethod(record.get(FEED_URL.FULL_TEXT_METHOD))));
   }
 
   public boolean insertIfAbsent(String id, String url) {
@@ -118,7 +118,11 @@ public class FeedUrlRepository {
         .set(FEED_URL.UNSUBSCRIBE_REASON, feedUrl.unsubscribeReason())
         .set(FEED_URL.UNSUBSCRIBED_AT, feedUrl.unsubscribedAt())
         .set(FEED_URL.NOTE, feedUrl.note())
-        .set(FEED_URL.FULL_TEXT_METHOD, feedUrl.fullTextMethod())
+        .set(
+            FEED_URL.FULL_TEXT_METHOD,
+            feedUrl.fullTextMethod() == null
+                ? FullTextMethod.HTTP.value()
+                : feedUrl.fullTextMethod().value())
         .set(FEED_URL.CREATED_AT, now)
         .set(FEED_URL.UPDATED_AT, now)
         .execute();
@@ -163,5 +167,9 @@ public class FeedUrlRepository {
         .set(FEED_URL.UPDATED_AT, OffsetDateTime.now())
         .where(FEED_URL.URL.eq(url))
         .execute();
+  }
+
+  private FullTextMethod toFullTextMethod(String value) {
+    return value == null ? FullTextMethod.HTTP : FullTextMethod.fromValue(value);
   }
 }
