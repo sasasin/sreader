@@ -10,23 +10,23 @@ import org.springframework.stereotype.Service;
 @Service
 public class ExtractRuleService {
 
-	private final ExtractRuleRepository extractRuleRepository;
+  private final ExtractRuleRepository extractRuleRepository;
 
-	public ExtractRuleService(ExtractRuleRepository extractRuleRepository) {
-		this.extractRuleRepository = extractRuleRepository;
-	}
+  public ExtractRuleService(ExtractRuleRepository extractRuleRepository) {
+    this.extractRuleRepository = extractRuleRepository;
+  }
 
-	public Optional<ExtractRule> findBestRule(String url) {
-		return extractRuleRepository.findAll().stream()
-				.filter(rule -> matches(url, rule.urlPattern()))
-				.max(Comparator.comparingInt(rule -> rule.urlPattern().length()));
-	}
+  public Optional<ExtractRule> findBestRule(String url) {
+    return extractRuleRepository.findAll().stream()
+        .filter(rule -> matches(url, rule.urlPattern()))
+        .max(Comparator.comparingInt(rule -> rule.urlPattern().length()));
+  }
 
-	private boolean matches(String url, String pattern) {
-		try {
-			return url.matches(pattern + ".*");
-		} catch (PatternSyntaxException e) {
-			return false;
-		}
-	}
+  private boolean matches(String url, String pattern) {
+    try {
+      return url.matches(pattern + ".*");
+    } catch (PatternSyntaxException e) {
+      return false;
+    }
+  }
 }

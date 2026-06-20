@@ -10,23 +10,24 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class ContentFullTextRepository {
 
-	private final DSLContext dsl;
+  private final DSLContext dsl;
 
-	public ContentFullTextRepository(DSLContext dsl) {
-		this.dsl = dsl;
-	}
+  public ContentFullTextRepository(DSLContext dsl) {
+    this.dsl = dsl;
+  }
 
-	public boolean insertIfAbsent(ContentFullText fullText) {
-		OffsetDateTime now = OffsetDateTime.now();
-		return dsl.insertInto(CONTENT_FULL_TEXT)
-				.set(CONTENT_FULL_TEXT.ID, fullText.id())
-				.set(CONTENT_FULL_TEXT.CONTENT_HEADER_ID, fullText.contentHeaderId())
-				.set(CONTENT_FULL_TEXT.FULL_TEXT, fullText.fullText())
-				.set(CONTENT_FULL_TEXT.EXTRACTED_AT, now)
-				.set(CONTENT_FULL_TEXT.CREATED_AT, now)
-				.set(CONTENT_FULL_TEXT.UPDATED_AT, now)
-				.onConflict(CONTENT_FULL_TEXT.ID)
-				.doNothing()
-				.execute() == 1;
-	}
+  public boolean insertIfAbsent(ContentFullText fullText) {
+    OffsetDateTime now = OffsetDateTime.now();
+    return dsl.insertInto(CONTENT_FULL_TEXT)
+            .set(CONTENT_FULL_TEXT.ID, fullText.id())
+            .set(CONTENT_FULL_TEXT.CONTENT_HEADER_ID, fullText.contentHeaderId())
+            .set(CONTENT_FULL_TEXT.FULL_TEXT, fullText.fullText())
+            .set(CONTENT_FULL_TEXT.EXTRACTED_AT, now)
+            .set(CONTENT_FULL_TEXT.CREATED_AT, now)
+            .set(CONTENT_FULL_TEXT.UPDATED_AT, now)
+            .onConflict(CONTENT_FULL_TEXT.ID)
+            .doNothing()
+            .execute()
+        == 1;
+  }
 }

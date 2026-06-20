@@ -105,6 +105,42 @@ docker compose up -d app
 docker compose logs --tail=200 app
 ```
 
+## Java formatter / linter の確認
+
+Java コードを変更した場合は、レビュー前に Spotless と Checkstyle を通してください。
+ホスト OS ではなく Docker Compose 経由で Maven を実行します。
+
+```sh
+docker compose run --rm maven mvn spotless:apply
+```
+
+```sh
+docker compose run --rm maven mvn spotless:check
+```
+
+```sh
+docker compose run --rm maven mvn checkstyle:check
+```
+
+```sh
+docker compose run --rm maven mvn verify
+```
+
+実行する Maven goal は以下です。
+
+```sh
+mvn spotless:apply
+mvn spotless:check
+mvn checkstyle:check
+mvn verify
+```
+
+- Java コード変更後は `mvn spotless:apply` で整形すること。
+- レビュー前に `mvn spotless:check` と `mvn checkstyle:check` を通すこと。
+- 最終確認として `mvn verify` を実行すること。
+- generated sources や `target/` 配下を手編集しないこと。
+- jOOQ generated code は formatter / linter の対象にしないこと。
+
 ## DB / Flyway / jOOQ を変更した場合の追加確認
 
 以下を変更した場合は、fresh DB で検証してください。
