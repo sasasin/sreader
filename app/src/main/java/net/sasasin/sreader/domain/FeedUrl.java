@@ -9,9 +9,8 @@ public record FeedUrl(
     String unsubscribeReason,
     OffsetDateTime unsubscribedAt,
     String note,
-    String fullTextMethod
-) {
-    public FeedUrl(String id, String url) {
-        this(id, url, "active", null, null, null, "http");
-    }
+    String fullTextMethod) {
+  public FeedUrl(String id, String url) {
+    this(id, url, "active", null, null, null, "http");
+  }
 }

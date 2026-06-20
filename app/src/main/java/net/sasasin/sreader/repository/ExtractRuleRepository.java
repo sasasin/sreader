@@ -10,18 +10,20 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class ExtractRuleRepository {
 
-	private final DSLContext dsl;
+  private final DSLContext dsl;
 
-	public ExtractRuleRepository(DSLContext dsl) {
-		this.dsl = dsl;
-	}
+  public ExtractRuleRepository(DSLContext dsl) {
+    this.dsl = dsl;
+  }
 
-	public List<ExtractRule> findAll() {
-		return dsl.select(EFT_RULES.ID, EFT_RULES.URL_PATTERN, EFT_RULES.EXTRACT_RULE)
-				.from(EFT_RULES)
-				.fetch(record -> new ExtractRule(
-						record.get(EFT_RULES.ID),
-						record.get(EFT_RULES.URL_PATTERN),
-						record.get(EFT_RULES.EXTRACT_RULE)));
-	}
+  public List<ExtractRule> findAll() {
+    return dsl.select(EFT_RULES.ID, EFT_RULES.URL_PATTERN, EFT_RULES.EXTRACT_RULE)
+        .from(EFT_RULES)
+        .fetch(
+            record ->
+                new ExtractRule(
+                    record.get(EFT_RULES.ID),
+                    record.get(EFT_RULES.URL_PATTERN),
+                    record.get(EFT_RULES.EXTRACT_RULE)));
+  }
 }
