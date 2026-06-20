@@ -18,6 +18,7 @@ import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.domain.ProbeResult;
 import net.sasasin.sreader.scheduler.FeedReaderScheduler;
 import net.sasasin.sreader.service.FeedDiscoveryService;
+import net.sasasin.sreader.service.FeedDiscoveryService.DiscoveryResult;
 import net.sasasin.sreader.service.FeedTomlService;
 import net.sasasin.sreader.service.FeedTomlService.ImportOptions;
 import net.sasasin.sreader.service.FeedTomlService.ImportResult;
@@ -269,8 +270,12 @@ class FeedCommandsTest {
   @Test
   void feedsDiscoverCallsService() {
     FeedDiscoveryService disc = mock(FeedDiscoveryService.class);
-    when(disc.discover(any(java.net.URI.class)))
-        .thenReturn(List.of(java.net.URI.create("https://example.com/rss.xml")));
+    when(disc.discoverWithResult(any(java.net.URI.class)))
+        .thenReturn(
+            new DiscoveryResult(
+                java.net.URI.create("https://example.com/"),
+                java.net.URI.create("https://example.com/"),
+                List.of(java.net.URI.create("https://example.com/rss.xml"))));
 
     FeedsDiscoverCommand cmd = new FeedsDiscoverCommand(disc);
     CommandLine cli = new CommandLine(cmd);
@@ -281,17 +286,20 @@ class FeedCommandsTest {
     int exit = cli.execute("--site-url", "https://example.com/");
 
     assertEquals(0, exit);
-    verify(disc).discover(any(java.net.URI.class));
+    verify(disc).discoverWithResult(any(java.net.URI.class));
   }
 
   @Test
   void feedsDiscoverTomlReflectsMethod() {
     FeedDiscoveryService disc = mock(FeedDiscoveryService.class);
-    when(disc.discover(any(java.net.URI.class)))
+    when(disc.discoverWithResult(any(java.net.URI.class)))
         .thenReturn(
-            List.of(
-                java.net.URI.create("https://example.com/rss.xml"),
-                java.net.URI.create("https://example.com/atom.xml")));
+            new DiscoveryResult(
+                java.net.URI.create("https://example.com/"),
+                java.net.URI.create("https://example.com/"),
+                List.of(
+                    java.net.URI.create("https://example.com/rss.xml"),
+                    java.net.URI.create("https://example.com/atom.xml"))));
 
     FeedsDiscoverCommand cmd = new FeedsDiscoverCommand(disc);
     CommandLine cli = new CommandLine(cmd);
@@ -312,6 +320,54 @@ class FeedCommandsTest {
     assertEquals(0, exit);
     String s = out.toString(StandardCharsets.UTF_8);
     assertTrue(s.contains("full_text_method = \"playwright_readability\""));
+  }
+
+  @Test
+  void feedsDiscoverInvalidFormatIsUsageError() {
+    FeedDiscoveryService disc = mock(FeedDiscoveryService.class);
+    FeedsDiscoverCommand cmd = new FeedsDiscoverCommand(disc);
+    CommandLine cli = new CommandLine(cmd);
+
+    int exit = cli.execute("--site-url", "https://example.com/", "--format", "tml");
+
+    assertEquals(2, exit);
+  }
+
+  @Test
+  void feedsDiscoverVerboseIncludesFinalUrl() {
+    FeedDiscoveryService disc = mock(FeedDiscoveryService.class);
+    when(disc.discoverWithResult(any(java.net.URI.class)))
+        .thenReturn(
+            new DiscoveryResult(
+                java.net.URI.create("https://example.com/"),
+                java.net.URI.create("https://example.com/final"),
+                List.of()));
+
+    FeedsDiscoverCommand cmd = new FeedsDiscoverCommand(disc);
+    CommandLine cli = new CommandLine(cmd);
+
+    ByteArrayOutputStream err = new ByteArrayOutputStream();
+    cli.setErr(new PrintWriter(err));
+
+    int exit = cli.execute("--site-url", "https://example.com/", "--verbose");
+
+    cli.getErr().flush();
+    assertEquals(0, exit);
+    assertTrue(err.toString(StandardCharsets.UTF_8).contains("finalUrl=https://example.com/final"));
+  }
+
+  @Test
+  void feedsDiscoverPlaywrightDisabledReturnsFive() {
+    FeedDiscoveryService disc = mock(FeedDiscoveryService.class);
+    when(disc.discoverWithResult(any(java.net.URI.class)))
+        .thenThrow(new IllegalStateException("Playwright full text extraction is disabled"));
+
+    FeedsDiscoverCommand cmd = new FeedsDiscoverCommand(disc);
+    CommandLine cli = new CommandLine(cmd);
+
+    int exit = cli.execute("--site-url", "https://example.com/");
+
+    assertEquals(5, exit);
   }
 
   @Test

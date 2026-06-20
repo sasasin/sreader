@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.service.FeedDiscoveryService;
+import net.sasasin.sreader.service.FeedDiscoveryService.DiscoveryResult;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
@@ -61,14 +62,21 @@ public class FeedsDiscoverCommand implements Callable<Integer> {
     try {
       URI uri = UrlValidator.validateHttpUrl(siteUrl, "--site-url", spec);
 
-      List<URI> discovered = feedDiscoveryService.discover(uri);
+      String fmt = (format != null ? format : "urls").trim().toLowerCase();
+      if (!"urls".equals(fmt) && !"toml".equals(fmt)) {
+        throw new picocli.CommandLine.ParameterException(
+            spec.commandLine(), "Invalid --format value, must be urls or toml: " + format);
+      }
+
+      DiscoveryResult result = feedDiscoveryService.discoverWithResult(uri);
+      List<URI> discovered = result.feedUrls();
 
       if (verbose) {
         spec.commandLine().getErr().printf("siteUrl=%s%n", uri);
+        spec.commandLine().getErr().printf("finalUrl=%s%n", result.finalUrl());
         spec.commandLine().getErr().printf("discovered=%d%n", discovered.size());
       }
 
-      String fmt = (format != null ? format : "urls").trim().toLowerCase();
       if ("toml".equals(fmt)) {
         String m = method != null ? method.value() : "http";
         for (URI u : discovered) {
@@ -87,6 +95,9 @@ public class FeedsDiscoverCommand implements Callable<Integer> {
       return 0;
     } catch (picocli.CommandLine.ParameterException pe) {
       throw pe;
+    } catch (IllegalStateException e) {
+      spec.commandLine().getErr().println(e.getMessage());
+      return 5;
     } catch (Exception e) {
       spec.commandLine().getErr().println("Error: " + e.getMessage());
       return 1;

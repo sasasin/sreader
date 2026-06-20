@@ -1,8 +1,10 @@
 package net.sasasin.sreader.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -122,7 +124,7 @@ class FullTextProbeServiceTest {
     SyndEntry entry = mock(SyndEntry.class);
     when(entry.getLink()).thenReturn("https://art/");
     when(entry.getTitle()).thenReturn("title");
-    when(picker.pick(any(), any())).thenReturn(Optional.of(entry));
+    when(picker.pick(any(), any(), anyBoolean())).thenReturn(Optional.of(entry));
     when(doc.fetch(any())).thenReturn(synd);
     when(fex.extract(entry)).thenReturn(Optional.of("feed body text"));
 
@@ -137,6 +139,7 @@ class FullTextProbeServiceTest {
             Optional.empty());
 
     assertThat(r.text()).isEqualTo("feed body text");
+    verify(picker).pick(any(), any(), eq(false));
     verify(http, never()).get(any());
     verify(ex, never()).extract(any(), any(), any(), any());
   }
@@ -154,7 +157,7 @@ class FullTextProbeServiceTest {
     SyndEntry entry = mock(SyndEntry.class);
     when(entry.getLink()).thenReturn("https://art/");
     when(entry.getTitle()).thenReturn("et");
-    when(picker.pick(any(), any())).thenReturn(Optional.of(entry));
+    when(picker.pick(any(), any(), anyBoolean())).thenReturn(Optional.of(entry));
     when(doc.fetch(any())).thenReturn(synd);
     when(http.resolveRedirect(any(URI.class))).thenReturn(URI.create("https://art/"));
     when(http.get(any(URI.class)))
@@ -188,10 +191,35 @@ class FullTextProbeServiceTest {
     FullTextProbeService svc =
         new FullTextProbeService(http, pw, ex, doc, picker, fex, propsDisabledPw());
 
-    try {
-      svc.probeArticle(URI.create("https://x/"), FullTextMethod.PLAYWRIGHT, Optional.empty());
-    } catch (FullTextProbeService.PlaywrightDisabledException e) {
-      assertThat(e.getMessage()).contains("Playwright");
-    }
+    assertThatThrownBy(
+            () ->
+                svc.probeArticle(
+                    URI.create("https://x/"), FullTextMethod.PLAYWRIGHT, Optional.empty()))
+        .isInstanceOf(FullTextProbeService.PlaywrightDisabledException.class)
+        .hasMessageContaining("Playwright");
+  }
+
+  @Test
+  void playwrightMisconfigurationIsMappedToPlaywrightDisabledException() {
+    HttpFetchService http = mock(HttpFetchService.class);
+    PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
+    HtmlTextExtractor ex = mock(HtmlTextExtractor.class);
+    FeedDocumentService doc = mock(FeedDocumentService.class);
+    FeedEntryPicker picker = mock(FeedEntryPicker.class);
+    FeedEntryFullTextExtractor fex = mock(FeedEntryFullTextExtractor.class);
+    when(pw.renderPage(any(), anyBoolean()))
+        .thenThrow(new IllegalStateException("Infy Scroll extension directory is not configured"));
+
+    FullTextProbeService svc =
+        new FullTextProbeService(http, pw, ex, doc, picker, fex, propsEnabled());
+
+    assertThatThrownBy(
+            () ->
+                svc.probeArticle(
+                    URI.create("https://x/"),
+                    FullTextMethod.PLAYWRIGHT_INFY_SCROLL,
+                    Optional.empty()))
+        .isInstanceOf(FullTextProbeService.PlaywrightDisabledException.class)
+        .hasMessageContaining("Infy Scroll extension directory");
   }
 }

@@ -73,6 +73,14 @@ class FeedEntryPickerTest {
   }
 
   @Test
+  void canPickEntryWithoutLinkWhenLinkIsNotRequired() {
+    SyndFeed feed = feedWith(entries(entry(null, "feed body only"), entry("https://ok", "yes")));
+    assertThat(picker.pick(feed, FeedEntrySelection.first(), false)).isPresent();
+    assertThat(picker.pick(feed, FeedEntrySelection.first(), false).get().getTitle())
+        .isEqualTo("feed body only");
+  }
+
+  @Test
   void emptyWhenNoMatch() {
     SyndFeed feed = feedWith(entries(entry("https://e/1", "t")));
     assertThat(picker.pick(feed, FeedEntrySelection.titleRegex("nope"))).isEmpty();
