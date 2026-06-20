@@ -29,6 +29,7 @@ public class ContentHeaderRepository {
             .set(CONTENT_HEADER.URL, header.url())
             .set(CONTENT_HEADER.TITLE, header.title())
             .set(CONTENT_HEADER.PUBLISHED_AT, header.publishedAt())
+            .set(CONTENT_HEADER.FEED_TEXT, header.feedText())
             .set(CONTENT_HEADER.CREATED_AT, now)
             .set(CONTENT_HEADER.UPDATED_AT, now)
             .onConflict(CONTENT_HEADER.ID)
@@ -43,7 +44,8 @@ public class ContentHeaderRepository {
             CONTENT_HEADER.FEED_URL_ID,
             CONTENT_HEADER.URL,
             CONTENT_HEADER.TITLE,
-            CONTENT_HEADER.PUBLISHED_AT)
+            CONTENT_HEADER.PUBLISHED_AT,
+            CONTENT_HEADER.FEED_TEXT)
         .from(CONTENT_HEADER)
         .leftJoin(CONTENT_FULL_TEXT)
         .on(CONTENT_HEADER.ID.eq(CONTENT_FULL_TEXT.CONTENT_HEADER_ID))
@@ -57,7 +59,8 @@ public class ContentHeaderRepository {
                     record.get(CONTENT_HEADER.FEED_URL_ID),
                     record.get(CONTENT_HEADER.URL),
                     record.get(CONTENT_HEADER.TITLE),
-                    record.get(CONTENT_HEADER.PUBLISHED_AT)));
+                    record.get(CONTENT_HEADER.PUBLISHED_AT),
+                    record.get(CONTENT_HEADER.FEED_TEXT)));
   }
 
   public List<PendingFullTextTarget> findWithoutFullTextForUrlExtraction(int limit) {
@@ -67,6 +70,7 @@ public class ContentHeaderRepository {
             CONTENT_HEADER.URL,
             CONTENT_HEADER.TITLE,
             CONTENT_HEADER.PUBLISHED_AT,
+            CONTENT_HEADER.FEED_TEXT,
             FEED_URL.FULL_TEXT_METHOD)
         .from(CONTENT_HEADER)
         .join(FEED_URL)
@@ -74,7 +78,6 @@ public class ContentHeaderRepository {
         .leftJoin(CONTENT_FULL_TEXT)
         .on(CONTENT_HEADER.ID.eq(CONTENT_FULL_TEXT.CONTENT_HEADER_ID))
         .where(CONTENT_FULL_TEXT.ID.isNull())
-        .and(FEED_URL.FULL_TEXT_METHOD.ne(FullTextMethod.FEED.value()))
         .orderBy(CONTENT_HEADER.CREATED_AT.asc())
         .limit(limit)
         .fetch(
@@ -85,7 +88,8 @@ public class ContentHeaderRepository {
                         record.get(CONTENT_HEADER.FEED_URL_ID),
                         record.get(CONTENT_HEADER.URL),
                         record.get(CONTENT_HEADER.TITLE),
-                        record.get(CONTENT_HEADER.PUBLISHED_AT)),
+                        record.get(CONTENT_HEADER.PUBLISHED_AT),
+                        record.get(CONTENT_HEADER.FEED_TEXT)),
                     toFullTextMethod(record.get(FEED_URL.FULL_TEXT_METHOD))));
   }
 
