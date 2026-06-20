@@ -12,7 +12,7 @@ import picocli.CommandLine.Command;
       "Use --sreader.job.run-once=true (or env) to run jobs once then exit.",
     },
     mixinStandardHelpOptions = true,
-    subcommands = {FeedsCommand.class},
+    subcommands = {FeedsCommand.class, RunOnceCommand.class},
     usageHelpWidth = 100)
 @Component
 public class SreaderCommand implements Runnable {
