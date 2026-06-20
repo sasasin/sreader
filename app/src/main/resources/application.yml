@@ -28,4 +28,16 @@ sreader:
     connect-timeout: ${SREADER_HTTP_CONNECT_TIMEOUT:5s}
     read-timeout: ${SREADER_HTTP_READ_TIMEOUT:20s}
     retry-count: ${SREADER_HTTP_RETRY_COUNT:1}
+  playwright:
+    enabled: ${SREADER_PLAYWRIGHT_ENABLED:false}
+    headless: ${SREADER_PLAYWRIGHT_HEADLESS:true}
+    viewport-width: ${SREADER_PLAYWRIGHT_VIEWPORT_WIDTH:1280}
+    viewport-height: ${SREADER_PLAYWRIGHT_VIEWPORT_HEIGHT:1600}
+    navigation-timeout: ${SREADER_PLAYWRIGHT_NAVIGATION_TIMEOUT:60s}
+    network-idle-timeout: ${SREADER_PLAYWRIGHT_NETWORK_IDLE_TIMEOUT:5s}
+    infy-extension-dir: ${SREADER_PLAYWRIGHT_INFY_EXTENSION_DIR:}
+    infy-user-data-dir: ${SREADER_PLAYWRIGHT_INFY_USER_DATA_DIR:}
+    infy-max-scrolls: ${SREADER_PLAYWRIGHT_INFY_MAX_SCROLLS:20}
+    infy-stable-rounds: ${SREADER_PLAYWRIGHT_INFY_STABLE_ROUNDS:3}
+    infy-scroll-wait: ${SREADER_PLAYWRIGHT_INFY_SCROLL_WAIT:2700ms}
   seed-feed-urls: ${SREADER_SEED_FEED_URLS:}
