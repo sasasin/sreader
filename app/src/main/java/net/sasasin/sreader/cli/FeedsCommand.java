@@ -11,7 +11,11 @@ import picocli.CommandLine.Spec;
     name = "feeds",
     description = "Import or export feed subscriptions as TOML.",
     mixinStandardHelpOptions = true,
-    subcommands = {FeedImportCommand.class, FeedExportCommand.class},
+    subcommands = {
+      FeedImportCommand.class,
+      FeedExportCommand.class,
+      FeedsDiscoverCommand.class,
+    },
     usageHelpWidth = 100)
 @Component
 public class FeedsCommand implements Callable<Integer> {
