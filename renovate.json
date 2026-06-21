@@ -3,5 +3,17 @@
   "extends": [
     "config:recommended"
   ],
-  "minimumReleaseAge": "3 days"
+  "minimumReleaseAge": "3 days",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.env\\.example$/"
+      ],
+      "matchStrings": [
+        "MAVEN_IMAGE=(?<depName>maven):(?<currentValue>[^\\s]+)"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ]
 }
