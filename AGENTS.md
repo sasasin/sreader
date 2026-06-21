@@ -2,9 +2,9 @@
 
 このファイルは、OpenAI Codex などのエージェントが `sasasin/sreader` リポジトリを変更するときに、毎回確認すべき前提と検証コマンドをまとめたものです。
 
-## 現在の標準構成
+## 現在の構成
 
-現在の標準アプリケーションは Spring Boot 版アプリケーションです。
+現在のアプリケーションは Spring Boot 版アプリケーションです。
 
 - Java 25
 - Spring Boot
@@ -229,10 +229,10 @@ docker compose logs --tail=200 app
 
 README を変更した場合は、以下を確認してください。
 
-- 標準手順が Docker Compose 前提になっていること
+- 手順が Docker Compose 前提になっていること
 - ホストに Java / Maven / PostgreSQL client / Flyway を入れる手順を書いていないこと
-- 標準 DB が PostgreSQL 18.x になっていること
-- Spring Scheduler による定期実行が標準運用として説明されていること
+- RDBMS が PostgreSQL 18.x になっていること
+- Spring Scheduler による定期実行が説明されていること
 
 ## Maven dependency の確認
 
