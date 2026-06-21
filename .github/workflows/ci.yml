@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Validate Docker Compose config
+        run: docker compose config
+
+      - name: Check forbidden regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          forbidden='mysql|MySQL|jdbc:mysql|com\.mysql|mysql-connector|Hibernate|hibernate|MySQLDialect|Gmail|gmail|SMTP|JavaMail|jakarta\.mail|javax\.mail|login_rules|auth_password|run_feedreader|batch/script|net\.sasasin\.sreader\.commons|net\.sasasin\.sreader\.batch'
+
+          paths=()
+          for p in pom.xml app docker db; do
+            if [ -e "$p" ]; then
+              paths+=("$p")
+            fi
+          done
+
+          if [ "${#paths[@]}" -gt 0 ] && git grep -n -E "$forbidden" -- "${paths[@]}" | grep -v -E '^\s*--|V3__remove_email_delivery'; then
+            echo "::error::Forbidden legacy technology reference found in runtime/build/test paths"
+            exit 1
+          fi
+
+      - name: Start PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker compose up -d postgres
+
+          for i in {1..60}; do
+            if docker compose exec -T postgres pg_isready -U sreader -d sreader; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker compose ps
+          docker compose logs --tail=200 postgres
+          exit 1
+
+      - name: Show PostgreSQL version
+        run: docker compose exec -T postgres psql -U sreader -d sreader -c "SELECT version();"
+
+      - name: Maven verify through Docker Compose
+        run: docker compose run --rm maven mvn -B -V clean verify
+
+      - name: Check forbidden dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker compose run --rm maven mvn -B -DskipTests dependency:tree | tee dependency-tree.txt
+
+          if grep -i -E 'mysql-connector|hibernate-core|jakarta\.mail|javax\.mail|javamail|htmlunit' dependency-tree.txt; then
+            echo "::error::Forbidden dependency found"
+            exit 1
+          fi
+
+      - name: Build app image
+        run: docker compose build app
+
+      - name: Start app smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SREADER_SCHEDULER_ENABLED=false docker compose up -d app
+
+          sleep 20
+
+          app_container="$(docker compose ps -q app)"
+          if [ -z "$app_container" ]; then
+            echo "::error::app container was not created"
+            docker compose ps
+            docker compose logs --tail=200 app
+            exit 1
+          fi
+
+          if [ "$(docker inspect -f '{{.State.Running}}' "$app_container")" != "true" ]; then
+            echo "::error::app container is not running"
+            docker compose ps
+            docker compose logs --tail=200 app
+            exit 1
+          fi
+
+          docker compose logs --tail=200 app
+
+      - name: Show compose status
+        if: always()
+        run: docker compose ps
+
+      - name: Show compose logs
+        if: always()
+        run: docker compose logs --tail=300
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
