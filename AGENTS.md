@@ -1,10 +1,10 @@
 # AGENTS.md
 
-このファイルは、OpenAI Codex などのエージェントが `sasasin/sreader` リポジトリを変更するときに、毎回確認すべき前提・禁止事項・検証コマンドをまとめたものです。
+このファイルは、OpenAI Codex などのエージェントが `sasasin/sreader` リポジトリを変更するときに、毎回確認すべき前提と検証コマンドをまとめたものです。
 
 ## 現在の標準構成
 
-現在の標準アプリケーションは、旧 `batch/` / `commons/` ではなく、Spring Boot 版アプリケーションです。
+現在の標準アプリケーションは Spring Boot 版アプリケーションです。
 
 - Java 25
 - Spring Boot
@@ -13,15 +13,6 @@
 - PostgreSQL 18.x
 - Docker Compose
 - Maven
-
-旧来の以下の機能・構成は復活させないでください。
-
-- Hibernate / XML mapping / DAO ベースの旧実装
-- MySQL 対応
-- Gmail / SMTP によるメール配信
-- 購読先ログイン ID / password を使う認証付き取得
-- `login_rules`
-- cron から `batch/script/run_feedreader.sh` を実行する運用
 
 ## ホスト環境のルール
 
@@ -53,17 +44,9 @@ find . -maxdepth 3 -type f \
   | sort
 ```
 
-標準 runtime / build path に、廃止済み技術が混入していないか確認してください。
-
-```sh
-git grep -n -E "mysql|MySQL|jdbc:mysql|com\.mysql|mysql-connector|Hibernate|hibernate|MySQLDialect|Gmail|gmail|SMTP|JavaMail|jakarta\.mail|javax\.mail|login_rules|auth_password|run_feedreader|batch/script|net\.sasasin\.sreader\.commons|net\.sasasin\.sreader\.batch" || true
-```
-
-この検索で docs の歴史的説明だけがヒットするのは許容できます。ただし、標準 build / runtime / test / README 手順に混入している場合は修正してください。
-
 ## 通常変更後に毎回実行する確認コマンド
 
-通常のコード変更、設定変更、docs 更新後は、最低限以下を実行してください。
+通常のコード変更、設定変更、README 更新後は、最低限以下を実行してください。
 
 ```sh
 docker compose config
@@ -242,33 +225,14 @@ docker compose ps
 docker compose logs --tail=200 app
 ```
 
-## docs / README を変更した場合の確認
+## README を変更した場合の確認
 
-README や docs を変更した場合は、以下を確認してください。
+README を変更した場合は、以下を確認してください。
 
 - 標準手順が Docker Compose 前提になっていること
 - ホストに Java / Maven / PostgreSQL client / Flyway を入れる手順を書いていないこと
 - 標準 DB が PostgreSQL 18.x になっていること
-- MySQL 手順が標準手順として残っていないこと
-- 旧 `batch` / `commons` を現行コードとして説明していないこと
-- Gmail / SMTP / 認証付き取得が現行機能として説明されていないこと
 - Spring Scheduler による定期実行が標準運用として説明されていること
-
-## 回帰禁止チェック
-
-変更後、以下の検索を実行してください。
-
-```sh
-git grep -n -E "mysql|MySQL|jdbc:mysql|com\.mysql|mysql-connector|Hibernate|hibernate|MySQLDialect|Gmail|gmail|SMTP|JavaMail|jakarta\.mail|javax\.mail|login_rules|auth_password|run_feedreader|batch/script|net\.sasasin\.sreader\.commons|net\.sasasin\.sreader\.batch" || true
-```
-
-ヒットした場合は、以下に分類してください。
-
-1. 修正すべき標準 runtime / build / test の参照
-2. README / docs の歴史的説明として許容できる参照
-3. 誤検出
-
-標準 runtime / build / test に残っている参照は削除してください。
 
 ## Maven dependency の確認
 
@@ -277,14 +241,6 @@ git grep -n -E "mysql|MySQL|jdbc:mysql|com\.mysql|mysql-connector|Hibernate|hibe
 ```sh
 docker compose run --rm maven mvn dependency:tree
 ```
-
-以下が標準 dependency として復活していないことを確認してください。
-
-- MySQL Connector/J
-- Hibernate ORM
-- JavaMail / Jakarta Mail
-- Gmail / SMTP 専用ライブラリ
-- 認証付き取得専用の古い HtmlUnit 依存
 
 ## 期待する最終状態
 
@@ -297,8 +253,7 @@ docker compose run --rm maven mvn dependency:tree
 - `docker compose build app` が成功する。
 - `docker compose up -d app` が成功する。
 - app logs に起動直後の致命的例外がない。
-- MySQL / Hibernate / Gmail / SMTP / 認証付き取得 / 旧 batch 方式が復活していない。
-- README / docs が現行構成と一致している。
+- README が現行構成と一致している。
 
 ## 失敗した場合の扱い
 
@@ -328,7 +283,6 @@ docker compose run --rm maven mvn dependency:tree
 3. 実行した確認コマンド
 4. 成功した検証
 5. 失敗した検証があれば、その原因
-6. 回帰禁止チェックの結果
-7. docs / README 更新の有無
-8. 残課題
-9. 次の推奨ステップ
+6. README 更新の有無
+7. 残課題
+8. 次の推奨ステップ

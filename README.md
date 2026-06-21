@@ -1,7 +1,7 @@
 SReader
 =======
 
-SReader は、認証不要な公開 RSS/Atom feed を取得し、記事 URL/タイトルと本文抽出結果を PostgreSQL に保存する lightweight feed reader です。
+SReader は、公開 RSS/Atom feed を取得し、記事 URL/タイトルと本文抽出結果を PostgreSQL に保存する lightweight feed reader です。
 
 テックスタックは Java 25 + Spring Boot + jOOQ + Flyway + PostgreSQL 18.x です。
 
@@ -216,7 +216,7 @@ full_text_method = "http"
 
 `schema_version = 2`（エクスポート時の現在のバージョン）と `feeds[].url` は必須です。import では `schema_version = 1`（後方互換）も受け付けます（`full_text_method` 未指定時は `"http"` として扱います）。`status` は省略時 `active` です。`full_text_method` は省略時 `"http"` です。
 
-URL は trim され、`http` / `https` の absolute URI のみ許可します。userinfo を含む URL は認証付き取得につながるため拒否します。同一 TOML 内で正規化後 URL が重複した場合も validation error です。
+URL は trim され、`http` / `https` の absolute URI のみ許可します。userinfo を含む URL は拒否します。同一 TOML 内で正規化後 URL が重複した場合も validation error です。
 
 `unsubscribe_reason` は `unsubscribed` 用の任意項目です。省略時は `other` として扱います。
 
