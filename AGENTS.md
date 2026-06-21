@@ -82,6 +82,10 @@ docker compose exec postgres psql -U sreader -d sreader -c "SELECT version();"
 ```
 
 ```sh
+docker compose run --rm flyway migrate
+```
+
+```sh
 docker compose run --rm maven mvn -version
 ```
 
@@ -166,6 +170,10 @@ docker compose up -d postgres
 
 ```sh
 docker compose exec postgres psql -U sreader -d sreader -c "SELECT version();"
+```
+
+```sh
+docker compose run --rm flyway migrate
 ```
 
 ```sh
