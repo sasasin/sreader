@@ -42,7 +42,7 @@ services:
         condition: service_healthy
 
   postgres:
-    image: ${POSTGRES_IMAGE:-postgres:16.9}
+    image: ${POSTGRES_IMAGE:-postgres:17.10}
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-sreader}
       POSTGRES_USER: ${POSTGRES_USER:-sreader}

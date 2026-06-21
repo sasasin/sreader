@@ -3,7 +3,7 @@ SReader
 
 SReader は、認証不要な公開 RSS/Atom feed を取得し、記事 URL/タイトルと本文抽出結果を PostgreSQL に保存する lightweight feed reader です。
 
-テックスタックは Java 25 + Spring Boot + jOOQ + Flyway + PostgreSQL 16.x です。
+テックスタックは Java 25 + Spring Boot + jOOQ + Flyway + PostgreSQL 17.x です。
 
 ## ディレクトリ構成
 
