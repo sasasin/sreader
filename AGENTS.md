@@ -10,7 +10,7 @@
 - Spring Boot
 - jOOQ
 - Flyway
-- PostgreSQL 16.x
+- PostgreSQL 17.x
 - Docker Compose
 - Maven
 
@@ -240,7 +240,7 @@ README や docs を変更した場合は、以下を確認してください。
 
 - 標準手順が Docker Compose 前提になっていること
 - ホストに Java / Maven / PostgreSQL client / Flyway を入れる手順を書いていないこと
-- 標準 DB が PostgreSQL 16.x になっていること
+- 標準 DB が PostgreSQL 17.x になっていること
 - MySQL 手順が標準手順として残っていないこと
 - 旧 `batch` / `commons` を現行コードとして説明していないこと
 - Gmail / SMTP / 認証付き取得が現行機能として説明されていないこと
@@ -284,7 +284,7 @@ docker compose run --rm maven mvn dependency:tree
 
 - `docker compose config` が成功する。
 - `docker compose up -d postgres` が成功する。
-- PostgreSQL 16.x に接続できる。
+- PostgreSQL 17.x に接続できる。
 - `docker compose run --rm maven mvn clean verify` が成功する。
 - `docker compose build app` が成功する。
 - `docker compose up -d app` が成功する。
