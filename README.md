@@ -3,7 +3,7 @@ SReader
 
 SReader は、認証不要な公開 RSS/Atom feed を取得し、記事 URL/タイトルと本文抽出結果を PostgreSQL に保存する lightweight feed reader です。
 
-テックスタックは Java 25 + Spring Boot + jOOQ + Flyway + PostgreSQL 17.x です。
+テックスタックは Java 25 + Spring Boot + jOOQ + Flyway + PostgreSQL 18.x です。
 
 ## ディレクトリ構成
 
@@ -41,7 +41,7 @@ Spring Boot app 起動時にも Flyway auto migration が有効です。
 
 ## jOOQ / build / test
 
-jOOQ code generation は Docker Compose の PostgreSQL schema から `target/generated-sources/jooq` へ生成します。生成コードは Git 管理しません。
+jOOQ code generation は Docker Compose の PostgreSQL schema から `target/generated-sources/jooq` へ生成します。生成コードは Git 管理しません。fresh DB では先に `docker compose run --rm flyway migrate` を実行してください。
 
 ```sh
 docker compose run --rm maven mvn -version
