@@ -29,7 +29,7 @@
 		<spotless-maven-plugin.version>2.46.1</spotless-maven-plugin.version>
 		<google-java-format.version>1.28.0</google-java-format.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
-		<checkstyle.version>13.0.0</checkstyle.version>
+		<checkstyle.version>13.6.0</checkstyle.version>
 	</properties>
 
 	<dependencyManagement>
