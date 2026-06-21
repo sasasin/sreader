@@ -52,6 +52,23 @@ docker compose run --rm maven mvn clean verify
 
 `maven` service は jOOQ codegen 用に `sreader` DB へ接続し、test 実行時は `sreadertest` DB に接続します。`docker/postgres/init/00-create-test-database.sql` が test DB/role を作成します。
 
+## Renovate
+
+依存関係と Docker image の更新検知には Renovate を使います。設定は repository root の `renovate.json` です。
+
+現在の設定:
+
+- `config:recommended` を継承します。
+- release 直後の不安定な更新を避けるため、`minimumReleaseAge` を `3 days` にしています。
+
+Renovate GitHub App を有効化する手順:
+
+1. GitHub の `sasasin/sreader` repository を開きます。
+2. `Settings` -> `Integrations` -> `GitHub Apps` を開きます。
+3. Renovate が未インストールの場合は [Renovate GitHub App](https://github.com/apps/renovate) を開き、`Install` または `Configure` から `sasasin/sreader` を対象 repository に追加します。
+4. 初回 onboarding PR が作られた場合は、PR の内容が root の `renovate.json` と矛盾しないことを確認して close するか、必要に応じて取り込みます。
+5. 以後の Renovate PR では、この README の Docker Compose コマンドで検証します。
+
 ## app 起動
 
 ```sh
