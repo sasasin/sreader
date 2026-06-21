@@ -1,6 +1,6 @@
 services:
   maven:
-    image: ${MAVEN_IMAGE:-maven:3.9.11-eclipse-temurin-25}
+    image: ${MAVEN_IMAGE:-maven:3.9.16-eclipse-temurin-25}
     working_dir: /workspace
     volumes:
       - .:/workspace
