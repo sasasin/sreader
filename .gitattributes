@@ -1,0 +1,39 @@
+* text=auto
+
+# Source code and project configuration are edited and formatted in Linux containers.
+*.java text eol=lf
+*.xml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.properties text eol=lf
+*.sql text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+LICENSE text eol=lf
+.gitattributes text eol=lf
+*.gitignore text eol=lf
+Dockerfile text eol=lf
+Dockerfile.* text eol=lf
+docker-compose*.yml text eol=lf
+docker-compose*.yaml text eol=lf
+
+# Unix scripts should keep LF.
+*.sh text eol=lf
+
+# Windows scripts should keep CRLF if they are added later.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary artifacts should not be line-ending normalized.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.jar binary
+*.class binary
