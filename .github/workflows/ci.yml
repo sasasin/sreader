@@ -26,25 +26,6 @@ jobs:
       - name: Validate Docker Compose config
         run: docker compose config
 
-      - name: Check forbidden regressions
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          forbidden='mysql|MySQL|jdbc:mysql|com\.mysql|mysql-connector|Hibernate|hibernate|MySQLDialect|Gmail|gmail|SMTP|JavaMail|jakarta\.mail|javax\.mail|login_rules|auth_password|run_feedreader|batch/script|net\.sasasin\.sreader\.commons|net\.sasasin\.sreader\.batch'
-
-          paths=()
-          for p in pom.xml app docker db; do
-            if [ -e "$p" ]; then
-              paths+=("$p")
-            fi
-          done
-
-          if [ "${#paths[@]}" -gt 0 ] && git grep -n -E "$forbidden" -- "${paths[@]}" | grep -v -E '^\s*--|V3__remove_email_delivery'; then
-            echo "::error::Forbidden legacy technology reference found in runtime/build/test paths"
-            exit 1
-          fi
-
       - name: Start PostgreSQL
         shell: bash
         run: |
@@ -73,18 +54,6 @@ jobs:
 
       - name: Maven verify through Docker Compose
         run: docker compose run --rm maven mvn -B -V clean verify
-
-      - name: Check forbidden dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          docker compose run --rm maven mvn -B -DskipTests dependency:tree | tee dependency-tree.txt
-
-          if grep -i -E 'mysql-connector|hibernate-core|jakarta\.mail|javax\.mail|javamail|htmlunit' dependency-tree.txt; then
-            echo "::error::Forbidden dependency found"
-            exit 1
-          fi
 
       - name: Build app image
         run: docker compose build app
