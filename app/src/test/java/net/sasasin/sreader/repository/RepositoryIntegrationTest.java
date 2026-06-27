@@ -2,6 +2,7 @@ package net.sasasin.sreader.repository;
 
 import static net.sasasin.sreader.jooq.Tables.CONTENT_FULL_TEXT;
 import static net.sasasin.sreader.jooq.Tables.CONTENT_HEADER;
+import static net.sasasin.sreader.jooq.Tables.CONTENT_TEXT_FILE_EXPORT;
 import static net.sasasin.sreader.jooq.Tables.FEED_URL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,8 +30,11 @@ class RepositoryIntegrationTest {
 
   @Autowired ContentFullTextRepository contentFullTextRepository;
 
+  @Autowired ContentTextFileExportRepository contentTextFileExportRepository;
+
   @BeforeEach
   void cleanTables() {
+    dsl.deleteFrom(CONTENT_TEXT_FILE_EXPORT).execute();
     dsl.deleteFrom(CONTENT_FULL_TEXT).execute();
     dsl.deleteFrom(CONTENT_HEADER).execute();
     dsl.deleteFrom(FEED_URL).execute();
@@ -181,5 +185,78 @@ class RepositoryIntegrationTest {
             "https://example.test/http",
             "https://example.test/feed",
             "https://example.test/playwright");
+  }
+
+  @Test
+  void contentTextFileExportFindsOnlyUnexportedNonBlankFullText() {
+    feedUrlRepository.insertIfAbsent(
+        "feed0000000000000000000000000020", "https://example.test/export.xml");
+    insertHeaderAndFullText(
+        "0123456789abcdef0123456789abcdef",
+        "11111111111111111111111111111111",
+        "https://example.test/export/1",
+        "Export 1",
+        "Body 1");
+    insertHeaderAndFullText(
+        "22222222222222222222222222222222",
+        "33333333333333333333333333333333",
+        "https://example.test/export/2",
+        "Export 2",
+        "Body 2");
+    insertHeaderAndFullText(
+        "44444444444444444444444444444444",
+        "55555555555555555555555555555555",
+        "https://example.test/export/blank",
+        "Blank",
+        "   ");
+
+    assertThat(
+            contentTextFileExportRepository.insertExported(
+                "22222222222222222222222222222222",
+                "33333333333333333333333333333333",
+                "22222222222222222222222222222222.txt",
+                10,
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
+        .isTrue();
+
+    assertThat(contentTextFileExportRepository.findUnexported(10))
+        .extracting(target -> target.contentHeaderId())
+        .containsExactly("0123456789abcdef0123456789abcdef");
+  }
+
+  @Test
+  void contentTextFileExportInsertIsIdempotent() {
+    feedUrlRepository.insertIfAbsent(
+        "feed0000000000000000000000000020", "https://example.test/export-once.xml");
+    insertHeaderAndFullText(
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "https://example.test/export-once/1",
+        "Export once",
+        "Body");
+
+    assertThat(
+            contentTextFileExportRepository.insertExported(
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.txt",
+                9,
+                "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"))
+        .isTrue();
+    assertThat(
+            contentTextFileExportRepository.insertExported(
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.txt",
+                9,
+                "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"))
+        .isFalse();
+  }
+
+  private void insertHeaderAndFullText(
+      String headerId, String fullTextId, String url, String title, String fullText) {
+    contentHeaderRepository.insertIfAbsent(
+        new ContentHeader(headerId, "feed0000000000000000000000000020", url, title, null));
+    contentFullTextRepository.insertIfAbsent(new ContentFullText(fullTextId, headerId, fullText));
   }
 }
