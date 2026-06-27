@@ -9,7 +9,12 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "sreader")
 public record FeedReaderProperties(
-    Scheduler scheduler, Job job, Http http, Playwright playwright, List<String> seedFeedUrls) {
+    Scheduler scheduler,
+    Job job,
+    Http http,
+    Playwright playwright,
+    TextExport textExport,
+    List<String> seedFeedUrls) {
 
   public FeedReaderProperties {
     if (scheduler == null) {
@@ -36,6 +41,9 @@ public record FeedReaderProperties(
               3,
               Duration.ofMillis(2700));
     }
+    if (textExport == null) {
+      textExport = new TextExport(false, Path.of("/var/lib/sreader/content-text"), 100);
+    }
     if (seedFeedUrls == null) {
       seedFeedUrls = List.of();
     }
@@ -47,6 +55,18 @@ public record FeedReaderProperties(
 
   public record Http(
       String userAgent, Duration connectTimeout, Duration readTimeout, int retryCount) {}
+
+  public record TextExport(boolean enabled, Path outputDir, int batchSize) {
+
+    public TextExport {
+      if (outputDir == null) {
+        outputDir = Path.of("/var/lib/sreader/content-text");
+      }
+      if (batchSize <= 0) {
+        batchSize = 100;
+      }
+    }
+  }
 
   public record Playwright(
       boolean enabled,

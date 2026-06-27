@@ -40,4 +40,8 @@ sreader:
     infy-max-scrolls: ${SREADER_PLAYWRIGHT_INFY_MAX_SCROLLS:20}
     infy-stable-rounds: ${SREADER_PLAYWRIGHT_INFY_STABLE_ROUNDS:3}
     infy-scroll-wait: ${SREADER_PLAYWRIGHT_INFY_SCROLL_WAIT:2700ms}
+  text-export:
+    enabled: ${SREADER_TEXT_EXPORT_ENABLED:false}
+    output-dir: ${SREADER_TEXT_EXPORT_OUTPUT_DIR:/var/lib/sreader/content-text}
+    batch-size: ${SREADER_TEXT_EXPORT_BATCH_SIZE:100}
   seed-feed-urls: ${SREADER_SEED_FEED_URLS:}
