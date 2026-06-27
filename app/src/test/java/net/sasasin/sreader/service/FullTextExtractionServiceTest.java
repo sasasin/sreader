@@ -159,6 +159,7 @@ class FullTextExtractionServiceTest {
             1,
             1,
             Duration.ofMillis(1)),
+        null,
         List.of());
   }
 }
