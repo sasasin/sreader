@@ -17,18 +17,21 @@ public class FeedReaderService {
   private final FeedUrlRepository feedUrlRepository;
   private final FeedEntryImportService feedEntryImportService;
   private final FullTextExtractionService fullTextExtractionService;
+  private final ContentTextFileExportService contentTextFileExportService;
 
   public FeedReaderService(
       FeedReaderProperties properties,
       FeedRegistrationService feedRegistrationService,
       FeedUrlRepository feedUrlRepository,
       FeedEntryImportService feedEntryImportService,
-      FullTextExtractionService fullTextExtractionService) {
+      FullTextExtractionService fullTextExtractionService,
+      ContentTextFileExportService contentTextFileExportService) {
     this.properties = properties;
     this.feedRegistrationService = feedRegistrationService;
     this.feedUrlRepository = feedUrlRepository;
     this.feedEntryImportService = feedEntryImportService;
     this.fullTextExtractionService = fullTextExtractionService;
+    this.contentTextFileExportService = contentTextFileExportService;
   }
 
   public JobResult runOnce() {
@@ -38,11 +41,16 @@ public class FeedReaderService {
       headers += feedEntryImportService.importEntries(feedUrl);
     }
     int fullTexts = fullTextExtractionService.extractPending(100);
-    JobResult result = new JobResult(seeded, headers, fullTexts);
+    int textFilesExported =
+        contentTextFileExportService.exportPending(properties.textExport().batchSize());
+    JobResult result = new JobResult(seeded, headers, fullTexts, textFilesExported);
     logger.info("Feed reader job finished: {}", result);
     return result;
   }
 
   public record JobResult(
-      int feedUrlsInserted, int contentHeadersInserted, int fullTextsInserted) {}
+      int feedUrlsInserted,
+      int contentHeadersInserted,
+      int fullTextsInserted,
+      int textFilesExported) {}
 }
