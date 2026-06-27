@@ -9,5 +9,6 @@ RUN mvn -pl app org.codehaus.mojo:exec-maven-plugin:3.5.0:java \
 
 WORKDIR /app
 COPY app/target/sreader-app-0.0.1-SNAPSHOT.jar /app/app.jar
+RUN mkdir -p /var/lib/sreader/content-text
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
