@@ -40,6 +40,7 @@ class FullTextProbeServiceTest {
             1,
             1,
             java.time.Duration.ofMillis(10)),
+        null,
         java.util.List.of());
   }
 
@@ -61,6 +62,7 @@ class FullTextProbeServiceTest {
             1,
             1,
             java.time.Duration.ofMillis(10)),
+        null,
         java.util.List.of());
   }
 
