@@ -37,6 +37,11 @@ services:
       SREADER_PLAYWRIGHT_INFY_STABLE_ROUNDS: ${SREADER_PLAYWRIGHT_INFY_STABLE_ROUNDS:-3}
       SREADER_PLAYWRIGHT_INFY_SCROLL_WAIT: ${SREADER_PLAYWRIGHT_INFY_SCROLL_WAIT:-2700ms}
       SREADER_SEED_FEED_URLS: ${SREADER_SEED_FEED_URLS:-}
+      SREADER_TEXT_EXPORT_ENABLED: ${SREADER_TEXT_EXPORT_ENABLED:-false}
+      SREADER_TEXT_EXPORT_OUTPUT_DIR: /var/lib/sreader/content-text
+      SREADER_TEXT_EXPORT_BATCH_SIZE: ${SREADER_TEXT_EXPORT_BATCH_SIZE:-100}
+    volumes:
+      - ${SREADER_TEXT_EXPORT_HOST_DIR:-./var/sreader/content-text}:/var/lib/sreader/content-text
     depends_on:
       postgres:
         condition: service_healthy
