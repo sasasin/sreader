@@ -64,7 +64,7 @@ services:
       retries: 12
 
   flyway:
-    image: ${FLYWAY_IMAGE:-redgate/flyway:12.9.0}
+    image: ${FLYWAY_IMAGE:-redgate/flyway:12.10.0}
     depends_on:
       postgres:
         condition: service_healthy
