@@ -48,8 +48,7 @@ jobs:
         run: docker compose exec -T postgres psql -U sreader -d sreader -c "SELECT version();"
 
       - name: Apply database migrations with Flyway
-        # The main "sreader" DB must have the schema before jOOQ codegen runs during mvn.
-        # jOOQ-codegen connects using SREADER_JOOQ_* env and needs tables (feed_url etc.) to exist.
+        # Integration tests need the migrated schema in PostgreSQL.
         run: docker compose run --rm flyway migrate
 
       - name: Maven verify through Docker Compose
