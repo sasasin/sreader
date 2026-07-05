@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sreader-content-text
+  namespace: sreader
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: sreader-hostpath
+  volumeName: sreader-content-text-pv
+  resources:
+    requests:
+      storage: 5Gi
