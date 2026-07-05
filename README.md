@@ -121,8 +121,8 @@ app container は `/app/app.jar` を実行します。
 - Workflow: `.github/workflows/publish-container.yml`
 - Image: `ghcr.io/sasasin/sreader`
 - Tags:
-  - `sha-<commit-sha>`（immutable。home-server への deploy に推奨）
-  - `master`（mutable。動作確認用）
+  - `sha-<commit-sha>` (immutable。home-server への deploy に推奨)
+  - `master` (mutable。動作確認用)
 
 `sha-<commit-sha>` は GitHub commit SHA を指します。rollback と再現性のため、home-server の k3s Deployment ではこの tag を使ってください。`master` tag は毎回上書きされるため、本番相当の運用では使わないでください。
 
