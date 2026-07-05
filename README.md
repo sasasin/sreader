@@ -61,11 +61,18 @@ generated sources の配置先は `app/src/generated/java/` です。
 ## jOOQ / build / test
 
 通常 build は checked-in generated sources を compile し、jOOQ code generation は実行しません。
+`package -DskipTests` は build-time PostgreSQL なしで実行できます。
 
 ```sh
 docker compose run --rm maven mvn -version
 docker compose run --rm maven java -version
 docker compose run --rm maven mvn -pl app -am package -DskipTests
+```
+
+test は PostgreSQL を使うため、先に DB を起動してから実行してください。
+
+```sh
+docker compose up -d postgres
 docker compose run --rm maven mvn clean verify
 ```
 
