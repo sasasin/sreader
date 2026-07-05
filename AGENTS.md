@@ -225,8 +225,8 @@ kubectl kustomize k8s/overlays/home
 
 render 結果を確認してください。
 
-- 生成された `ConfigMap`（`sreader-config-<hash>`）に非 secret の `SREADER_*` 設定が含まれること
-- 生成された `Secret`（`sreader-db-secret-<hash>`）が `namespace: sreader` を持つこと
+- 生成された `ConfigMap` (`sreader-config-<hash>`) に非 secret の `SREADER_*` 設定が含まれること
+- 生成された `Secret` (`sreader-db-secret-<hash>`) が `namespace: sreader` を持つこと
 - `Deployment` `sreader` の `envFrom` が上記 hash 付き ConfigMap / Secret を参照していること
 - `Deployment` `sreader` が `ghcr.io/sasasin/sreader` を参照すること
 - `Deployment` が `/var/lib/sreader/content-text` を mount すること
