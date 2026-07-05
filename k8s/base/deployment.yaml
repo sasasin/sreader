@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sreader
+  namespace: sreader
+  labels:
+    app.kubernetes.io/name: sreader
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sreader
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sreader
+    spec:
+      containers:
+        - name: sreader
+          image: ghcr.io/sasasin/sreader:master
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          envFrom:
+            - configMapRef:
+                name: sreader-config
+            - secretRef:
+                name: sreader-db-secret
+          volumeMounts:
+            - name: content-text
+              mountPath: /var/lib/sreader/content-text
+      volumes:
+        - name: content-text
+          persistentVolumeClaim:
+            claimName: sreader-content-text
