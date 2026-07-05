@@ -114,6 +114,73 @@ docker compose up app
 
 app container は `/app/app.jar` を実行します。
 
+## Container image publishing (GHCR)
+
+`master` への push ごとに、GitHub Actions が application container image を build して GitHub Container Registry (GHCR) へ publish します。手動実行は `workflow_dispatch` でも可能です。
+
+- Workflow: `.github/workflows/publish-container.yml`
+- Image: `ghcr.io/sasasin/sreader`
+- Tags:
+  - `sha-<full-commit-sha>` (immutable。40 文字の full commit SHA。home-server への deploy に推奨)
+  - `master` (mutable。動作確認用)
+
+`sha-<full-commit-sha>` は `sha-` に続けて 40 文字の full Git commit SHA を付けた tag です。例: `sha-412ddade0cf36492fb52ec2060f5afce81c0de10`。deploy 対象の SHA は `git rev-parse HEAD` や GitHub commit ページの full SHA と対応させてください。rollback と再現性のため、home-server の k3s Deployment ではこの tag を使ってください。`master` tag は毎回上書きされるため、本番相当の運用では使わないでください。
+
+GHCR package は public 想定です。初回 publish 後、GitHub の repository `Packages` から `sreader` container package を開き、visibility が public であることを確認してください。public image の pull に追加 credential は不要です。
+
+GitHub Actions から home-server への自動 deploy は行いません。deploy は手動です。
+
+## Home-server deployment (Ubuntu + k3s)
+
+通常の home-server deploy では、以下は不要です。
+
+- home-server 上での Maven package
+- home-server 上での Docker image build
+- ローカル build した tarball の k3s containerd image import
+
+代わりに、GHCR から publish 済み image を pull し、k3s Deployment を更新します。deploy する full commit SHA を確認し、`sha-<full-commit-sha>` tag を指定してください。
+
+```bash
+kubectl -n sreader scale deployment/sreader --replicas=0
+
+kubectl -n sreader set image deployment/sreader \
+  sreader=ghcr.io/sasasin/sreader:sha-<full-commit-sha>
+
+kubectl -n sreader scale deployment/sreader --replicas=1
+
+kubectl -n sreader rollout status deployment/sreader --timeout=300s
+kubectl -n sreader logs deployment/sreader --tail=120
+```
+
+Deployment manifest では、通常は SHA-based tag を使います。
+
+```yaml
+containers:
+  - name: sreader
+    image: ghcr.io/sasasin/sreader:sha-<full-commit-sha>
+    imagePullPolicy: IfNotPresent
+```
+
+`master` tag で試す場合は `imagePullPolicy: Always` が必要になることがありますが、本番相当の home-server 運用では `master` tag は使わないでください。
+
+### DB migration と backup
+
+app 起動時の Flyway auto migration は、従来どおり有効です。
+
+`db/migration/*.sql` を含む更新は、通常の app image 更新より慎重に扱ってください。home-server へ deploy する前に、PostgreSQL backup を取ることを検討してください。例:
+
+```bash
+mkdir -p /srv/sreader/backups
+
+pg_dump -Fc \
+  -h 127.0.0.1 \
+  -U sreader \
+  -d sreader \
+  -f "/srv/sreader/backups/sreader-$(date +%Y%m%d-%H%M%S).dump"
+```
+
+host、user、database 名は環境に合わせて読み替えてください。
+
 ## Scheduler
 
 Spring Scheduler がアプリケーションコンテナ内で job を実行します。
