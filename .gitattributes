@@ -9,6 +9,7 @@
 *.sql text eol=lf
 *.toml text eol=lf
 *.md text eol=lf
+*.example text eol=lf
 *.txt text eol=lf
 LICENSE text eol=lf
 .gitattributes text eol=lf

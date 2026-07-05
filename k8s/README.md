@@ -20,7 +20,7 @@ k8s/
 
 - All manifests under `k8s/base/` and `k8s/overlays/`
 - `k8s/overlays/home/sreader-db.secret.env.example`
-- Local overlay database credentials (`sreader` / `sreader`) — disposable development only
+- Local overlay database credentials (`sreader` / `sreader`) - disposable development only
 - Placeholder host IP `192.168.1.10` in `postgres-endpointslice.yaml`
 
 ## Do not commit
