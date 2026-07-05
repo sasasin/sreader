@@ -12,6 +12,7 @@
 - Flyway
 - PostgreSQL 18.x
 - Docker Compose
+- Kubernetes (Kustomize base/overlays under `k8s/`)
 - Maven
 
 ## ホスト環境のルール
@@ -23,6 +24,7 @@
 - `git`
 - `docker`
 - `docker compose`
+- `kubectl`
 - `ls`, `cat`, `grep`, `find`, `sed` などの基本的な確認コマンド
 
 以下は必ず Docker Compose 経由で実行してください。
@@ -199,6 +201,79 @@ docker compose run --rm app java -jar /app/app.jar --sreader.scheduler.enabled=f
 
 実際の jar path / option は現在の Dockerfile と README に合わせてください。
 
+## k8s/ を変更した場合の確認
+
+`k8s/` 配下の manifest、Kustomize 設定、overlay、`.gitignore` の Kubernetes secret 除外、`k8s/README.md` を変更した場合は、以下を実行してください。
+詳細な手順は [k8s/README.md](k8s/README.md) を参照してください。
+
+### Kustomize build の確認
+
+最低限、両 overlay の render が成功することを確認してください。
+
+```sh
+kubectl kustomize k8s/overlays/local
+```
+
+home overlay は `secretGenerator` が参照する env ファイルが必要です。検証用に example から一時ファイルを作り、確認後は commit しないでください。
+
+```sh
+cp k8s/overlays/home/sreader-db.secret.env.example \
+   k8s/overlays/home/sreader-db.secret.env
+
+kubectl kustomize k8s/overlays/home
+```
+
+render 結果を確認してください。
+
+- `ConfigMap` `sreader-config` に非 secret の `SREADER_*` 設定が含まれること
+- `Secret` `sreader-db-secret` が `namespace: sreader` を持つこと
+- `Deployment` `sreader` が `ghcr.io/sasasin/sreader` を参照すること
+- `Deployment` が `/var/lib/sreader/content-text` を mount すること
+- home overlay では `EndpointSlice` `postgres-host` と `hostPath` 用 PV/PVC が含まれること
+
+検証用に作成した `sreader-db.secret.env` は commit に含めないでください。
+
+### Docker Desktop Kubernetes が利用可能な場合の追加確認
+
+local overlay を実際に apply して起動確認してください。
+
+```sh
+kubectl apply -k k8s/overlays/local
+```
+
+```sh
+kubectl -n sreader get pods
+```
+
+```sh
+kubectl -n sreader rollout status deployment/sreader --timeout=300s
+```
+
+```sh
+kubectl -n sreader logs deployment/sreader --tail=120
+```
+
+app logs で以下を確認してください。
+
+- PostgreSQL への接続成功
+- Flyway migration の適用成功
+- 起動直後の致命的例外がないこと
+
+必要なら local overlay を削除してクリーンアップできます。
+
+```sh
+kubectl delete -k k8s/overlays/local
+```
+
+### 変更時の確認事項
+
+- 実際の home-server 用 credential を commit しないこと
+- `k8s/overlays/home/sreader-db.secret.env.example` は tracked のまま維持すること
+- `k8s/overlays/*/*.secret.env` と `k8s/overlays/*/*.local.env` は `.gitignore` 対象のまま維持すること
+- overlay の `secretGenerator` には `namespace: sreader` を指定すること
+- ConfigMap のキーは `app/src/main/resources/application.yml` と一致していること
+- Java アプリケーションコード、DB migration、Docker Compose workflow は k8s 変更だけでは変更しないこと
+
 ## Docker / Compose を変更した場合の確認
 
 Dockerfile、`docker-compose.yml`、`.env.example` を変更した場合は、以下を実行してください。
@@ -236,6 +311,13 @@ README を変更した場合は、以下を確認してください。
 - RDBMS が PostgreSQL 18.x になっていること
 - Spring Scheduler による定期実行が説明されていること
 
+`k8s/README.md` を変更した場合は、以下も確認してください。
+
+- local overlay と home overlay の手順が分かれて説明されていること
+- commit してよいファイルと secret env ファイルの扱いが明記されていること
+- home overlay の host PostgreSQL IP と image tag の編集手順が記載されていること
+- ルート `README.md` から `k8s/README.md` へリンクできること
+
 ## Maven dependency の確認
 
 依存関係を変更した場合は、以下を確認してください。
@@ -257,6 +339,15 @@ docker compose run --rm maven mvn dependency:tree
 - app logs に起動直後の致命的例外がない。
 - README が現行構成と一致している。
 
+`k8s/` を変更した場合は、少なくとも以下も満たしてください。
+
+- `kubectl kustomize k8s/overlays/local` が成功する。
+- 検証用 `sreader-db.secret.env` を用意した状態で `kubectl kustomize k8s/overlays/home` が成功する。
+- render 結果の `sreader-db-secret` に `namespace: sreader` がある。
+- Docker Desktop Kubernetes が利用可能なら、`kubectl apply -k k8s/overlays/local` 後に `deployment/sreader` が rollout 成功する。
+- `k8s/README.md` が現行 manifest 構成と一致している。
+- 実 credential を含む `*.secret.env` を commit していない。
+
 ## 失敗した場合の扱い
 
 検証が失敗した場合は、失敗を隠さず、以下を報告してください。
@@ -273,6 +364,8 @@ docker compose run --rm maven mvn dependency:tree
   - jOOQ code generation failure
   - app startup failure
   - documentation mismatch
+  - Kubernetes / Kustomize failure
+  - Kubernetes deployment failure
 - 直した内容
 - 残課題
 
