@@ -85,6 +85,8 @@
 							<include>src/test/java/**/*.java</include>
 						</includes>
 						<excludes>
+							<exclude>src/generated/java/**/*.java</exclude>
+							<exclude>**/src/generated/java/**/*.java</exclude>
 							<exclude>target/generated-sources/**/*.java</exclude>
 							<exclude>**/target/generated-sources/**/*.java</exclude>
 						</excludes>
@@ -128,7 +130,7 @@
 					<failsOnError>true</failsOnError>
 					<failOnViolation>true</failOnViolation>
 					<includeTestSourceDirectory>true</includeTestSourceDirectory>
-					<excludes>target/generated-sources/**/*.java,**/target/generated-sources/**/*.java</excludes>
+					<excludes>src/generated/java/**/*.java,**/src/generated/java/**/*.java,target/generated-sources/**/*.java,**/target/generated-sources/**/*.java</excludes>
 					<propertyExpansion>checkstyle.suppressions.file=${maven.multiModuleProjectDirectory}/config/checkstyle/suppressions.xml</propertyExpansion>
 				</configuration>
 				<executions>

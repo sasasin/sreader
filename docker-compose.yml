@@ -14,9 +14,6 @@ services:
       SREADER_DATASOURCE_USERNAME: ${POSTGRES_TEST_USER:-sreadertest}
       SREADER_DATASOURCE_PASSWORD: ${POSTGRES_TEST_PASSWORD:-sreadertest}
       SREADER_SCHEDULER_ENABLED: "false"
-    depends_on:
-      postgres:
-        condition: service_healthy
 
   app:
     build:
