@@ -7,9 +7,6 @@ resources:
   - postgres-statefulset.yaml
   - content-text-pvc.yaml
 
-generatorOptions:
-  disableNameSuffixHash: true
-
 secretGenerator:
   - name: sreader-db-secret
     namespace: sreader

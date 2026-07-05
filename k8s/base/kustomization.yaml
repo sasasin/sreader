@@ -7,9 +7,6 @@ resources:
   - namespace.yaml
   - deployment.yaml
 
-generatorOptions:
-  disableNameSuffixHash: true
-
 configMapGenerator:
   - name: sreader-config
     literals:
