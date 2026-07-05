@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - postgres-service.yaml
+  - postgres-endpointslice.yaml
+  - content-text-storageclass.yaml
+  - content-text-pv.yaml
+  - content-text-pvc.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+secretGenerator:
+  - name: sreader-db-secret
+    namespace: sreader
+    envs:
+      - sreader-db.secret.env
+
+images:
+  - name: ghcr.io/sasasin/sreader
+    newTag: master

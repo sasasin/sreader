@@ -1,4 +1,7 @@
 .env
+# Local Kubernetes secrets
+k8s/overlays/*/*.secret.env
+k8s/overlays/*/*.local.env
 target/
 */target/
 */lib_ext/
