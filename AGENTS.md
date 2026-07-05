@@ -160,12 +160,14 @@ docker compose run --rm flyway migrate
 ```
 
 ```sh
-docker compose run --rm maven mvn clean generate-sources
+docker compose run --rm maven mvn -Pgenerate-jooq -pl app -am generate-sources
 ```
 
 ```sh
 docker compose run --rm maven mvn clean verify
 ```
+
+jOOQ generated sources は `app/src/generated/java/` に commit 済みです。通常 build では jOOQ code generation は実行されません。`db/migration/*.sql` または jOOQ codegen 設定を変更した場合のみ、上記 `generate-jooq` profile で再生成してください。
 
 schema と Flyway 履歴を確認してください。
 
