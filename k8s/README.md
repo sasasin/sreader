@@ -108,7 +108,9 @@ kubectl -n sreader logs deployment/sreader --tail=120
 
 ## Runtime configuration
 
-Non-secret settings are injected via ConfigMap `sreader-config`. Keys match `app/src/main/resources/application.yml`:
+Non-secret settings are injected via ConfigMap `sreader-config`. Kustomize adds a content hash suffix to generated ConfigMap and Secret names (for example `sreader-config-ft2d7g5k2f`) and updates `Deployment` references automatically. ConfigMap or Secret changes therefore trigger a rollout via the changed Pod spec.
+
+Keys match `app/src/main/resources/application.yml`:
 
 | Variable | Default |
 |----------|---------|
@@ -136,7 +138,7 @@ Non-secret settings are injected via ConfigMap `sreader-config`. Keys match `app
 | `SREADER_TEXT_EXPORT_BATCH_SIZE` | `100` |
 | `SREADER_SEED_FEED_URLS` | (empty) |
 
-Database username and password are injected via Secret `sreader-db-secret` (`SREADER_DATASOURCE_USERNAME`, `SREADER_DATASOURCE_PASSWORD`).
+Database username and password are injected via Secret `sreader-db-secret` (rendered as `sreader-db-secret-<hash>`) with `SREADER_DATASOURCE_USERNAME` and `SREADER_DATASOURCE_PASSWORD`.
 
 To change non-secret values, edit literals in `k8s/base/kustomization.yaml` or add a Kustomize patch in an overlay.
 

@@ -225,8 +225,9 @@ kubectl kustomize k8s/overlays/home
 
 render 結果を確認してください。
 
-- `ConfigMap` `sreader-config` に非 secret の `SREADER_*` 設定が含まれること
-- `Secret` `sreader-db-secret` が `namespace: sreader` を持つこと
+- 生成された `ConfigMap`（`sreader-config-<hash>`）に非 secret の `SREADER_*` 設定が含まれること
+- 生成された `Secret`（`sreader-db-secret-<hash>`）が `namespace: sreader` を持つこと
+- `Deployment` `sreader` の `envFrom` が上記 hash 付き ConfigMap / Secret を参照していること
 - `Deployment` `sreader` が `ghcr.io/sasasin/sreader` を参照すること
 - `Deployment` が `/var/lib/sreader/content-text` を mount すること
 - home overlay では `EndpointSlice` `postgres-host` と `hostPath` 用 PV/PVC が含まれること
@@ -343,7 +344,7 @@ docker compose run --rm maven mvn dependency:tree
 
 - `kubectl kustomize k8s/overlays/local` が成功する。
 - 検証用 `sreader-db.secret.env` を用意した状態で `kubectl kustomize k8s/overlays/home` が成功する。
-- render 結果の `sreader-db-secret` に `namespace: sreader` がある。
+- render 結果の `sreader-db-secret-<hash>` に `namespace: sreader` があり、`Deployment` の `envFrom` と名前が一致している。
 - Docker Desktop Kubernetes が利用可能なら、`kubectl apply -k k8s/overlays/local` 後に `deployment/sreader` が rollout 成功する。
 - `k8s/README.md` が現行 manifest 構成と一致している。
 - 実 credential を含む `*.secret.env` を commit していない。
