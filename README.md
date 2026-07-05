@@ -121,10 +121,10 @@ app container は `/app/app.jar` を実行します。
 - Workflow: `.github/workflows/publish-container.yml`
 - Image: `ghcr.io/sasasin/sreader`
 - Tags:
-  - `sha-<commit-sha>` (immutable。home-server への deploy に推奨)
+  - `sha-<full-commit-sha>` (immutable。40 文字の full commit SHA。home-server への deploy に推奨)
   - `master` (mutable。動作確認用)
 
-`sha-<commit-sha>` は GitHub commit SHA を指します。rollback と再現性のため、home-server の k3s Deployment ではこの tag を使ってください。`master` tag は毎回上書きされるため、本番相当の運用では使わないでください。
+`sha-<full-commit-sha>` は `sha-` に続けて 40 文字の full Git commit SHA を付けた tag です。例: `sha-412ddade0cf36492fb52ec2060f5afce81c0de10`。deploy 対象の SHA は `git rev-parse HEAD` や GitHub commit ページの full SHA と対応させてください。rollback と再現性のため、home-server の k3s Deployment ではこの tag を使ってください。`master` tag は毎回上書きされるため、本番相当の運用では使わないでください。
 
 GHCR package は public 想定です。初回 publish 後、GitHub の repository `Packages` から `sreader` container package を開き、visibility が public であることを確認してください。public image の pull に追加 credential は不要です。
 
@@ -138,13 +138,13 @@ GitHub Actions から home-server への自動 deploy は行いません。deplo
 - home-server 上での Docker image build
 - ローカル build した tarball の k3s containerd image import
 
-代わりに、GHCR から publish 済み image を pull し、k3s Deployment を更新します。deploy する commit SHA を確認し、`sha-<commit-sha>` tag を指定してください。
+代わりに、GHCR から publish 済み image を pull し、k3s Deployment を更新します。deploy する full commit SHA を確認し、`sha-<full-commit-sha>` tag を指定してください。
 
 ```bash
 kubectl -n sreader scale deployment/sreader --replicas=0
 
 kubectl -n sreader set image deployment/sreader \
-  sreader=ghcr.io/sasasin/sreader:sha-<commit-sha>
+  sreader=ghcr.io/sasasin/sreader:sha-<full-commit-sha>
 
 kubectl -n sreader scale deployment/sreader --replicas=1
 
@@ -157,7 +157,7 @@ Deployment manifest では、通常は SHA-based tag を使います。
 ```yaml
 containers:
   - name: sreader
-    image: ghcr.io/sasasin/sreader:sha-<commit-sha>
+    image: ghcr.io/sasasin/sreader:sha-<full-commit-sha>
     imagePullPolicy: IfNotPresent
 ```
 
