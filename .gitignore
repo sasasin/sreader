@@ -3,3 +3,5 @@ target/
 */target/
 */lib_ext/
 /var/sreader/content-text/
+mcps/*
+
