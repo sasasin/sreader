@@ -4,7 +4,7 @@ WORKDIR /workspace
 COPY pom.xml /workspace/pom.xml
 COPY app/pom.xml /workspace/app/pom.xml
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-RUN mvn -pl app org.codehaus.mojo:exec-maven-plugin:3.5.0:java \
+RUN mvn -pl app org.codehaus.mojo:exec-maven-plugin:3.6.3:java \
     -Dexec.mainClass=com.microsoft.playwright.CLI \
     -Dexec.args="install --with-deps chromium"
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
