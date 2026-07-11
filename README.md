@@ -327,7 +327,7 @@ docker compose run --rm app --sreader.scheduler.enabled=false probe article \
 ```
 
 ```sh
-docker compose run --rm app --sreader.scheduler.enabled=false probe feed \
+docker compose run -e SREADER_PLAYWRIGHT_ENABLED=true --rm app --sreader.scheduler.enabled=false probe feed \
   --feed-url https://example.com/feed.xml \
   --method playwright_readability
 ```
