@@ -235,7 +235,9 @@ Playwright / Infy Scroll 用の主な環境変数:
 - `SREADER_PLAYWRIGHT_INFY_STABLE_ROUNDS=3`
 - `SREADER_PLAYWRIGHT_INFY_SCROLL_WAIT=2700ms`
 
-Docker app image は system Chromium を含みます。Maven service で Playwright の bundled browser を使う場合は、Docker Compose 経由で以下を実行してください。
+Docker app image は Playwright の bundled Chromium と、その Chromium 専用の OS 依存ライブラリを含みます。ブラウザは `/ms-playwright` に固定して配置され、実行時のブラウザ自動ダウンロードは無効です。Playwright のバージョンを更新した場合は、app image を再ビルドしてください。
+
+Maven service で Playwright の bundled browser を使う場合は、Docker Compose 経由で以下を実行してください。
 
 ```sh
 docker compose run --rm maven mvn -pl app exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install chromium"
@@ -325,7 +327,7 @@ docker compose run --rm app --sreader.scheduler.enabled=false probe article \
 ```
 
 ```sh
-docker compose run --rm app --sreader.scheduler.enabled=false probe feed \
+docker compose run -e SREADER_PLAYWRIGHT_ENABLED=true --rm app --sreader.scheduler.enabled=false probe feed \
   --feed-url https://example.com/feed.xml \
   --method playwright_readability
 ```
