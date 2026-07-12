@@ -86,10 +86,14 @@ docker compose up -d postgres
 docker compose run --rm maven mvn clean verify
 ```
 
-HTML レポートは `app/target/site/jacoco/index.html` に出力されます。jOOQ generated sources
-（`net/sasasin/sreader/jooq/**`）は集計対象外で、手書きプロダクションコードは原則として
-すべて集計します。このゲートはローカルと GitHub Actions の双方で `mvn clean verify`
-により実行されます。
+HTML レポートは `app/target/site/jacoco/index.html` に出力されます。`master` の CI が
+成功した最新レポートは GitHub Pages でも公開されます。
+
+- [Latest JaCoCo coverage report](https://sasasin.github.io/sreader/)
+
+jOOQ generated sources（`net/sasasin/sreader/jooq/**`）は集計対象外で、手書き
+プロダクションコードは原則としてすべて集計します。このゲートはローカルと
+GitHub Actions の双方で `mvn clean verify` により実行されます。
 
 ゲート導入前の初回計測値は
 [`docs/testing/coverage-baseline.md`](docs/testing/coverage-baseline.md)
