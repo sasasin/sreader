@@ -215,6 +215,7 @@ docker compose run --rm app --sreader.scheduler.enabled=false --sreader.job.run-
 
 - `feed`: RSS/Atom entry 本文を保存します。
 - `http`: 記事 URL を HTTP GET し、XPath rule、失敗時 body text で抽出します。
+- `http_readability`: 記事 URL を HTTP GET し、取得した HTML を Readability4J で抽出します。
 - `playwright`: Chromium で JS 実行後の DOM HTML から XPath rule、失敗時 body text で抽出します。
 - `playwright_readability`: Chromium で JS 実行後の DOM HTML を Readability4J で抽出します。
 - `playwright_infy_scroll`: Infy Scroll extension を読み込んだ Chromium で scroll 後の DOM HTML から XPath rule、失敗時 body text で抽出します。
@@ -323,7 +324,7 @@ docker compose run --rm -v ./feeds.toml:/tmp/feeds.toml:ro app --sreader.schedul
 ```sh
 docker compose run --rm app --sreader.scheduler.enabled=false probe article \
   --url https://example.com/article \
-  --method http
+  --method http_readability
 ```
 
 ```sh

@@ -41,7 +41,7 @@ public class ProbeArticleCommand implements Callable<Integer> {
       names = "--method",
       paramLabel = "<METHOD>",
       description =
-          "Full text method: feed|http|playwright|playwright_readability"
+          "Full text method: feed|http|http_readability|playwright|playwright_readability"
               + "|playwright_infy_scroll|playwright_infy_scroll_readability",
       required = true,
       converter = FullTextMethodConverter.class)

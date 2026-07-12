@@ -91,6 +91,40 @@ class FullTextProbeServiceTest {
   }
 
   @Test
+  void httpReadabilityUsesHttpFetchAndReadabilityExtractor() throws Exception {
+    HttpFetchService http = mock(HttpFetchService.class);
+    PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
+    HtmlTextExtractor ex = mock(HtmlTextExtractor.class);
+    URI finalUri = URI.create("https://final/");
+    when(http.get(URI.create("https://in/")))
+        .thenReturn(new HttpFetchService.FetchedResource(finalUri, "<html>ok</html>"));
+    when(ex.extract(any(), any(), any(), any())).thenReturn("extracted");
+    FullTextProbeService svc =
+        new FullTextProbeService(
+            http,
+            pw,
+            ex,
+            mock(FeedDocumentService.class),
+            mock(FeedEntryPicker.class),
+            mock(FeedEntryFullTextExtractor.class),
+            propsDisabledPw());
+
+    ProbeResult result =
+        svc.probeArticle(
+            URI.create("https://in/"), FullTextMethod.HTTP_READABILITY, Optional.empty());
+
+    assertThat(result.text()).isEqualTo("extracted");
+    assertThat(result.finalUrl()).isEqualTo(finalUri);
+    verify(ex)
+        .extract(
+            eq(finalUri.toString()),
+            eq("<html>ok</html>"),
+            eq(net.sasasin.sreader.domain.ExtractionPlan.ExtractorKind.READABILITY),
+            eq(Optional.empty()));
+    verify(pw, never()).renderPage(any(), anyBoolean());
+  }
+
+  @Test
   void playwrightMethodUsesRenderPage() {
     HttpFetchService http = mock(HttpFetchService.class);
     PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
