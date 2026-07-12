@@ -9,15 +9,33 @@ import net.sasasin.sreader.domain.ExtractionPlan;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class HtmlTextExtractor {
 
-  private final ExtractRuleService extractRuleService;
+  @FunctionalInterface
+  interface ReadabilityParser {
+    Article parse(String url, String html);
+  }
 
+  private final ExtractRuleService extractRuleService;
+  private final ReadabilityParser readabilityParser;
+
+  @Autowired
   public HtmlTextExtractor(ExtractRuleService extractRuleService) {
+    this(
+        extractRuleService,
+        (url, html) -> {
+          Readability4J readability = new Readability4JExtended(url, html);
+          return readability.parse();
+        });
+  }
+
+  HtmlTextExtractor(ExtractRuleService extractRuleService, ReadabilityParser readabilityParser) {
     this.extractRuleService = extractRuleService;
+    this.readabilityParser = readabilityParser;
   }
 
   public String extract(String url, String html, ExtractionPlan.ExtractorKind extractorKind) {
@@ -70,8 +88,7 @@ public class HtmlTextExtractor {
 
   String extractByReadability(String url, String html) {
     try {
-      Readability4J readability = new Readability4JExtended(url, html);
-      Article article = readability.parse();
+      Article article = readabilityParser.parse(url, html);
       String text = article.getTextContent();
       if (text != null && !text.isBlank()) {
         return text;
