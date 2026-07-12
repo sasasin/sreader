@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.sasasin.sreader.config.FeedReaderProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -24,13 +25,21 @@ public class HttpFetchService {
   private final FeedReaderProperties properties;
   private final HttpClient client;
 
+  @Autowired
   public HttpFetchService(FeedReaderProperties properties) {
+    this(properties, createClient(properties));
+  }
+
+  HttpFetchService(FeedReaderProperties properties, HttpClient client) {
     this.properties = properties;
-    this.client =
-        HttpClient.newBuilder()
-            .connectTimeout(properties.http().connectTimeout())
-            .followRedirects(HttpClient.Redirect.NORMAL)
-            .build();
+    this.client = client;
+  }
+
+  private static HttpClient createClient(FeedReaderProperties properties) {
+    return HttpClient.newBuilder()
+        .connectTimeout(properties.http().connectTimeout())
+        .followRedirects(HttpClient.Redirect.NORMAL)
+        .build();
   }
 
   public FetchedResource get(URI uri) throws IOException, InterruptedException {
