@@ -13,7 +13,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 import net.sasasin.sreader.config.FeedReaderProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.stereotype.Service;
 
@@ -21,14 +23,21 @@ import org.springframework.stereotype.Service;
 public class PlaywrightHtmlSource implements SmartLifecycle {
 
   private final FeedReaderProperties properties;
+  private final Supplier<Playwright> playwrightFactory;
 
   private Playwright playwright;
   private Browser browser;
   private BrowserContext infyContext;
   private volatile boolean running;
 
+  @Autowired
   public PlaywrightHtmlSource(FeedReaderProperties properties) {
+    this(properties, Playwright::create);
+  }
+
+  PlaywrightHtmlSource(FeedReaderProperties properties, Supplier<Playwright> playwrightFactory) {
     this.properties = properties;
+    this.playwrightFactory = playwrightFactory;
   }
 
   public synchronized String render(String url, boolean useInfyScroll) {
@@ -91,7 +100,7 @@ public class PlaywrightHtmlSource implements SmartLifecycle {
     if (running) {
       return;
     }
-    playwright = Playwright.create();
+    playwright = playwrightFactory.get();
     browser =
         playwright
             .chromium()
