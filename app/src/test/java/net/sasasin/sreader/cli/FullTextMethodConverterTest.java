@@ -3,23 +3,64 @@ package net.sasasin.sreader.cli;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Arrays;
+import java.util.stream.Stream;
 import net.sasasin.sreader.domain.FullTextMethod;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import picocli.CommandLine.TypeConversionException;
 
 class FullTextMethodConverterTest {
 
   private final FullTextMethodConverter converter = new FullTextMethodConverter();
 
-  @Test
-  void convertsHttpReadability() throws Exception {
-    assertThat(converter.convert("http_readability")).isEqualTo(FullTextMethod.HTTP_READABILITY);
+  static Stream<FullTextMethod> allMethods() {
+    return Arrays.stream(FullTextMethod.values());
+  }
+
+  @ParameterizedTest
+  @MethodSource("allMethods")
+  void convertsExactValue(FullTextMethod method) throws Exception {
+    assertThat(converter.convert(method.value())).isEqualTo(method);
+  }
+
+  @ParameterizedTest
+  @MethodSource("allMethods")
+  void convertsValueWithSurroundingWhitespace(FullTextMethod method) throws Exception {
+    assertThat(converter.convert("  " + method.value() + "  ")).isEqualTo(method);
+  }
+
+  @ParameterizedTest
+  @NullAndEmptySource
+  @ValueSource(strings = {"   ", "\t"})
+  void rejectsBlankValues(String value) {
+    assertThatThrownBy(() -> converter.convert(value))
+        .isInstanceOf(TypeConversionException.class)
+        .hasMessage("Method must not be blank");
   }
 
   @Test
-  void includesHttpReadabilityInInvalidValueMessage() {
-    assertThatThrownBy(() -> converter.convert("invalid"))
+  void rejectsUnknownValueWithHelpfulMessage() {
+    String input = "invalid";
+    assertThatThrownBy(() -> converter.convert(input))
         .isInstanceOf(TypeConversionException.class)
-        .hasMessageContaining("http_readability");
+        .hasMessageContaining("Invalid --method value '" + input + "'")
+        .hasMessageContaining("Valid values:")
+        .satisfies(
+            ex -> {
+              for (FullTextMethod method : FullTextMethod.values()) {
+                assertThat(ex.getMessage()).contains(method.value());
+              }
+            });
+  }
+
+  @Test
+  void rejectsUppercaseMismatchBecauseFromValueIsCaseSensitive() {
+    assertThatThrownBy(() -> converter.convert("HTTP"))
+        .isInstanceOf(TypeConversionException.class)
+        .hasMessageContaining("Invalid --method value 'HTTP'");
   }
 }
