@@ -2,8 +2,10 @@ package net.sasasin.sreader.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
@@ -16,8 +18,10 @@ import java.util.Optional;
 import net.sasasin.sreader.domain.FeedStatus;
 import net.sasasin.sreader.domain.FeedUrl;
 import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.domain.UnsubscribeReason;
 import net.sasasin.sreader.repository.FeedUrlRepository;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class FeedTomlServiceTest {
 
@@ -417,5 +421,442 @@ class FeedTomlServiceTest {
     assertThat(result.updated()).isEqualTo(1);
     assertThat(result.unchanged()).isEqualTo(0);
     verify(repository).updateFullTextMethod("https://example.test/js.xml", "http_readability");
+  }
+
+  @Test
+  void parseAggregatesSyntaxAndFieldErrorsInInputOrder() {
+    FeedTomlService.TomlValidationException exception =
+        (FeedTomlService.TomlValidationException)
+            org.junit.jupiter.api.Assertions.assertThrows(
+                FeedTomlService.TomlValidationException.class,
+                () ->
+                    service.parse(
+                        """
+                        schema_version = "1"
+                        not an assignment
+                        [[feeds]]
+                        url = relative
+                        status = "ACTIVE"
+                        note = "bad\\x"
+                        [[feeds]]
+                        """));
+
+    assertThat(exception.errors())
+        .containsExactly(
+            "line 2: expected key = value",
+            "unsupported schema_version: \"1\"",
+            "feeds[1].url must be a TOML string",
+            "feeds[1].url is required",
+            "feeds[1].status must be active or unsubscribed: ACTIVE",
+            "feeds[1].note contains unsupported escape: \\x",
+            "feeds[2].url is required");
+    assertThat(exception).hasMessage(String.join("; ", exception.errors()));
+    verifyNoInteractions(repository);
+  }
+
+  @Test
+  void parseAcceptsCommentsEscapesAndNormalizesActiveMetadataAway() {
+    List<FeedTomlService.ImportFeed> feeds =
+        service.parse(
+            """
+            # comment
+            schema_version = 2 # trailing comment
+            [[feeds]]
+            url = "HTTPS://Example.TEST/a/../feed.xml?x=1#inside"
+            status = "active"
+            unsubscribe_reason = "other"
+            unsubscribed_at = "2026-06-14T03:00:00Z"
+            note = "quote: \\"; slash: \\\\; lines: \\n\\r\\t # kept" # discarded for active
+            full_text_method = "feed"
+            """);
+
+    assertThat(feeds)
+        .singleElement()
+        .extracting(
+            FeedTomlService.ImportFeed::url,
+            FeedTomlService.ImportFeed::status,
+            FeedTomlService.ImportFeed::unsubscribeReason,
+            FeedTomlService.ImportFeed::unsubscribedAt,
+            FeedTomlService.ImportFeed::note,
+            FeedTomlService.ImportFeed::fullTextMethod)
+        .containsExactly(
+            "HTTPS://Example.TEST/feed.xml?x=1#inside", "active", null, null, null, "feed");
+  }
+
+  @Test
+  void parseAcceptsAllUnsubscribeReasonsAndFullTextMethodsForBothSchemas() {
+    for (int schemaVersion : List.of(1, 2)) {
+      for (UnsubscribeReason reason : UnsubscribeReason.values()) {
+        for (FullTextMethod method : FullTextMethod.values()) {
+          List<FeedTomlService.ImportFeed> feeds =
+              service.parse(
+                  """
+                  schema_version = %d
+                  [[feeds]]
+                  url = "https://example.test/%s-%s.xml"
+                  status = "unsubscribed"
+                  unsubscribe_reason = "%s"
+                  unsubscribed_at = "2026-06-14T03:00:00-05:00"
+                  note = "note"
+                  full_text_method = "%s"
+                  """
+                      .formatted(
+                          schemaVersion,
+                          reason.value(),
+                          method.value(),
+                          reason.value(),
+                          method.value()));
+          assertThat(feeds)
+              .singleElement()
+              .extracting(
+                  FeedTomlService.ImportFeed::unsubscribeReason,
+                  FeedTomlService.ImportFeed::unsubscribedAt,
+                  FeedTomlService.ImportFeed::fullTextMethod)
+              .containsExactly(
+                  reason.value(),
+                  OffsetDateTime.parse("2026-06-14T03:00:00-05:00"),
+                  method.value());
+        }
+      }
+    }
+  }
+
+  @Test
+  void parseRejectsInvalidDateStringFormsAndDuplicateNormalizedUrls() {
+    assertThatThrownBy(
+            () ->
+                service.parse(
+                    """
+                    schema_version = 2
+                    [[feeds]]
+                    url = "https://example.test/a/../feed.xml"
+                    status = "unsubscribed"
+                    unsubscribed_at = "2026-06-14"
+                    full_text_method = bad
+                    [[feeds]]
+                    url = "https://example.test/feed.xml"
+                    status = "unsubscribed"
+                    unsubscribe_reason = "bad"
+                    note = "trailing\\"
+                    """))
+        .isInstanceOf(FeedTomlService.TomlValidationException.class)
+        .hasMessageContaining("unsubscribed_at must be an offset date-time: 2026-06-14")
+        .hasMessageContaining("full_text_method must be a TOML string")
+        .hasMessageContaining(
+            "duplicates another feed after normalization: https://example.test/feed.xml")
+        .hasMessageContaining("unsubscribe_reason is invalid: bad")
+        .hasMessageContaining("note ends with an incomplete escape");
+  }
+
+  @Test
+  void exportHandlesEmptyNullMetadataAndEscapesRoundTripValues() {
+    when(repository.findAllForExport(true)).thenReturn(List.of());
+    assertThat(service.exportToml(true)).contains("schema_version = 2").doesNotContain("[[feeds]]");
+
+    FeedUrl unsubscribed =
+        new FeedUrl(
+            "id",
+            "https://example.test/feed.xml",
+            FeedStatus.UNSUBSCRIBED.value(),
+            null,
+            null,
+            "quote \" slash \\ LF\nCR\rTAB\t#日本語",
+            null);
+    when(repository.findAllForExport(false)).thenReturn(List.of(unsubscribed));
+    String exported = service.exportToml(false);
+
+    assertThat(exported)
+        .contains("full_text_method = \"http\"")
+        .doesNotContain("unsubscribe_reason")
+        .doesNotContain("unsubscribed_at")
+        .contains("note = \"quote \\\" slash \\\\ LF\\nCR\\rTAB\\t#日本語\"");
+    assertThat(service.parse(exported))
+        .singleElement()
+        .extracting(
+            FeedTomlService.ImportFeed::url,
+            FeedTomlService.ImportFeed::note,
+            FeedTomlService.ImportFeed::fullTextMethod)
+        .containsExactly(
+            "https://example.test/feed.xml", "quote \" slash \\ LF\nCR\rTAB\t#日本語", "http");
+  }
+
+  @Test
+  void importInsertsExpectedFeedAndDryRunNeverWritesUnsubscribedFeed() {
+    when(repository.findByUrl("https://example.test/new.xml")).thenReturn(Optional.empty());
+    FeedTomlService.ImportResult inserted =
+        service.importToml(
+            """
+            schema_version = 2
+            [[feeds]]
+            url = "https://example.test/new.xml"
+            status = "unsubscribed"
+            unsubscribe_reason = "moved"
+            unsubscribed_at = "2026-06-14T03:00:00Z"
+            note = "moved"
+            full_text_method = "feed"
+            """,
+            new FeedTomlService.ImportOptions(false, false));
+    ArgumentCaptor<FeedUrl> captured = ArgumentCaptor.forClass(FeedUrl.class);
+    verify(repository).insertFromImport(captured.capture());
+    assertThat(inserted)
+        .extracting(
+            FeedTomlService.ImportResult::inserted,
+            FeedTomlService.ImportResult::updated,
+            FeedTomlService.ImportResult::unchanged,
+            FeedTomlService.ImportResult::unsubscribed)
+        .containsExactly(1, 0, 0, 1);
+    assertThat(captured.getValue())
+        .extracting(
+            FeedUrl::url, FeedUrl::status, FeedUrl::unsubscribeReason, FeedUrl::fullTextMethod)
+        .containsExactly(
+            "https://example.test/new.xml", "unsubscribed", "moved", FullTextMethod.FEED);
+
+    FeedUrlRepository dryRepository = mock(FeedUrlRepository.class);
+    when(dryRepository.findByUrl("https://example.test/dry.xml")).thenReturn(Optional.empty());
+    FeedTomlService dryService = new FeedTomlService(dryRepository, Clock.systemUTC());
+    FeedTomlService.ImportResult dryResult =
+        dryService.importToml(
+            """
+            schema_version = 2
+            [[feeds]]
+            url = "https://example.test/dry.xml"
+            status = "unsubscribed"
+            """,
+            new FeedTomlService.ImportOptions(true, false));
+    assertThat(dryResult)
+        .extracting(
+            FeedTomlService.ImportResult::inserted, FeedTomlService.ImportResult::unsubscribed)
+        .containsExactly(1, 1);
+    verify(dryRepository).findByUrl("https://example.test/dry.xml");
+    verifyNoMoreInteractions(dryRepository);
+  }
+
+  @Test
+  void importUpdatesEachExistingStatusPathAndLeavesDryRunReadOnly() {
+    FeedUrl active =
+        feed("https://example.test/active.xml", "active", null, null, null, FullTextMethod.HTTP);
+    FeedUrl stopped =
+        feed(
+            "https://example.test/stopped.xml",
+            "unsubscribed",
+            "other",
+            null,
+            "old",
+            FullTextMethod.HTTP);
+    when(repository.findByUrl(active.url())).thenReturn(Optional.of(active));
+    when(repository.findByUrl(stopped.url())).thenReturn(Optional.of(stopped));
+
+    FeedTomlService.ImportResult result =
+        service.importToml(
+            """
+            schema_version = 2
+            [[feeds]]
+            url = "https://example.test/active.xml"
+            full_text_method = "http_readability"
+            [[feeds]]
+            url = "https://example.test/stopped.xml"
+            status = "unsubscribed"
+            unsubscribe_reason = "other"
+            note = "new"
+            full_text_method = "feed"
+            """,
+            new FeedTomlService.ImportOptions(false, false));
+    assertThat(result)
+        .extracting(FeedTomlService.ImportResult::updated, FeedTomlService.ImportResult::unchanged)
+        .containsExactly(2, 0);
+    verify(repository).updateFullTextMethod(active.url(), "http_readability");
+    verify(repository).updateUnsubscribedMetadata(stopped.url(), "other", null, "new");
+    verify(repository).updateFullTextMethod(stopped.url(), "feed");
+
+    FeedUrlRepository dryRepository = mock(FeedUrlRepository.class);
+    when(dryRepository.findByUrl(stopped.url())).thenReturn(Optional.of(stopped));
+    FeedTomlService dryService = new FeedTomlService(dryRepository, Clock.systemUTC());
+    FeedTomlService.ImportResult dry =
+        dryService.importToml(
+            """
+            schema_version = 2
+            [[feeds]]
+            url = "https://example.test/stopped.xml"
+            status = "unsubscribed"
+            unsubscribe_reason = "site_closed"
+            full_text_method = "feed"
+            """,
+            new FeedTomlService.ImportOptions(true, false));
+    assertThat(dry)
+        .extracting(FeedTomlService.ImportResult::updated, FeedTomlService.ImportResult::unchanged)
+        .containsExactly(1, 0);
+    verify(dryRepository).findByUrl(stopped.url());
+    verifyNoMoreInteractions(dryRepository);
+  }
+
+  @Test
+  void importReportsConflictsInTomlOrderAndResubscribesOnlyWhenEnabled() {
+    FeedUrl first =
+        feed(
+            "https://example.test/one.xml",
+            "unsubscribed",
+            "other",
+            null,
+            null,
+            FullTextMethod.HTTP);
+    FeedUrl second =
+        feed(
+            "https://example.test/two.xml",
+            "unsubscribed",
+            "other",
+            null,
+            null,
+            FullTextMethod.HTTP);
+    when(repository.findByUrl(first.url())).thenReturn(Optional.of(first));
+    when(repository.findByUrl(second.url())).thenReturn(Optional.of(second));
+    FeedTomlService.ImportResult conflict =
+        service.importToml(
+            """
+            schema_version = 2
+            [[feeds]]
+            url = "https://example.test/one.xml"
+            [[feeds]]
+            url = "https://example.test/two.xml"
+            """,
+            new FeedTomlService.ImportOptions(true, false));
+    assertThat(conflict)
+        .extracting(FeedTomlService.ImportResult::conflicts, FeedTomlService.ImportResult::updated)
+        .containsExactly(2, 0);
+    assertThat(conflict.conflictMessages())
+        .containsExactly(
+            "feed[1] https://example.test/one.xml is unsubscribed in DB but active in TOML",
+            "feed[2] https://example.test/two.xml is unsubscribed in DB but active in TOML");
+
+    FeedUrlRepository resubscribeRepository = mock(FeedUrlRepository.class);
+    when(resubscribeRepository.findByUrl(first.url())).thenReturn(Optional.of(first));
+    FeedTomlService resubscribeService =
+        new FeedTomlService(resubscribeRepository, Clock.systemUTC());
+    FeedTomlService.ImportResult resubscribed =
+        resubscribeService.importToml(
+            """
+            schema_version = 2
+            [[feeds]]
+            url = "https://example.test/one.xml"
+            full_text_method = "feed"
+            """,
+            new FeedTomlService.ImportOptions(false, true));
+    assertThat(resubscribed)
+        .extracting(
+            FeedTomlService.ImportResult::updated,
+            FeedTomlService.ImportResult::resubscribed,
+            FeedTomlService.ImportResult::conflicts)
+        .containsExactly(1, 1, 0);
+    verify(resubscribeRepository).resubscribe(first.url());
+    verify(resubscribeRepository).updateFullTextMethod(first.url(), "feed");
+  }
+
+  @Test
+  void importPropagatesRepositoryFailuresWithoutProcessingLaterFeeds() {
+    RuntimeException failure = new RuntimeException("repository failure");
+    when(repository.findByUrl("https://example.test/fail.xml")).thenThrow(failure);
+    assertThatThrownBy(
+            () ->
+                service.importToml(
+                    """
+                    schema_version = 2
+                    [[feeds]]
+                    url = "https://example.test/fail.xml"
+                    [[feeds]]
+                    url = "https://example.test/later.xml"
+                    """,
+                    new FeedTomlService.ImportOptions(false, false)))
+        .isSameAs(failure);
+    verify(repository).findByUrl("https://example.test/fail.xml");
+    verifyNoMoreInteractions(repository);
+
+    FeedUrl active =
+        feed("https://example.test/write.xml", "active", null, null, null, FullTextMethod.HTTP);
+    FeedUrlRepository writeRepository = mock(FeedUrlRepository.class);
+    when(writeRepository.findByUrl(active.url())).thenReturn(Optional.of(active));
+    doThrow(failure).when(writeRepository).updateFullTextMethod(active.url(), "feed");
+    FeedTomlService writeService = new FeedTomlService(writeRepository, Clock.systemUTC());
+    assertThatThrownBy(
+            () ->
+                writeService.importToml(
+                    """
+                    schema_version = 2
+                    [[feeds]]
+                    url = "https://example.test/write.xml"
+                    full_text_method = "feed"
+                    """,
+                    new FeedTomlService.ImportOptions(false, false)))
+        .isSameAs(failure);
+  }
+
+  @Test
+  void importRejectsInvalidTomlBeforeAnyRepositoryAccessAndExceptionIsImmutable() {
+    assertThatThrownBy(
+            () ->
+                service.importToml(
+                    """
+                    schema_version = 2
+                    [[feeds]]
+                    status = active
+                    """,
+                    new FeedTomlService.ImportOptions(false, false)))
+        .isInstanceOf(FeedTomlService.TomlValidationException.class);
+    verifyNoInteractions(repository);
+
+    List<String> errors = new java.util.ArrayList<>(List.of("first"));
+    FeedTomlService.TomlValidationException exception =
+        new FeedTomlService.TomlValidationException(errors);
+    errors.add("second");
+    assertThat(exception.errors()).containsExactly("first");
+    assertThatThrownBy(() -> exception.errors().add("third"))
+        .isInstanceOf(UnsupportedOperationException.class);
+  }
+
+  @Test
+  void importTreatsNullCurrentMethodAsHttpAndCountsDryRunStatusChangesWithoutWriting() {
+    FeedUrl nullMethodActive =
+        feed("https://example.test/null-method.xml", "active", null, null, null, null);
+    FeedUrl active =
+        feed("https://example.test/dry-stop.xml", "active", null, null, null, FullTextMethod.HTTP);
+    FeedUrl unchanged =
+        feed("https://example.test/unchanged.xml", "unsubscribed", "other", null, null, null);
+    when(repository.findByUrl(nullMethodActive.url())).thenReturn(Optional.of(nullMethodActive));
+    when(repository.findByUrl(active.url())).thenReturn(Optional.of(active));
+    when(repository.findByUrl(unchanged.url())).thenReturn(Optional.of(unchanged));
+
+    FeedTomlService.ImportResult result =
+        service.importToml(
+            """
+            schema_version = 2
+            [[feeds]]
+            url = "https://example.test/null-method.xml"
+            [[feeds]]
+            url = "https://example.test/dry-stop.xml"
+            status = "unsubscribed"
+            [[feeds]]
+            url = "https://example.test/unchanged.xml"
+            status = "unsubscribed"
+            """,
+            new FeedTomlService.ImportOptions(true, false));
+
+    assertThat(result)
+        .extracting(
+            FeedTomlService.ImportResult::updated,
+            FeedTomlService.ImportResult::unchanged,
+            FeedTomlService.ImportResult::unsubscribed)
+        .containsExactly(1, 2, 1);
+    verify(repository).findByUrl(nullMethodActive.url());
+    verify(repository).findByUrl(active.url());
+    verify(repository).findByUrl(unchanged.url());
+    verifyNoMoreInteractions(repository);
+  }
+
+  private FeedUrl feed(
+      String url,
+      String status,
+      String reason,
+      OffsetDateTime unsubscribedAt,
+      String note,
+      FullTextMethod method) {
+    return new FeedUrl("id-" + url, url, status, reason, unsubscribedAt, note, method);
   }
 }
