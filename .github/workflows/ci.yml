@@ -55,6 +55,7 @@ jobs:
         run: docker compose run --rm maven mvn -B -V clean verify
 
       - name: Upload test and coverage reports
+        id: reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -64,6 +65,140 @@ jobs:
             app/target/surefire-reports/
           retention-days: 14
           if-no-files-found: warn
+
+      - name: Add coverage report to job summary
+        if: always()
+        shell: bash
+        env:
+          ARTIFACT_URL: ${{ steps.reports.outputs.artifact-url }}
+        run: |
+          set -uo pipefail
+
+          csv="app/target/site/jacoco/jacoco.csv"
+          summary="$GITHUB_STEP_SUMMARY"
+          table_file=""
+
+          cleanup() {
+            if [[ -n "$table_file" ]]; then
+              rm -f "$table_file"
+            fi
+          }
+          trap cleanup EXIT
+
+          commit_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+
+          {
+            echo "## JaCoCo coverage"
+            echo
+            echo "- Commit: [\`${GITHUB_SHA}\`](${commit_url})"
+            echo "- Ref: \`${GITHUB_REF_NAME}\`"
+            echo
+          } >> "$summary"
+
+          if [[ ! -f "$csv" ]]; then
+            echo "::warning file=${csv}::JaCoCo CSV report was not generated"
+            echo "**Coverage summary unavailable:** JaCoCo CSV report was not generated. Review the Maven verify logs." >> "$summary"
+          elif [[ ! -s "$csv" ]]; then
+            echo "::warning file=${csv}::JaCoCo CSV report is empty"
+            echo "**Coverage summary unavailable:** JaCoCo CSV report is empty." >> "$summary"
+          else
+            table_file="$(mktemp)"
+
+            if awk -F, '
+              function percentage(covered, missed, total) {
+                total = covered + missed
+                return total == 0 ? "n/a" : sprintf("%.2f%%", 100 * covered / total)
+              }
+
+              NR == 1 {
+                if ($1 != "GROUP") invalid = 1
+                if ($4 != "INSTRUCTION_MISSED") invalid = 1
+                if ($5 != "INSTRUCTION_COVERED") invalid = 1
+                if ($6 != "BRANCH_MISSED") invalid = 1
+                if ($7 != "BRANCH_COVERED") invalid = 1
+                if ($8 != "LINE_MISSED") invalid = 1
+                if ($9 != "LINE_COVERED") invalid = 1
+                if ($12 != "METHOD_MISSED") invalid = 1
+                if ($13 != "METHOD_COVERED") invalid = 1
+
+                if (invalid) exit
+
+                header_seen = 1
+                next
+              }
+
+              {
+                if (NF < 13) {
+                  invalid = 1
+                  exit
+                }
+
+                if ($4 !~ /^[0-9]+$/) invalid = 1
+                if ($5 !~ /^[0-9]+$/) invalid = 1
+                if ($6 !~ /^[0-9]+$/) invalid = 1
+                if ($7 !~ /^[0-9]+$/) invalid = 1
+                if ($8 !~ /^[0-9]+$/) invalid = 1
+                if ($9 !~ /^[0-9]+$/) invalid = 1
+                if ($12 !~ /^[0-9]+$/) invalid = 1
+                if ($13 !~ /^[0-9]+$/) invalid = 1
+
+                if (invalid) exit
+
+                instruction_missed += $4
+                instruction_covered += $5
+                branch_missed += $6
+                branch_covered += $7
+                line_missed += $8
+                line_covered += $9
+                method_missed += $12
+                method_covered += $13
+                data_rows++
+              }
+
+              END {
+                if (invalid || !header_seen || data_rows == 0) {
+                  exit 1
+                }
+
+                print "| Metric | Covered | Missed | Coverage |"
+                print "|---|---:|---:|---:|"
+
+                printf "| Instructions | %d | %d | %s |\n",
+                  instruction_covered,
+                  instruction_missed,
+                  percentage(instruction_covered, instruction_missed)
+
+                printf "| Branches | %d | %d | %s |\n",
+                  branch_covered,
+                  branch_missed,
+                  percentage(branch_covered, branch_missed)
+
+                printf "| Lines | %d | %d | %s |\n",
+                  line_covered,
+                  line_missed,
+                  percentage(line_covered, line_missed)
+
+                printf "| Methods | %d | %d | %s |\n",
+                  method_covered,
+                  method_missed,
+                  percentage(method_covered, method_missed)
+              }
+            ' "$csv" > "$table_file"; then
+              cat "$table_file" >> "$summary"
+            else
+              echo "::warning file=${csv}::Failed to parse JaCoCo CSV report"
+              echo "**Coverage summary unavailable:** JaCoCo CSV report could not be parsed." >> "$summary"
+            fi
+          fi
+
+          {
+            echo
+            if [[ -n "${ARTIFACT_URL:-}" ]]; then
+              echo "- [Download full JaCoCo and Surefire reports](${ARTIFACT_URL}) — retained for 14 days; GitHub sign-in required"
+            else
+              echo "- Full report artifact URL is unavailable. Check the artifact upload step."
+            fi
+          } >> "$summary"
 
       - name: Build app image
         run: docker compose build app
