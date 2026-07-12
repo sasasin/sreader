@@ -124,6 +124,30 @@
 							</excludes>
 						</configuration>
 					</execution>
+					<execution>
+						<id>jacoco-check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<excludes>
+								<exclude>net/sasasin/sreader/jooq/**</exclude>
+							</excludes>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit>
+											<counter>BRANCH</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>${jacoco.branch.minimum}</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 			<plugin>
