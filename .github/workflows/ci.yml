@@ -229,6 +229,31 @@ jobs:
 
           docker compose logs --tail=200 app
 
+      - name: Validate coverage site for GitHub Pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          report_dir="app/target/site/jacoco"
+          index_file="${report_dir}/index.html"
+
+          if [[ ! -s "$index_file" ]]; then
+            echo "::error file=${index_file}::JaCoCo HTML report is missing or empty"
+            exit 1
+          fi
+
+          if find "$report_dir" -type l -print -quit | grep -q .; then
+            echo "::error file=${report_dir}::GitHub Pages artifact must not contain symbolic links"
+            exit 1
+          fi
+
+      - name: Upload coverage site for GitHub Pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: app/target/site/jacoco
+
       - name: Show compose status
         if: always()
         run: docker compose ps
@@ -240,3 +265,36 @@ jobs:
       - name: Cleanup
         if: always()
         run: docker compose down -v
+
+  deploy-coverage:
+    name: Deploy coverage report to GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy coverage report to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+
+      - name: Add published coverage URL to job summary
+        shell: bash
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Published coverage report"
+            echo
+            echo "- [Open the latest JaCoCo HTML report](${PAGE_URL})"
+            echo "- Source commit: \`${GITHUB_SHA}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
