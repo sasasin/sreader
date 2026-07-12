@@ -77,8 +77,9 @@ docker compose up -d postgres
 docker compose run --rm maven mvn test
 ```
 
-カバレッジを含む正式確認では `verify` を実行します。JaCoCo は HTML、XML、CSV の各形式で
-レポートを生成します。
+カバレッジを含む正式確認では `verify` を実行します。JaCoCo は HTML、XML、CSV の
+各形式でレポートを生成し、アプリケーション全体の BUNDLE 分岐カバレッジが
+90% 未満の場合はビルドを失敗させます。
 
 ```sh
 docker compose up -d postgres
@@ -87,9 +88,13 @@ docker compose run --rm maven mvn clean verify
 
 HTML レポートは `app/target/site/jacoco/index.html` に出力されます。jOOQ generated sources
 （`net/sasasin/sreader/jooq/**`）は集計対象外で、手書きプロダクションコードは原則として
-すべて集計します。現在は計測のみで品質ゲートは有効化していません。将来はアプリケーション
-全体の分岐カバレッジ 90% 以上を CI ゲートにする予定です。現時点の実測値は
-[`docs/testing/coverage-baseline.md`](docs/testing/coverage-baseline.md) を参照してください。
+すべて集計します。このゲートはローカルと GitHub Actions の双方で `mvn clean verify`
+により実行されます。
+
+ゲート導入前の初回計測値は
+[`docs/testing/coverage-baseline.md`](docs/testing/coverage-baseline.md)
+を参照してください。ゲート有効化直前の参考値は、BUNDLE 分岐カバレッジ
+622/667（93.25%）です。
 
 jOOQ sources を再生成する場合は、先に fresh DB へ Flyway migration を適用してください。
 
