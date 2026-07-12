@@ -2,6 +2,7 @@ package net.sasasin.sreader.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -54,6 +55,38 @@ class FullTextExtractionServiceTest {
     when(rules.findBestRule(header.url())).thenReturn(Optional.empty());
 
     assertThat(service.extract(header)).isEqualTo("Fallback body");
+  }
+
+  @Test
+  void httpReadabilityUsesHttpFetchAndReadabilityExtractor() throws Exception {
+    HttpFetchService http = mock(HttpFetchService.class);
+    HtmlTextExtractor extractor = mock(HtmlTextExtractor.class);
+    PlaywrightHtmlSource playwright = mock(PlaywrightHtmlSource.class);
+    ContentHeader header =
+        new ContentHeader("id", "feed", "https://example.test/articles/1", "title", null);
+    URI finalUri = URI.create("https://example.test/articles/final");
+    when(http.get(URI.create(header.url())))
+        .thenReturn(new HttpFetchService.FetchedResource(finalUri, "<html>content</html>"));
+    when(extractor.extract(eq(finalUri.toString()), eq("<html>content</html>"), any()))
+        .thenReturn("readability text");
+    FullTextExtractionService service =
+        new FullTextExtractionService(
+            mock(ContentHeaderRepository.class),
+            mock(ContentFullTextWriter.class),
+            extractor,
+            http,
+            playwright,
+            testProperties(false));
+
+    assertThat(service.extract(header, FullTextMethod.HTTP_READABILITY))
+        .isEqualTo("readability text");
+    verify(http).get(URI.create(header.url()));
+    verify(extractor)
+        .extract(
+            finalUri.toString(),
+            "<html>content</html>",
+            net.sasasin.sreader.domain.ExtractionPlan.ExtractorKind.READABILITY);
+    verify(playwright, never()).render(any(), org.mockito.ArgumentMatchers.anyBoolean());
   }
 
   @Test
