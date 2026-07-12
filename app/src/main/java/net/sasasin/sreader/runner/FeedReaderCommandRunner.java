@@ -44,7 +44,7 @@ public class FeedReaderCommandRunner implements CommandLineRunner {
       CommandLine cli = new CommandLine(sreaderCommand, picocliFactory);
       // picocli default: 2 for usage errors (bad option / missing required).
       // Map execution exceptions (runtime errors inside commands) to 1.
-      cli.setExitCodeExceptionMapper(ex -> 1);
+      cli.setExitCodeExceptionMapper(ex -> ex instanceof CommandLine.ParameterException ? 2 : 1);
       int exitCode = cli.execute(filtered);
       exitApplication(exitCode);
       return;
@@ -92,7 +92,12 @@ public class FeedReaderCommandRunner implements CommandLineRunner {
   private void exitApplication(int exitCode) {
     int resolvedExitCode = SpringApplication.exit(applicationContext, () -> exitCode);
     if (resolvedExitCode != 0) {
-      System.exit(resolvedExitCode);
+      exitProcess(Math.max(exitCode, resolvedExitCode));
     }
+  }
+
+  /** Invokes the JVM exit operation after Spring has closed the application context. */
+  void exitProcess(int exitCode) {
+    System.exit(exitCode);
   }
 }
