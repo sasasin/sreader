@@ -1,6 +1,8 @@
 package net.sasasin.sreader.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndEntryImpl;
@@ -8,8 +10,6 @@ import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.feed.synd.SyndFeedImpl;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.List;
-import java.util.Optional;
 import net.sasasin.sreader.domain.FeedEntrySelection;
 import org.junit.jupiter.api.Test;
 
@@ -18,88 +18,171 @@ class FeedEntryPickerTest {
   private final FeedEntryPicker picker = new FeedEntryPicker();
 
   @Test
-  void firstReturnsFirstWithLink() {
-    SyndFeed feed =
-        feedWith(
-            entries(entry(null, "no"), entry("https://e/1", "t1"), entry("https://e/2", "t2")));
-    Optional<SyndEntry> p = picker.pick(feed, FeedEntrySelection.first());
-    assertThat(p).isPresent();
-    assertThat(p.get().getLink()).isEqualTo("https://e/1");
+  void returnsEmptyForNullFeed() {
+    assertThat(picker.pick(null, FeedEntrySelection.first())).isEmpty();
   }
 
   @Test
-  void latestSortsByDateDesc() {
-    Date d1 = new Date(1000);
-    Date d2 = new Date(2000);
-    SyndEntry e1 = entry("https://e/1", "t1");
-    e1.setPublishedDate(d1);
-    SyndEntry e2 = entry("https://e/2", "t2");
-    e2.setPublishedDate(d2);
-    SyndFeed feed = feedWith(entries(e1, e2));
-    Optional<SyndEntry> p = picker.pick(feed, FeedEntrySelection.latest());
-    assertThat(p).isPresent();
-    assertThat(p.get().getLink()).isEqualTo("https://e/2");
+  void returnsEmptyForNullOrEmptyEntries() {
+    SyndFeed nullEntries = mock(SyndFeed.class);
+    when(nullEntries.getEntries()).thenReturn(null);
+    assertThat(picker.pick(nullEntries, FeedEntrySelection.first())).isEmpty();
+    assertThat(picker.pick(feed(), FeedEntrySelection.first())).isEmpty();
   }
 
   @Test
-  void indexZeroBased() {
-    SyndFeed feed = feedWith(entries(entry("https://e/0", "0"), entry("https://e/1", "1")));
-    assertThat(picker.pick(feed, FeedEntrySelection.index(1))).isPresent();
-    assertThat(picker.pick(feed, FeedEntrySelection.index(5))).isEmpty();
+  void firstSkipsNullAndBlankLinksWhenRequired() {
+    assertThat(
+            picker.pick(
+                feed(null, entry(null, "none"), entry(" ", "blank"), entry("https://ok", "ok")),
+                FeedEntrySelection.first()))
+        .contains(entry("https://ok", "ok"));
   }
 
   @Test
-  void titleRegex() {
-    SyndFeed feed =
-        feedWith(entries(entry("https://e/1", "Alpha article"), entry("https://e/2", "Beta")));
-    Optional<SyndEntry> p = picker.pick(feed, FeedEntrySelection.titleRegex("Beta"));
-    assertThat(p).isPresent();
-    assertThat(p.get().getLink()).isEqualTo("https://e/2");
+  void firstCanReturnLinklessEntryWhenNotRequired() {
+    SyndEntry linkless = entry(null, "feed body");
+    assertThat(picker.pick(feed(linkless), FeedEntrySelection.first(), false))
+        .containsSame(linkless);
   }
 
   @Test
-  void urlRegex() {
-    SyndFeed feed = feedWith(entries(entry("https://e/alpha", "t"), entry("https://e/beta", "t")));
-    Optional<SyndEntry> p = picker.pick(feed, FeedEntrySelection.urlRegex("beta"));
-    assertThat(p).isPresent();
-    assertThat(p.get().getLink()).isEqualTo("https://e/beta");
+  void firstReturnsEmptyWhenNothingIsEligible() {
+    assertThat(picker.pick(feed(null, entry(" ", "blank")), FeedEntrySelection.first())).isEmpty();
   }
 
   @Test
-  void skipsEntriesWithoutLink() {
-    SyndFeed feed = feedWith(entries(entry(null, "no"), entry("https://ok", "yes")));
-    assertThat(picker.pick(feed, FeedEntrySelection.first()).get().getLink())
-        .isEqualTo("https://ok");
+  void latestSelectsGreatestPublishedDate() {
+    SyndEntry old = dated("https://old", "old", 1000, 9000);
+    SyndEntry latest = dated("https://new", "new", 2000, 100);
+    assertThat(picker.pick(feed(old, latest), FeedEntrySelection.latest())).containsSame(latest);
   }
 
   @Test
-  void canPickEntryWithoutLinkWhenLinkIsNotRequired() {
-    SyndFeed feed = feedWith(entries(entry(null, "feed body only"), entry("https://ok", "yes")));
-    assertThat(picker.pick(feed, FeedEntrySelection.first(), false)).isPresent();
-    assertThat(picker.pick(feed, FeedEntrySelection.first(), false).get().getTitle())
-        .isEqualTo("feed body only");
+  void latestUsesUpdatedDateWhenPublishedDateIsAbsent() {
+    SyndEntry old = dated("https://old", "old", null, 1000);
+    SyndEntry latest = dated("https://new", "new", null, 2000);
+    assertThat(picker.pick(feed(old, latest), FeedEntrySelection.latest())).containsSame(latest);
   }
 
   @Test
-  void emptyWhenNoMatch() {
-    SyndFeed feed = feedWith(entries(entry("https://e/1", "t")));
-    assertThat(picker.pick(feed, FeedEntrySelection.titleRegex("nope"))).isEmpty();
+  void latestFallsBackToFirstWhenNoEligibleEntryHasADate() {
+    SyndEntry first = entry("https://first", "first");
+    assertThat(
+            picker.pick(
+                feed(first, entry("https://second", "second")), FeedEntrySelection.latest()))
+        .containsSame(first);
   }
 
-  private List<SyndEntry> entries(SyndEntry... es) {
-    return Arrays.asList(es);
+  @Test
+  void latestIgnoresUndatedAndIneligibleEntries() {
+    SyndEntry dated = dated("https://dated", "dated", 1000, null);
+    SyndEntry noLink = dated(null, "no link", 9000, null);
+    assertThat(
+            picker.pick(
+                feed(entry("https://undated", "undated"), noLink, dated),
+                FeedEntrySelection.latest()))
+        .containsSame(dated);
+  }
+
+  @Test
+  void indexRejectsNegativeAndOutOfRangeValues() {
+    SyndFeed feed = feed(entry("https://zero", "zero"));
+    assertThat(picker.pick(feed, FeedEntrySelection.index(-1))).isEmpty();
+    assertThat(picker.pick(feed, FeedEntrySelection.index(1))).isEmpty();
+    assertThat(picker.pick(feed, FeedEntrySelection.index(2))).isEmpty();
+  }
+
+  @Test
+  void indexReturnsEligibleEntryAndRejectsNullOrLinklessEntryWhenRequired() {
+    SyndEntry valid = entry("https://one", "one");
+    SyndFeed feed = feed(null, valid, entry(null, "linkless"));
+    assertThat(picker.pick(feed, FeedEntrySelection.index(1))).containsSame(valid);
+    assertThat(picker.pick(feed, FeedEntrySelection.index(0))).isEmpty();
+    assertThat(picker.pick(feed, FeedEntrySelection.index(2))).isEmpty();
+  }
+
+  @Test
+  void indexDefaultsNullIndexToZeroAndCanReturnLinklessEntry() {
+    SyndEntry linkless = entry(null, "linkless");
+    FeedEntrySelection selection =
+        new FeedEntrySelection(FeedEntrySelection.Kind.INDEX, null, null, null);
+    assertThat(picker.pick(feed(linkless), selection, false)).containsSame(linkless);
+  }
+
+  @Test
+  void titleRegexUsesPartialMatchAndCanSelectLinklessEntryWhenAllowed() {
+    SyndEntry entry = entry(null, "Alpha article");
+    assertThat(picker.pick(feed(entry), FeedEntrySelection.titleRegex("pha"), false))
+        .containsSame(entry);
+  }
+
+  @Test
+  void titleRegexSkipsLinklessEntryWhenRequiredAndNullTitles() {
+    SyndEntry matchingWithoutLink = entry(null, "match");
+    assertThat(
+            picker.pick(
+                feed(entry("https://null-title", null), matchingWithoutLink),
+                FeedEntrySelection.titleRegex("match")))
+        .isEmpty();
+  }
+
+  @Test
+  void titleRegexRejectsMissingBlankInvalidAndNoMatchPatterns() {
+    SyndFeed feed = feed(entry("https://one", "title"));
+    assertThat(picker.pick(feed, FeedEntrySelection.titleRegex(null))).isEmpty();
+    assertThat(picker.pick(feed, FeedEntrySelection.titleRegex(" "))).isEmpty();
+    assertThat(picker.pick(feed, FeedEntrySelection.titleRegex("["))).isEmpty();
+    assertThat(picker.pick(feed, FeedEntrySelection.titleRegex("absent"))).isEmpty();
+    FeedEntrySelection nullRegex =
+        new FeedEntrySelection(FeedEntrySelection.Kind.TITLE_REGEX, null, null, null);
+    assertThat(picker.pick(feed, nullRegex)).isEmpty();
+  }
+
+  @Test
+  void urlRegexUsesPartialMatchButAlwaysRequiresANonblankLink() {
+    SyndEntry match = entry("https://host/path/beta", "title");
+    assertThat(
+            picker.pick(
+                feed(entry(null, "beta"), entry(" ", "beta"), match),
+                FeedEntrySelection.urlRegex("beta"),
+                false))
+        .containsSame(match);
+  }
+
+  @Test
+  void urlRegexRejectsMissingBlankInvalidAndNoMatchPatterns() {
+    SyndFeed feed = feed(entry("https://one", "title"));
+    assertThat(picker.pick(feed, FeedEntrySelection.urlRegex(null))).isEmpty();
+    assertThat(picker.pick(feed, FeedEntrySelection.urlRegex(" "))).isEmpty();
+    assertThat(picker.pick(feed, FeedEntrySelection.urlRegex("["))).isEmpty();
+    assertThat(picker.pick(feed, FeedEntrySelection.urlRegex("absent"))).isEmpty();
+    FeedEntrySelection nullRegex =
+        new FeedEntrySelection(FeedEntrySelection.Kind.URL_REGEX, null, null, null);
+    assertThat(picker.pick(feed, nullRegex)).isEmpty();
+  }
+
+  private SyndEntry dated(String link, String title, Integer published, Integer updated) {
+    SyndEntry entry = entry(link, title);
+    if (published != null) {
+      entry.setPublishedDate(new Date(published));
+    }
+    if (updated != null) {
+      entry.setUpdatedDate(new Date(updated));
+    }
+    return entry;
   }
 
   private SyndEntry entry(String link, String title) {
-    SyndEntryImpl e = new SyndEntryImpl();
-    e.setLink(link);
-    e.setTitle(title);
-    return e;
+    SyndEntryImpl entry = new SyndEntryImpl();
+    entry.setLink(link);
+    entry.setTitle(title);
+    return entry;
   }
 
-  private SyndFeed feedWith(List<SyndEntry> es) {
-    SyndFeedImpl f = new SyndFeedImpl();
-    f.setEntries(es);
-    return f;
+  private SyndFeed feed(SyndEntry... entries) {
+    SyndFeedImpl feed = new SyndFeedImpl();
+    feed.setEntries(Arrays.asList(entries));
+    return feed;
   }
 }
