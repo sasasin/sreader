@@ -44,7 +44,9 @@ public class ProbeOutputWriter {
       return 0;
     } else {
       // default: body to STDOUT, no extra
-      spec.commandLine().getOut().print(text);
+      if (!text.isBlank()) {
+        spec.commandLine().getOut().print(text);
+      }
       return 0;
     }
   }
