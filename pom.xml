@@ -30,6 +30,7 @@
 		<google-java-format.version>1.28.0</google-java-format.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
 		<checkstyle.version>13.7.0</checkstyle.version>
+		<jacoco.version>0.8.15</jacoco.version>
 	</properties>
 
 	<dependencyManagement>
