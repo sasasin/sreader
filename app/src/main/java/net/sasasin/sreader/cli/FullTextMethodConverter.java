@@ -1,5 +1,7 @@
 package net.sasasin.sreader.cli;
 
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import net.sasasin.sreader.domain.FullTextMethod;
 import picocli.CommandLine.ITypeConverter;
 import picocli.CommandLine.TypeConversionException;
@@ -17,8 +19,10 @@ public class FullTextMethodConverter implements ITypeConverter<FullTextMethod> {
       throw new TypeConversionException(
           "Invalid --method value '"
               + value
-              + "'. Valid values: feed, http, playwright, playwright_readability,"
-              + " playwright_infy_scroll, playwright_infy_scroll_readability");
+              + "'. Valid values: "
+              + Arrays.stream(FullTextMethod.values())
+                  .map(FullTextMethod::value)
+                  .collect(Collectors.joining(", ")));
     }
   }
 }

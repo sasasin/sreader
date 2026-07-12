@@ -153,7 +153,7 @@ class FeedTomlServiceTest {
                     "site_closed",
                     null,
                     "ignored",
-                    FullTextMethod.HTTP),
+                    FullTextMethod.HTTP_READABILITY),
                 new FeedUrl(
                     "2",
                     "https://z.example/feed.xml",
@@ -171,11 +171,11 @@ class FeedTomlServiceTest {
         .contains(
             "url = \"https://a.example/feed.xml\"\n"
                 + "status = \"active\"\n"
-                + "full_text_method = \"http\"\n");
+                + "full_text_method = \"http_readability\"\n");
     assertThat(toml).doesNotContain("ignored");
     assertThat(toml).contains("unsubscribe_reason = \"site_closed\"");
     assertThat(toml).contains("note = \"サイト閉鎖\"");
-    assertThat(toml).contains("full_text_method = \"http\"");
+    assertThat(toml).contains("full_text_method = \"http_readability\"");
     verify(repository).findAllForExport(false);
   }
 
@@ -357,7 +357,7 @@ class FeedTomlServiceTest {
             schema_version = 1
             [[feeds]]
             url = "https://example.test/v1-with-method.xml"
-            full_text_method = "playwright_readability"
+            full_text_method = "http_readability"
             """,
             new FeedTomlService.ImportOptions(true, false));
     assertThat(r2.inserted()).isEqualTo(1);
@@ -410,13 +410,12 @@ class FeedTomlServiceTest {
             [[feeds]]
             url = "https://example.test/js.xml"
             status = "active"
-            full_text_method = "playwright_readability"
+            full_text_method = "http_readability"
             """,
             new FeedTomlService.ImportOptions(false, false));
 
     assertThat(result.updated()).isEqualTo(1);
     assertThat(result.unchanged()).isEqualTo(0);
-    verify(repository)
-        .updateFullTextMethod("https://example.test/js.xml", "playwright_readability");
+    verify(repository).updateFullTextMethod("https://example.test/js.xml", "http_readability");
   }
 }
