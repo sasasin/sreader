@@ -197,7 +197,7 @@ public class FeedUrl extends TableImpl<FeedUrlRecord> {
     @Override
     public List<Check<FeedUrlRecord>> getChecks() {
         return Arrays.asList(
-            Internal.createCheck(this, DSL.name("feed_url_full_text_method_check"), "(((full_text_method)::text = ANY ((ARRAY['http'::character varying, 'feed'::character varying, 'playwright'::character varying, 'playwright_readability'::character varying, 'playwright_infy_scroll'::character varying, 'playwright_infy_scroll_readability'::character varying])::text[])))", true),
+            Internal.createCheck(this, DSL.name("feed_url_full_text_method_check"), "(((full_text_method)::text = ANY ((ARRAY['http'::character varying, 'http_readability'::character varying, 'feed'::character varying, 'playwright'::character varying, 'playwright_readability'::character varying, 'playwright_infy_scroll'::character varying, 'playwright_infy_scroll_readability'::character varying])::text[])))", true),
             Internal.createCheck(this, DSL.name("feed_url_status_check"), "((status = ANY (ARRAY['active'::text, 'unsubscribed'::text])))", true),
             Internal.createCheck(this, DSL.name("feed_url_unsubscribe_reason_check"), "(((unsubscribe_reason IS NULL) OR (unsubscribe_reason = ANY (ARRAY['not_interested'::text, 'site_closed'::text, 'feed_dead'::text, 'moved'::text, 'other'::text]))))", true)
         );

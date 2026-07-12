@@ -30,6 +30,10 @@ class ExtractionPlanTest {
                 ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT));
     assertThat(ExtractionPlan.from(FullTextMethod.HTTP).sourceKind())
         .isEqualTo(ExtractionPlan.SourceKind.HTTP);
+    assertThat(ExtractionPlan.from(FullTextMethod.HTTP_READABILITY))
+        .isEqualTo(
+            new ExtractionPlan(
+                ExtractionPlan.SourceKind.HTTP, false, ExtractionPlan.ExtractorKind.READABILITY));
     assertThat(ExtractionPlan.from(FullTextMethod.PLAYWRIGHT_READABILITY).extractorKind())
         .isEqualTo(ExtractionPlan.ExtractorKind.READABILITY);
     assertThat(ExtractionPlan.from(FullTextMethod.PLAYWRIGHT_INFY_SCROLL).useInfyScroll()).isTrue();

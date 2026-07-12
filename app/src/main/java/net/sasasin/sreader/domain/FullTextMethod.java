@@ -2,6 +2,7 @@ package net.sasasin.sreader.domain;
 
 public enum FullTextMethod {
   HTTP("http"),
+  HTTP_READABILITY("http_readability"),
   FEED("feed"),
   PLAYWRIGHT("playwright"),
   PLAYWRIGHT_READABILITY("playwright_readability"),

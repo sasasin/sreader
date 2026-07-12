@@ -18,6 +18,8 @@ public record ExtractionPlan(
     return switch (method) {
       case FEED -> new ExtractionPlan(SourceKind.FEED, false, ExtractorKind.XPATH_OR_BODY_TEXT);
       case HTTP -> new ExtractionPlan(SourceKind.HTTP, false, ExtractorKind.XPATH_OR_BODY_TEXT);
+      case HTTP_READABILITY ->
+          new ExtractionPlan(SourceKind.HTTP, false, ExtractorKind.READABILITY);
       case PLAYWRIGHT ->
           new ExtractionPlan(SourceKind.PLAYWRIGHT, false, ExtractorKind.XPATH_OR_BODY_TEXT);
       case PLAYWRIGHT_READABILITY ->
