@@ -1,12 +1,26 @@
 package net.sasasin.sreader.service;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Arrays;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ArticleUrlCanonicalizer {
+
+  private static final String COMEMO_HOST = "comemo.nikkei.com";
+  private static final String COMEMO_ARTICLE_PATH_PREFIX = "/n/";
+
+  private final String canonicalizableHost;
+  private final String canonicalizablePathPrefix;
+
+  public ArticleUrlCanonicalizer() {
+    this(COMEMO_HOST, COMEMO_ARTICLE_PATH_PREFIX);
+  }
+
+  ArticleUrlCanonicalizer(String canonicalizableHost, String canonicalizablePathPrefix) {
+    this.canonicalizableHost = canonicalizableHost;
+    this.canonicalizablePathPrefix = canonicalizablePathPrefix;
+  }
 
   public URI canonicalize(URI fetchUri) {
     URI normalized = fetchUri.normalize();
@@ -18,23 +32,22 @@ public class ArticleUrlCanonicalizer {
               .reduce((left, right) -> left + "&" + right)
               .orElse(null);
     }
-    try {
-      return new URI(
-          normalized.getScheme(),
-          normalized.getRawAuthority(),
-          normalized.getRawPath(),
-          rawQuery,
-          null);
-    } catch (URISyntaxException e) {
-      throw new IllegalArgumentException("Unable to canonicalize URI: " + fetchUri, e);
+    if (!isComemoArticle(normalized)) {
+      return URI.create(normalized.getScheme() + ":" + normalized.getRawSchemeSpecificPart());
     }
+    return URI.create(
+        normalized.getScheme()
+            + "://"
+            + normalized.getRawAuthority()
+            + normalized.getRawPath()
+            + (rawQuery == null ? "" : "?" + rawQuery));
   }
 
   private boolean isComemoArticle(URI uri) {
     return uri.getHost() != null
-        && uri.getHost().equalsIgnoreCase("comemo.nikkei.com")
+        && uri.getHost().equalsIgnoreCase(canonicalizableHost)
         && uri.getPath() != null
-        && uri.getPath().startsWith("/n/");
+        && uri.getPath().startsWith(canonicalizablePathPrefix);
   }
 
   private String parameterName(String parameter) {

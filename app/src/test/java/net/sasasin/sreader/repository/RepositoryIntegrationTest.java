@@ -115,8 +115,8 @@ class RepositoryIntegrationTest {
             "Article 1",
             null);
 
-    assertThat(contentHeaderRepository.insertIfAbsent(header)).isTrue();
-    assertThat(contentHeaderRepository.insertIfAbsent(header)).isFalse();
+    assertThat(contentHeaderRepository.insertOrRefreshFetchUrl(header)).isTrue();
+    assertThat(contentHeaderRepository.insertOrRefreshFetchUrl(header)).isFalse();
     assertThat(contentHeaderRepository.findWithoutFullText(10)).hasSize(1);
 
     ContentFullText fullText =
@@ -157,21 +157,21 @@ class RepositoryIntegrationTest {
             null,
             FullTextMethod.PLAYWRIGHT));
 
-    contentHeaderRepository.insertIfAbsent(
+    contentHeaderRepository.insertOrRefreshFetchUrl(
         new ContentHeader(
             "head0000000000000000000000000010",
             "feed0000000000000000000000000010",
             "https://example.test/http",
             "HTTP",
             null));
-    contentHeaderRepository.insertIfAbsent(
+    contentHeaderRepository.insertOrRefreshFetchUrl(
         new ContentHeader(
             "head0000000000000000000000000011",
             "feed0000000000000000000000000011",
             "https://example.test/feed",
             "FEED",
             null));
-    contentHeaderRepository.insertIfAbsent(
+    contentHeaderRepository.insertOrRefreshFetchUrl(
         new ContentHeader(
             "head0000000000000000000000000012",
             "feed0000000000000000000000000012",
@@ -180,7 +180,7 @@ class RepositoryIntegrationTest {
             null));
 
     assertThat(contentHeaderRepository.findWithoutFullTextForUrlExtraction(10))
-        .extracting(target -> target.header().url())
+        .extracting(target -> target.header().fetchUrl())
         .containsExactly(
             "https://example.test/http",
             "https://example.test/feed",
@@ -255,7 +255,7 @@ class RepositoryIntegrationTest {
 
   private void insertHeaderAndFullText(
       String headerId, String fullTextId, String url, String title, String fullText) {
-    contentHeaderRepository.insertIfAbsent(
+    contentHeaderRepository.insertOrRefreshFetchUrl(
         new ContentHeader(headerId, "feed0000000000000000000000000020", url, title, null));
     contentFullTextRepository.insertIfAbsent(new ContentFullText(fullTextId, headerId, fullText));
   }
