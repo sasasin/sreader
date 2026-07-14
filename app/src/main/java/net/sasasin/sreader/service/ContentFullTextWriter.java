@@ -19,6 +19,6 @@ public class ContentFullTextWriter {
       return false;
     }
     return repository.insertIfAbsent(
-        new ContentFullText(HashIds.md5(header.url()), header.id(), fullText));
+        new ContentFullText(HashIds.md5(header.canonicalUrl()), header.id(), fullText));
   }
 }

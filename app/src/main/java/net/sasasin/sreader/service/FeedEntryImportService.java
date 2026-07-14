@@ -27,16 +27,19 @@ public class FeedEntryImportService {
   private static final Logger logger = LoggerFactory.getLogger(FeedEntryImportService.class);
 
   private final HttpFetchService httpFetchService;
+  private final ArticleUrlCanonicalizer articleUrlCanonicalizer;
   private final ContentHeaderRepository contentHeaderRepository;
   private final FeedEntryFullTextExtractor feedEntryFullTextExtractor;
   private final ContentFullTextWriter contentFullTextWriter;
 
   public FeedEntryImportService(
       HttpFetchService httpFetchService,
+      ArticleUrlCanonicalizer articleUrlCanonicalizer,
       ContentHeaderRepository contentHeaderRepository,
       FeedEntryFullTextExtractor feedEntryFullTextExtractor,
       ContentFullTextWriter contentFullTextWriter) {
     this.httpFetchService = httpFetchService;
+    this.articleUrlCanonicalizer = articleUrlCanonicalizer;
     this.contentHeaderRepository = contentHeaderRepository;
     this.feedEntryFullTextExtractor = feedEntryFullTextExtractor;
     this.contentFullTextWriter = contentFullTextWriter;
@@ -55,24 +58,28 @@ public class FeedEntryImportService {
         if (entry.getLink() == null || entry.getLink().isBlank()) {
           continue;
         }
-        URI articleUri = httpFetchService.resolveRedirect(URI.create(entry.getLink()));
+        URI sourceUri = URI.create(entry.getLink());
+        URI fetchUri = httpFetchService.resolveRedirect(sourceUri);
+        URI canonicalUri = articleUrlCanonicalizer.canonicalize(fetchUri);
         Optional<String> feedText =
             feedUrl.fullTextMethod() == FullTextMethod.FEED
                 ? feedEntryFullTextExtractor.extract(entry)
                 : Optional.empty();
         ContentHeader header =
             new ContentHeader(
-                HashIds.md5(articleUri.toString()),
+                HashIds.md5(canonicalUri.toString()),
                 feedUrl.id(),
-                articleUri.toString(),
+                sourceUri.toString(),
+                fetchUri.toString(),
+                canonicalUri.toString(),
                 entry.getTitle(),
                 toOffsetDateTime(entry.getPublishedDate()),
                 feedText.orElse(null));
-        if (contentHeaderRepository.insertIfAbsent(header)) {
+        if (contentHeaderRepository.insertOrRefreshFetchUrl(header)) {
           inserted++;
-        }
-        if (feedUrl.fullTextMethod() == FullTextMethod.FEED) {
-          feedText.ifPresent(fullText -> contentFullTextWriter.saveIfAbsent(header, fullText));
+          if (feedUrl.fullTextMethod() == FullTextMethod.FEED) {
+            feedText.ifPresent(fullText -> contentFullTextWriter.saveIfAbsent(header, fullText));
+          }
         }
       }
       return inserted;

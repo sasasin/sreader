@@ -73,9 +73,9 @@ public class ContentHeader extends TableImpl<ContentHeaderRecord> {
     public final TableField<ContentHeaderRecord, String> FEED_URL_ID = createField(DSL.name("feed_url_id"), SQLDataType.CHAR(32).nullable(false), this, "");
 
     /**
-     * The column <code>public.content_header.url</code>.
+     * The column <code>public.content_header.canonical_url</code>.
      */
-    public final TableField<ContentHeaderRecord, String> URL = createField(DSL.name("url"), SQLDataType.CLOB.nullable(false), this, "");
+    public final TableField<ContentHeaderRecord, String> CANONICAL_URL = createField(DSL.name("canonical_url"), SQLDataType.CLOB.nullable(false), this, "");
 
     /**
      * The column <code>public.content_header.title</code>.
@@ -101,6 +101,16 @@ public class ContentHeader extends TableImpl<ContentHeaderRecord> {
      * The column <code>public.content_header.feed_text</code>.
      */
     public final TableField<ContentHeaderRecord, String> FEED_TEXT = createField(DSL.name("feed_text"), SQLDataType.CLOB, this, "");
+
+    /**
+     * The column <code>public.content_header.source_url</code>.
+     */
+    public final TableField<ContentHeaderRecord, String> SOURCE_URL = createField(DSL.name("source_url"), SQLDataType.CLOB.nullable(false), this, "");
+
+    /**
+     * The column <code>public.content_header.fetch_url</code>.
+     */
+    public final TableField<ContentHeaderRecord, String> FETCH_URL = createField(DSL.name("fetch_url"), SQLDataType.CLOB.nullable(false), this, "");
 
     private ContentHeader(Name alias, Table<ContentHeaderRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
@@ -181,7 +191,7 @@ public class ContentHeader extends TableImpl<ContentHeaderRecord> {
 
     @Override
     public List<UniqueKey<ContentHeaderRecord>> getUniqueKeys() {
-        return Arrays.asList(Keys.CONTENT_HEADER_URL_KEY);
+        return Arrays.asList(Keys.CONTENT_HEADER_CANONICAL_URL_KEY);
     }
 
     @Override

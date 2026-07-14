@@ -23,7 +23,7 @@ public class ContentTextFileExportRepository {
   public List<ContentTextFileExportTarget> findUnexported(int limit) {
     return dsl.select(
             CONTENT_HEADER.ID,
-            CONTENT_HEADER.URL,
+            CONTENT_HEADER.CANONICAL_URL,
             CONTENT_HEADER.TITLE,
             CONTENT_FULL_TEXT.ID,
             CONTENT_FULL_TEXT.FULL_TEXT)
@@ -41,7 +41,7 @@ public class ContentTextFileExportRepository {
             record ->
                 new ContentTextFileExportTarget(
                     record.get(CONTENT_HEADER.ID),
-                    record.get(CONTENT_HEADER.URL),
+                    record.get(CONTENT_HEADER.CANONICAL_URL),
                     record.get(CONTENT_HEADER.TITLE),
                     record.get(CONTENT_FULL_TEXT.ID),
                     record.get(CONTENT_FULL_TEXT.FULL_TEXT)));
