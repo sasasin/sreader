@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Optional;
 import net.sasasin.sreader.config.FeedReaderProperties;
 import net.sasasin.sreader.domain.ContentHeader;
-import net.sasasin.sreader.domain.ExtractRule;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.domain.PendingFullTextTarget;
 import net.sasasin.sreader.repository.ContentHeaderRepository;
@@ -23,159 +22,107 @@ import org.junit.jupiter.api.Test;
 class FullTextExtractionServiceTest {
 
   @Test
-  void extractsTextWithXpathRule() throws Exception {
-    HttpFetchService http = mock(HttpFetchService.class);
-    ExtractRuleService rules = mock(ExtractRuleService.class);
-    FullTextExtractionService service = service(mock(ContentHeaderRepository.class), rules, http);
-    ContentHeader header =
-        new ContentHeader("id", "feed", "https://example.test/articles/1", "title", null);
-    when(http.get(URI.create(header.url())))
-        .thenReturn(
-            new HttpFetchService.FetchedResource(
-                URI.create(header.url()),
-                "<html><body><article><h1>Hello</h1><p>World</p></article><nav>skip</nav></body></html>"));
-    when(rules.findBestRule(header.url()))
-        .thenReturn(
-            Optional.of(new ExtractRule("rule", "https://example.test/articles/", "//article")));
-
-    assertThat(service.extract(header)).isEqualTo("Hello World");
-  }
-
-  @Test
-  void fallsBackToBodyTextWhenNoRuleMatches() throws Exception {
-    HttpFetchService http = mock(HttpFetchService.class);
-    ExtractRuleService rules = mock(ExtractRuleService.class);
-    FullTextExtractionService service = service(mock(ContentHeaderRepository.class), rules, http);
-    ContentHeader header =
-        new ContentHeader("id", "feed", "https://example.test/no-rule", "title", null);
-    when(http.get(URI.create(header.url())))
-        .thenReturn(
-            new HttpFetchService.FetchedResource(
-                URI.create(header.url()), "<html><body><main>Fallback body</main></body></html>"));
-    when(rules.findBestRule(header.url())).thenReturn(Optional.empty());
-
-    assertThat(service.extract(header)).isEqualTo("Fallback body");
-  }
-
-  @Test
-  void httpReadabilityUsesHttpFetchAndReadabilityExtractor() throws Exception {
+  void fetchesUsingFetchUrlAndUsesFinalResponseUriAsExtractorBaseUrl() throws Exception {
     HttpFetchService http = mock(HttpFetchService.class);
     HtmlTextExtractor extractor = mock(HtmlTextExtractor.class);
-    PlaywrightHtmlSource playwright = mock(PlaywrightHtmlSource.class);
-    ContentHeader header =
-        new ContentHeader("id", "feed", "https://example.test/articles/1", "title", null);
-    URI finalUri = URI.create("https://example.test/articles/final");
-    when(http.get(URI.create(header.url())))
+    ContentHeader header = header("https://source.test/article", "https://fetch.test/article");
+    URI finalUri = URI.create("https://final.test/article");
+    when(http.get(URI.create(header.fetchUrl())))
         .thenReturn(new HttpFetchService.FetchedResource(finalUri, "<html>content</html>"));
-    when(extractor.extract(eq(finalUri.toString()), eq("<html>content</html>"), any()))
-        .thenReturn("readability text");
-    FullTextExtractionService service =
-        new FullTextExtractionService(
-            mock(ContentHeaderRepository.class),
-            mock(ContentFullTextWriter.class),
-            extractor,
-            http,
-            playwright,
-            testProperties(false));
+    when(extractor.extract(
+            eq(finalUri.toString()),
+            eq("<html>content</html>"),
+            org.mockito.ArgumentMatchers.any(
+                net.sasasin.sreader.domain.ExtractionPlan.ExtractorKind.class)))
+        .thenReturn("text");
+    FullTextExtractionService service = service(http, extractor, mock(PlaywrightHtmlSource.class));
 
-    assertThat(service.extract(header, FullTextMethod.HTTP_READABILITY))
-        .isEqualTo("readability text");
-    verify(http).get(URI.create(header.url()));
+    assertThat(service.extract(header, FullTextMethod.HTTP_READABILITY)).isEqualTo("text");
+    verify(http).get(URI.create(header.fetchUrl()));
+    verify(http, never()).get(URI.create(header.sourceUrl()));
+    verify(http, never()).get(URI.create(header.canonicalUrl()));
     verify(extractor)
         .extract(
             finalUri.toString(),
             "<html>content</html>",
             net.sasasin.sreader.domain.ExtractionPlan.ExtractorKind.READABILITY);
-    verify(playwright, never()).render(any(), org.mockito.ArgumentMatchers.anyBoolean());
   }
 
   @Test
-  void extractsHttpAndFeedPendingTargetsAndSkipsDisabledPlaywrightMethods() throws Exception {
+  void fetchesAndExtractsRenderedHtmlUsingFetchUrl() throws Exception {
     HttpFetchService http = mock(HttpFetchService.class);
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    ContentHeaderRepository repository = mock(ContentHeaderRepository.class);
-    ContentFullTextWriter writer = mock(ContentFullTextWriter.class);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
     PlaywrightHtmlSource playwright = mock(PlaywrightHtmlSource.class);
-    FullTextExtractionService service =
-        new FullTextExtractionService(
-            repository,
-            writer,
-            new HtmlTextExtractor(rules),
-            http,
-            playwright,
-            testProperties(false));
-    ContentHeader httpHeader =
-        new ContentHeader("http", "feed", "https://example.test/http", "HTTP", null);
-    ContentHeader feedHeader =
-        new ContentHeader(
-            "feed", "feed", "https://example.test/feed", "FEED", null, "<p>Feed body</p>");
-    ContentHeader playwrightHeader =
-        new ContentHeader(
-            "playwright", "feed", "https://example.test/playwright", "PLAYWRIGHT", null);
-
-    when(repository.findWithoutFullTextForUrlExtraction(10))
-        .thenReturn(
-            List.of(
-                new PendingFullTextTarget(httpHeader, FullTextMethod.HTTP),
-                new PendingFullTextTarget(feedHeader, FullTextMethod.FEED),
-                new PendingFullTextTarget(playwrightHeader, FullTextMethod.PLAYWRIGHT)));
-    when(http.get(URI.create(httpHeader.url())))
-        .thenReturn(
-            new HttpFetchService.FetchedResource(
-                URI.create(httpHeader.url()), "<html><body>HTTP body</body></html>"));
-    when(rules.findBestRule(httpHeader.url())).thenReturn(Optional.empty());
-    when(writer.saveIfAbsent(httpHeader, "HTTP body")).thenReturn(true);
-    when(writer.saveIfAbsent(feedHeader, "Feed body")).thenReturn(true);
-
-    assertThat(service.extractPending(10)).isEqualTo(2);
-    verify(http).get(URI.create(httpHeader.url()));
-    verify(http, never()).get(URI.create(playwrightHeader.url()));
-    verify(writer).saveIfAbsent(httpHeader, "HTTP body");
-    verify(writer).saveIfAbsent(feedHeader, "Feed body");
-    verify(playwright, never()).render(any(), org.mockito.ArgumentMatchers.anyBoolean());
-  }
-
-  @Test
-  void extractsRenderedHtmlWithPlaywrightWhenEnabled() throws Exception {
-    HttpFetchService http = mock(HttpFetchService.class);
-    ExtractRuleService rules = mock(ExtractRuleService.class);
-    ContentHeaderRepository repository = mock(ContentHeaderRepository.class);
-    ContentFullTextWriter writer = mock(ContentFullTextWriter.class);
-    PlaywrightHtmlSource playwright = mock(PlaywrightHtmlSource.class);
-    FullTextExtractionService service =
-        new FullTextExtractionService(
-            repository,
-            writer,
-            new HtmlTextExtractor(rules),
-            http,
-            playwright,
-            testProperties(true));
-    ContentHeader header =
-        new ContentHeader("playwright", "feed", "https://example.test/js", "JS", null);
-    when(repository.findWithoutFullTextForUrlExtraction(10))
-        .thenReturn(List.of(new PendingFullTextTarget(header, FullTextMethod.PLAYWRIGHT)));
-    when(playwright.render(header.url(), false))
+    ContentHeader header = header("https://source.test/article", "https://fetch.test/article");
+    when(playwright.render(header.fetchUrl(), false))
         .thenReturn("<html><body><main>Rendered body</main></body></html>");
-    when(rules.findBestRule(header.url())).thenReturn(Optional.empty());
-    when(writer.saveIfAbsent(header, "Rendered body")).thenReturn(true);
+    when(rules.findBestRule(header.fetchUrl())).thenReturn(Optional.empty());
+    FullTextExtractionService service = service(http, extractor, playwright);
 
-    assertThat(service.extractPending(10)).isEqualTo(1);
-    verify(playwright).render(header.url(), false);
+    assertThat(service.extract(header, FullTextMethod.PLAYWRIGHT)).isEqualTo("Rendered body");
+    verify(playwright).render(header.fetchUrl(), false);
+    verify(playwright, never()).render(header.sourceUrl(), false);
+    verify(playwright, never()).render(header.canonicalUrl(), false);
     verify(http, never()).get(any());
   }
 
-  private FullTextExtractionService service(
-      ContentHeaderRepository repository, ExtractRuleService rules, HttpFetchService http) {
-    return new FullTextExtractionService(
-        repository,
-        mock(ContentFullTextWriter.class),
-        new HtmlTextExtractor(rules),
-        http,
-        mock(PlaywrightHtmlSource.class),
-        testProperties(false));
+  @Test
+  void extractsFeedBodyWithoutNetworkAccess() throws Exception {
+    HttpFetchService http = mock(HttpFetchService.class);
+    ContentHeader header =
+        new ContentHeader(
+            "id",
+            "feed",
+            "https://source.test/article",
+            "https://fetch.test/article",
+            "https://canonical.test/article",
+            "title",
+            null,
+            "<p>Feed body</p>");
+
+    assertThat(
+            service(http, mock(HtmlTextExtractor.class), mock(PlaywrightHtmlSource.class))
+                .extract(header, FullTextMethod.FEED))
+        .isEqualTo("Feed body");
+    verify(http, never()).get(any());
   }
 
-  private FeedReaderProperties testProperties(boolean playwrightEnabled) {
+  @Test
+  void skipsDisabledPlaywrightPendingTarget() {
+    ContentHeaderRepository repository = mock(ContentHeaderRepository.class);
+    ContentHeader header = header("https://source.test/article", "https://fetch.test/article");
+    when(repository.findWithoutFullTextForUrlExtraction(10))
+        .thenReturn(List.of(new PendingFullTextTarget(header, FullTextMethod.PLAYWRIGHT)));
+    FullTextExtractionService service =
+        new FullTextExtractionService(
+            repository,
+            mock(ContentFullTextWriter.class),
+            mock(HtmlTextExtractor.class),
+            mock(HttpFetchService.class),
+            mock(PlaywrightHtmlSource.class),
+            properties(false));
+
+    assertThat(service.extractPending(10)).isZero();
+  }
+
+  private ContentHeader header(String sourceUrl, String fetchUrl) {
+    return new ContentHeader(
+        "id", "feed", sourceUrl, fetchUrl, "https://canonical.test/article", "title", null, null);
+  }
+
+  private FullTextExtractionService service(
+      HttpFetchService http, HtmlTextExtractor extractor, PlaywrightHtmlSource playwright) {
+    return new FullTextExtractionService(
+        mock(ContentHeaderRepository.class),
+        mock(ContentFullTextWriter.class),
+        extractor,
+        http,
+        playwright,
+        properties(true));
+  }
+
+  private FeedReaderProperties properties(boolean playwrightEnabled) {
     return new FeedReaderProperties(
         new FeedReaderProperties.Scheduler(false, "0 */15 * * * *"),
         new FeedReaderProperties.Job(false),

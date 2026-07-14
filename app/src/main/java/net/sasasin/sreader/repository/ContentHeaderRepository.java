@@ -23,23 +23,30 @@ public class ContentHeaderRepository {
 
   public boolean insertOrRefreshFetchUrl(ContentHeader header) {
     OffsetDateTime now = OffsetDateTime.now();
-    return dsl.insertInto(CONTENT_HEADER)
-            .set(CONTENT_HEADER.ID, header.id())
-            .set(CONTENT_HEADER.FEED_URL_ID, header.feedUrlId())
-            .set(CONTENT_HEADER.SOURCE_URL, header.sourceUrl())
-            .set(CONTENT_HEADER.FETCH_URL, header.fetchUrl())
-            .set(CONTENT_HEADER.CANONICAL_URL, header.canonicalUrl())
-            .set(CONTENT_HEADER.TITLE, header.title())
-            .set(CONTENT_HEADER.PUBLISHED_AT, header.publishedAt())
-            .set(CONTENT_HEADER.FEED_TEXT, header.feedText())
-            .set(CONTENT_HEADER.CREATED_AT, now)
-            .set(CONTENT_HEADER.UPDATED_AT, now)
-            .onConflict(CONTENT_HEADER.CANONICAL_URL)
-            .doUpdate()
-            .set(CONTENT_HEADER.FETCH_URL, header.fetchUrl())
-            .set(CONTENT_HEADER.UPDATED_AT, now)
-            .execute()
-        == 1;
+    boolean inserted =
+        dsl.insertInto(CONTENT_HEADER)
+                .set(CONTENT_HEADER.ID, header.id())
+                .set(CONTENT_HEADER.FEED_URL_ID, header.feedUrlId())
+                .set(CONTENT_HEADER.SOURCE_URL, header.sourceUrl())
+                .set(CONTENT_HEADER.FETCH_URL, header.fetchUrl())
+                .set(CONTENT_HEADER.CANONICAL_URL, header.canonicalUrl())
+                .set(CONTENT_HEADER.TITLE, header.title())
+                .set(CONTENT_HEADER.PUBLISHED_AT, header.publishedAt())
+                .set(CONTENT_HEADER.FEED_TEXT, header.feedText())
+                .set(CONTENT_HEADER.CREATED_AT, now)
+                .set(CONTENT_HEADER.UPDATED_AT, now)
+                .onConflict(CONTENT_HEADER.CANONICAL_URL)
+                .doNothing()
+                .execute()
+            == 1;
+    if (!inserted) {
+      dsl.update(CONTENT_HEADER)
+          .set(CONTENT_HEADER.FETCH_URL, header.fetchUrl())
+          .set(CONTENT_HEADER.UPDATED_AT, now)
+          .where(CONTENT_HEADER.CANONICAL_URL.eq(header.canonicalUrl()))
+          .execute();
+    }
+    return inserted;
   }
 
   public List<ContentHeader> findWithoutFullText(int limit) {

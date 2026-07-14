@@ -43,7 +43,7 @@ class ContentFullTextWriterTest {
     ArgumentCaptor<ContentFullText> captor = ArgumentCaptor.forClass(ContentFullText.class);
     verify(repository).insertIfAbsent(captor.capture());
     ContentFullText saved = captor.getValue();
-    assertThat(saved.id()).isEqualTo(HashIds.md5(header.url()));
+    assertThat(saved.id()).isEqualTo(HashIds.md5(header.canonicalUrl()));
     assertThat(saved.contentHeaderId()).isEqualTo("header-id");
     assertThat(saved.fullText()).isEqualTo("body text");
   }
