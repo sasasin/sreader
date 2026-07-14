@@ -7,6 +7,9 @@ import static net.sasasin.sreader.jooq.Tables.FEED_URL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import net.sasasin.sreader.domain.ContentCanonicalizationGroup;
+import net.sasasin.sreader.domain.ContentCanonicalizationMember;
+import net.sasasin.sreader.domain.ContentCanonicalizationPlan;
 import net.sasasin.sreader.domain.ContentFullText;
 import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FeedStatus;
@@ -31,6 +34,8 @@ class RepositoryIntegrationTest {
   @Autowired ContentFullTextRepository contentFullTextRepository;
 
   @Autowired ContentTextFileExportRepository contentTextFileExportRepository;
+
+  @Autowired ContentCanonicalizationMaintenanceRepository canonicalizationMaintenanceRepository;
 
   @BeforeEach
   void cleanTables() {
@@ -251,6 +256,154 @@ class RepositoryIntegrationTest {
                 9,
                 "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"))
         .isFalse();
+  }
+
+  @Test
+  void canonicalizationCandidateAndGroupQueriesRespectHostAndCursor() {
+    insertMaintenanceFeed();
+    insertMaintenanceHeader(
+        "00000000000000000000000000000001", "https://canonicalization.test/n/article?gs=a");
+    insertMaintenanceHeader(
+        "00000000000000000000000000000002", "https://canonicalization.test/n/article?gs=b");
+    insertMaintenanceHeader(
+        "00000000000000000000000000000003", "https://other.test/n/article?gs=a");
+
+    assertThat(
+            canonicalizationMaintenanceRepository.findCandidateCanonicalUrls(
+                "canonicalization.test", null, 10))
+        .containsExactly(
+            "https://canonicalization.test/n/article?gs=a",
+            "https://canonicalization.test/n/article?gs=b");
+    assertThat(
+            canonicalizationMaintenanceRepository.findCandidateCanonicalUrls(
+                "canonicalization.test", "https://canonicalization.test/n/article?gs=a", 10))
+        .containsExactly("https://canonicalization.test/n/article?gs=b");
+
+    ContentCanonicalizationGroup group =
+        canonicalizationMaintenanceRepository.loadGroup("https://canonicalization.test/n/article");
+    assertThat(group.members()).hasSize(2);
+    assertThat(group.exportHistoryRows()).isZero();
+  }
+
+  @Test
+  void canonicalizationMergeMovesSelectedFullTextAndDeletesOldRecords() {
+    insertMaintenanceFeed();
+    String oldId = "00000000000000000000000000000011";
+    String canonicalId = "00000000000000000000000000000012";
+    String oldTextId = "10000000000000000000000000000011";
+    String canonicalUrl = "https://canonicalization.test/n/article-merge";
+    insertMaintenanceHeader(oldId, canonicalUrl + "?gs=a");
+    insertMaintenanceHeader(canonicalId, canonicalUrl);
+    dsl.insertInto(CONTENT_FULL_TEXT)
+        .set(CONTENT_FULL_TEXT.ID, oldTextId)
+        .set(CONTENT_FULL_TEXT.CONTENT_HEADER_ID, oldId)
+        .set(CONTENT_FULL_TEXT.FULL_TEXT, "long retained body")
+        .execute();
+    dsl.insertInto(CONTENT_TEXT_FILE_EXPORT)
+        .set(CONTENT_TEXT_FILE_EXPORT.CONTENT_HEADER_ID, oldId)
+        .set(CONTENT_TEXT_FILE_EXPORT.CONTENT_FULL_TEXT_ID, oldTextId)
+        .set(CONTENT_TEXT_FILE_EXPORT.RELATIVE_PATH, oldId + ".txt")
+        .set(CONTENT_TEXT_FILE_EXPORT.FILE_SIZE_BYTES, 1L)
+        .set(
+            CONTENT_TEXT_FILE_EXPORT.FILE_SHA256,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        .execute();
+    ContentCanonicalizationGroup group =
+        canonicalizationMaintenanceRepository.loadGroup(canonicalUrl);
+    ContentCanonicalizationMember selected =
+        group.members().stream()
+            .filter(member -> oldId.equals(member.id()))
+            .findFirst()
+            .orElseThrow();
+    ContentCanonicalizationMember values =
+        new ContentCanonicalizationMember(
+            canonicalId,
+            "feed0000000000000000000000000099",
+            "https://source.test/first",
+            "https://fetch.test/newest",
+            canonicalUrl,
+            "merged title",
+            null,
+            "feed body",
+            selected.createdAt(),
+            selected.updatedAt(),
+            null,
+            null,
+            null,
+            null);
+
+    ContentCanonicalizationMaintenanceRepository.MergeCounts counts =
+        canonicalizationMaintenanceRepository.merge(
+            new ContentCanonicalizationPlan(group, values, selected, canonicalId, false));
+
+    assertThat(counts.deletedHeaders()).isEqualTo(1);
+    assertThat(counts.deletedFullTexts()).isZero();
+    assertThat(counts.deletedExportHistories()).isEqualTo(1);
+    assertThat(dsl.fetchCount(CONTENT_HEADER)).isEqualTo(1);
+    assertThat(dsl.fetchCount(CONTENT_FULL_TEXT)).isEqualTo(1);
+    assertThat(
+            dsl.select(CONTENT_FULL_TEXT.CONTENT_HEADER_ID)
+                .from(CONTENT_FULL_TEXT)
+                .fetchOne(0, String.class))
+        .isEqualTo(canonicalId);
+    assertThat(dsl.fetchCount(CONTENT_TEXT_FILE_EXPORT)).isZero();
+  }
+
+  @Test
+  void canonicalizationMergeDeletesAllFullTextsWhenNoneIsSelected() {
+    insertMaintenanceFeed();
+    String oldId = "00000000000000000000000000000021";
+    String survivorId = "00000000000000000000000000000022";
+    String url = "https://canonicalization.test/n/article-empty";
+    insertMaintenanceHeader(oldId, url + "?gs=a");
+    dsl.insertInto(CONTENT_FULL_TEXT)
+        .set(CONTENT_FULL_TEXT.ID, "20000000000000000000000000000021")
+        .set(CONTENT_FULL_TEXT.CONTENT_HEADER_ID, oldId)
+        .set(CONTENT_FULL_TEXT.FULL_TEXT, "")
+        .execute();
+    ContentCanonicalizationGroup group = canonicalizationMaintenanceRepository.loadGroup(url);
+    ContentCanonicalizationMember member = group.members().getFirst();
+    ContentCanonicalizationMember values =
+        new ContentCanonicalizationMember(
+            member.id(),
+            member.feedUrlId(),
+            member.sourceUrl(),
+            member.fetchUrl(),
+            url,
+            member.title(),
+            null,
+            member.feedText(),
+            member.createdAt(),
+            member.updatedAt(),
+            null,
+            null,
+            null,
+            null);
+
+    ContentCanonicalizationMaintenanceRepository.MergeCounts counts =
+        canonicalizationMaintenanceRepository.merge(
+            new ContentCanonicalizationPlan(group, values, null, survivorId, false));
+
+    assertThat(counts.deletedHeaders()).isEqualTo(1);
+    assertThat(counts.deletedFullTexts()).isEqualTo(1);
+    assertThat(dsl.fetchCount(CONTENT_HEADER)).isEqualTo(1);
+    assertThat(dsl.fetchCount(CONTENT_FULL_TEXT)).isZero();
+  }
+
+  private void insertMaintenanceFeed() {
+    feedUrlRepository.insertIfAbsent(
+        "feed0000000000000000000000000099", "https://canonicalization.test/feed.xml");
+  }
+
+  private void insertMaintenanceHeader(String id, String canonicalUrl) {
+    dsl.insertInto(CONTENT_HEADER)
+        .set(CONTENT_HEADER.ID, id)
+        .set(CONTENT_HEADER.FEED_URL_ID, "feed0000000000000000000000000099")
+        .set(CONTENT_HEADER.SOURCE_URL, canonicalUrl)
+        .set(CONTENT_HEADER.FETCH_URL, canonicalUrl)
+        .set(CONTENT_HEADER.CANONICAL_URL, canonicalUrl)
+        .set(CONTENT_HEADER.TITLE, "title")
+        .execute();
   }
 
   private void insertHeaderAndFullText(
