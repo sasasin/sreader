@@ -49,16 +49,16 @@ public class ContentHeaderRecord extends UpdatableRecordImpl<ContentHeaderRecord
     }
 
     /**
-     * Setter for <code>public.content_header.url</code>.
+     * Setter for <code>public.content_header.canonical_url</code>.
      */
-    public void setUrl(String value) {
+    public void setCanonicalUrl(String value) {
         set(2, value);
     }
 
     /**
-     * Getter for <code>public.content_header.url</code>.
+     * Getter for <code>public.content_header.canonical_url</code>.
      */
-    public String getUrl() {
+    public String getCanonicalUrl() {
         return (String) get(2);
     }
 
@@ -132,6 +132,34 @@ public class ContentHeaderRecord extends UpdatableRecordImpl<ContentHeaderRecord
         return (String) get(7);
     }
 
+    /**
+     * Setter for <code>public.content_header.source_url</code>.
+     */
+    public void setSourceUrl(String value) {
+        set(8, value);
+    }
+
+    /**
+     * Getter for <code>public.content_header.source_url</code>.
+     */
+    public String getSourceUrl() {
+        return (String) get(8);
+    }
+
+    /**
+     * Setter for <code>public.content_header.fetch_url</code>.
+     */
+    public void setFetchUrl(String value) {
+        set(9, value);
+    }
+
+    /**
+     * Getter for <code>public.content_header.fetch_url</code>.
+     */
+    public String getFetchUrl() {
+        return (String) get(9);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -155,17 +183,19 @@ public class ContentHeaderRecord extends UpdatableRecordImpl<ContentHeaderRecord
     /**
      * Create a detached, initialised ContentHeaderRecord
      */
-    public ContentHeaderRecord(String id, String feedUrlId, String url, String title, OffsetDateTime publishedAt, OffsetDateTime createdAt, OffsetDateTime updatedAt, String feedText) {
+    public ContentHeaderRecord(String id, String feedUrlId, String canonicalUrl, String title, OffsetDateTime publishedAt, OffsetDateTime createdAt, OffsetDateTime updatedAt, String feedText, String sourceUrl, String fetchUrl) {
         super(ContentHeader.CONTENT_HEADER);
 
         setId(id);
         setFeedUrlId(feedUrlId);
-        setUrl(url);
+        setCanonicalUrl(canonicalUrl);
         setTitle(title);
         setPublishedAt(publishedAt);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
         setFeedText(feedText);
+        setSourceUrl(sourceUrl);
+        setFetchUrl(fetchUrl);
         resetTouchedOnNotNull();
     }
 }

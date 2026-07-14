@@ -298,13 +298,15 @@ app container 内の出力先は以下です。Docker Compose ではこの path 
 各ファイルの内容は UTF-8 で以下の形式です。
 
 ```text
-URL: <content_header.url>
+URL: <content_header.canonical_url>
 TITLE: <content_header.title>
 
 <content_full_text.full_text>
 ```
 
 出力対象は、`content_full_text.full_text` が空でなく、まだ `content_text_file_export` に記録されていない `content_header` + `content_full_text` です。ファイル書き込みに成功したものだけ `content_text_file_export` に記録され、記録済みの記事は再出力されません。書き込みに失敗した記事は出力済み扱いにせず、次回 job で再試行されます。
+
+記事 URL は 3 種類を保存します。`source_url` は RSS/Atom の link、`fetch_url` はリダイレクト解決後に本文を取得する URL、`canonical_url` は記事の同一性判定とテキスト出力に使う正規化済み URL です。
 
 関連する環境変数:
 

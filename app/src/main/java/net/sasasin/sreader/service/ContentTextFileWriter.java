@@ -56,7 +56,7 @@ public class ContentTextFileWriter {
   private String content(ContentTextFileExportTarget target) {
     String title = target.title() == null ? "" : target.title();
     return "URL: "
-        + target.url()
+        + target.canonicalUrl()
         + System.lineSeparator()
         + "TITLE: "
         + title

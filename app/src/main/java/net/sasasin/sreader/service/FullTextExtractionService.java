@@ -52,7 +52,7 @@ public class FullTextExtractionService {
           logger.warn(
               "Skipping disabled Playwright full text method {} for {}",
               target.method().value(),
-              target.header().url());
+              target.header().fetchUrl());
           continue;
         }
         String fullText = extract(target.header(), target.method());
@@ -60,7 +60,7 @@ public class FullTextExtractionService {
           inserted++;
         }
       } catch (Exception e) {
-        logger.warn("Failed to extract full text from {}", target.header().url(), e);
+        logger.warn("Failed to extract full text from {}", target.header().fetchUrl(), e);
       }
     }
     return inserted;
@@ -81,13 +81,13 @@ public class FullTextExtractionService {
 
   private String extractFromHttp(ContentHeader header, ExtractionPlan plan)
       throws java.io.IOException, InterruptedException {
-    HttpFetchService.FetchedResource resource = httpFetchService.get(URI.create(header.url()));
+    HttpFetchService.FetchedResource resource = httpFetchService.get(URI.create(header.fetchUrl()));
     return htmlTextExtractor.extract(
         resource.uri().toString(), resource.body(), plan.extractorKind());
   }
 
   private String extractFromPlaywright(ContentHeader header, ExtractionPlan plan) {
-    String html = playwrightHtmlSource.render(header.url(), plan.useInfyScroll());
-    return htmlTextExtractor.extract(header.url(), html, plan.extractorKind());
+    String html = playwrightHtmlSource.render(header.fetchUrl(), plan.useInfyScroll());
+    return htmlTextExtractor.extract(header.fetchUrl(), html, plan.extractorKind());
   }
 }
