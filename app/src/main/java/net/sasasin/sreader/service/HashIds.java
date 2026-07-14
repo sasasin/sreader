@@ -4,11 +4,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-final class HashIds {
+public final class HashIds {
 
   private HashIds() {}
 
-  static String md5(String value) {
+  public static String md5(String value) {
     if (value == null || value.isBlank()) {
       throw new IllegalArgumentException("value must not be blank");
     }

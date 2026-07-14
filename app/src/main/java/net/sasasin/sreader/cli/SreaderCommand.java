@@ -14,6 +14,7 @@ import picocli.CommandLine.Command;
     mixinStandardHelpOptions = true,
     subcommands = {
       FeedsCommand.class,
+      ContentCommand.class,
       ProbeCommand.class,
       RunOnceCommand.class,
     },
