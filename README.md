@@ -400,6 +400,28 @@ URL は trim され、`http` / `https` の absolute URI のみ許可します。
 - `moved`: 移転済み。
 - `other`: その他。
 
+## 既存 canonical URL 重複の統合
+
+先行する canonical URL 導入後も、過去に保存された URL（たとえば追跡用 query parameter が異なる記事）が重複している場合があります。`content canonicalize` はそれらを canonical URL ごとに1件へ統合する明示的なメンテナンスコマンドです。通常の scheduler と同時に実行しないでください。
+
+実行前に PostgreSQL のバックアップを取得し、まず対象 host に限定した dry-run を確認します。`--apply` を付けない場合も dry-run です。
+
+```sh
+docker compose run --rm app --sreader.scheduler.enabled=false \
+  content canonicalize --host <target-host> --dry-run
+```
+
+summary と対象件数を確認したら、初回は小さい `--limit` または `--batch-size` で適用します。
+
+```sh
+docker compose run --rm app --sreader.scheduler.enabled=false \
+  content canonicalize --host <target-host> --limit 10 --apply
+```
+
+統合では canonical URL の MD5 を survivor ID とし、空でない最長の本文を保持します。export history は削除され、旧 ID と survivor ID の `.txt` は削除されるため、次の text exporter 実行で survivor のファイルが再生成されます。DB 統合は group ごとに commit してからファイルを削除します。ファイル削除エラーは `failed_files` として表示され、コマンドは non-zero で終了します。
+
+apply 後は同じ dry-run を再実行して候補がなくなったことを確認し、text exporter を実行して survivor のファイルが生成されたことと orphan file が残っていないことを確認してください。
+
 ## 残課題
 
 - 本格 Web UI
