@@ -21,19 +21,23 @@ public class ContentHeaderRepository {
     this.dsl = dsl;
   }
 
-  public boolean insertIfAbsent(ContentHeader header) {
+  public boolean insertOrRefreshFetchUrl(ContentHeader header) {
     OffsetDateTime now = OffsetDateTime.now();
     return dsl.insertInto(CONTENT_HEADER)
             .set(CONTENT_HEADER.ID, header.id())
             .set(CONTENT_HEADER.FEED_URL_ID, header.feedUrlId())
-            .set(CONTENT_HEADER.URL, header.url())
+            .set(CONTENT_HEADER.SOURCE_URL, header.sourceUrl())
+            .set(CONTENT_HEADER.FETCH_URL, header.fetchUrl())
+            .set(CONTENT_HEADER.CANONICAL_URL, header.canonicalUrl())
             .set(CONTENT_HEADER.TITLE, header.title())
             .set(CONTENT_HEADER.PUBLISHED_AT, header.publishedAt())
             .set(CONTENT_HEADER.FEED_TEXT, header.feedText())
             .set(CONTENT_HEADER.CREATED_AT, now)
             .set(CONTENT_HEADER.UPDATED_AT, now)
-            .onConflict(CONTENT_HEADER.ID)
-            .doNothing()
+            .onConflict(CONTENT_HEADER.CANONICAL_URL)
+            .doUpdate()
+            .set(CONTENT_HEADER.FETCH_URL, header.fetchUrl())
+            .set(CONTENT_HEADER.UPDATED_AT, now)
             .execute()
         == 1;
   }
@@ -42,7 +46,9 @@ public class ContentHeaderRepository {
     return dsl.select(
             CONTENT_HEADER.ID,
             CONTENT_HEADER.FEED_URL_ID,
-            CONTENT_HEADER.URL,
+            CONTENT_HEADER.SOURCE_URL,
+            CONTENT_HEADER.FETCH_URL,
+            CONTENT_HEADER.CANONICAL_URL,
             CONTENT_HEADER.TITLE,
             CONTENT_HEADER.PUBLISHED_AT,
             CONTENT_HEADER.FEED_TEXT)
@@ -57,7 +63,9 @@ public class ContentHeaderRepository {
                 new ContentHeader(
                     record.get(CONTENT_HEADER.ID),
                     record.get(CONTENT_HEADER.FEED_URL_ID),
-                    record.get(CONTENT_HEADER.URL),
+                    record.get(CONTENT_HEADER.SOURCE_URL),
+                    record.get(CONTENT_HEADER.FETCH_URL),
+                    record.get(CONTENT_HEADER.CANONICAL_URL),
                     record.get(CONTENT_HEADER.TITLE),
                     record.get(CONTENT_HEADER.PUBLISHED_AT),
                     record.get(CONTENT_HEADER.FEED_TEXT)));
@@ -67,7 +75,9 @@ public class ContentHeaderRepository {
     return dsl.select(
             CONTENT_HEADER.ID,
             CONTENT_HEADER.FEED_URL_ID,
-            CONTENT_HEADER.URL,
+            CONTENT_HEADER.SOURCE_URL,
+            CONTENT_HEADER.FETCH_URL,
+            CONTENT_HEADER.CANONICAL_URL,
             CONTENT_HEADER.TITLE,
             CONTENT_HEADER.PUBLISHED_AT,
             CONTENT_HEADER.FEED_TEXT,
@@ -86,7 +96,9 @@ public class ContentHeaderRepository {
                     new ContentHeader(
                         record.get(CONTENT_HEADER.ID),
                         record.get(CONTENT_HEADER.FEED_URL_ID),
-                        record.get(CONTENT_HEADER.URL),
+                        record.get(CONTENT_HEADER.SOURCE_URL),
+                        record.get(CONTENT_HEADER.FETCH_URL),
+                        record.get(CONTENT_HEADER.CANONICAL_URL),
                         record.get(CONTENT_HEADER.TITLE),
                         record.get(CONTENT_HEADER.PUBLISHED_AT),
                         record.get(CONTENT_HEADER.FEED_TEXT)),
