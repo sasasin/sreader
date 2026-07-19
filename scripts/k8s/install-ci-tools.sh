@@ -3,9 +3,9 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 tools_dir="${K8S_CI_TOOLS_DIR:-${RUNNER_TEMP:-/tmp}/sreader-k8s-tools}"
-source "$repo_root/ops/kubernetes/ci-tools.env"
+source "$repo_root/k8s/ops/ci-tools.env"
 source "$repo_root/scripts/k8s/versions.sh"
-k8s_load_versions "$repo_root/ops/kubernetes/versions.env"
+k8s_load_versions "$repo_root/k8s/ops/versions.env"
 
 case "$(uname -m)" in
   x86_64) architecture="amd64" ;;

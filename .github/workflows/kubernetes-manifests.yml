@@ -2,10 +2,10 @@ name: Kubernetes manifests
 
 on:
   pull_request:
-    paths: ['k8s/**', 'ops/kubernetes/**', 'scripts/k8s/**', 'renovate.json', '.github/workflows/kubernetes-manifests.yml', 'AGENTS.md', 'README.md']
+    paths: ['k8s/**', 'scripts/k8s/**', 'renovate.json', '.github/workflows/kubernetes-manifests.yml', 'AGENTS.md', 'README.md']
   push:
     branches: [master]
-    paths: ['k8s/**', 'ops/kubernetes/**', 'scripts/k8s/**', 'renovate.json', '.github/workflows/kubernetes-manifests.yml', 'AGENTS.md', 'README.md']
+    paths: ['k8s/**', 'scripts/k8s/**', 'renovate.json', '.github/workflows/kubernetes-manifests.yml', 'AGENTS.md', 'README.md']
   workflow_dispatch:
 
 permissions:
@@ -35,13 +35,13 @@ jobs:
           if [[ "${{ github.event_name }}" == pull_request ]]; then
             base_file="$(mktemp)"
             trap 'rm -f "$base_file"' EXIT
-            if git show "origin/${{ github.base_ref }}:ops/kubernetes/versions.env" > "$base_file" 2>/dev/null; then
-              scripts/k8s/check-upgrade-step.sh ops/kubernetes/versions.env "$base_file"
+            if git show "origin/${{ github.base_ref }}:k8s/ops/versions.env" > "$base_file" 2>/dev/null; then
+              scripts/k8s/check-upgrade-step.sh k8s/ops/versions.env "$base_file"
             else
-              scripts/k8s/check-upgrade-step.sh ops/kubernetes/versions.env
+              scripts/k8s/check-upgrade-step.sh k8s/ops/versions.env
             fi
           else
-            scripts/k8s/check-upgrade-step.sh ops/kubernetes/versions.env
+            scripts/k8s/check-upgrade-step.sh k8s/ops/versions.env
           fi
       - name: Install pinned Kubernetes CI tools
         run: scripts/k8s/install-ci-tools.sh
