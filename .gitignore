@@ -6,3 +6,5 @@ target/
 */target/
 */lib_ext/
 /var/sreader/content-text/
+# Generated only by scripts/k8s/render.sh.
+/var/kubernetes-manifests/

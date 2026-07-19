@@ -120,6 +120,7 @@ docker compose run --rm maven mvn -Pgenerate-jooq -pl app -am generate-sources
 
 - `config:recommended` を継承します。
 - release 直後の不安定な更新を避けるため、`minimumReleaseAge` を `3 days` にしています。
+- Kubernetes manifest、target k3s version（`ops/kubernetes/versions.env`）、Kubernetes CI 補助ツールも更新検出の対象です。互換性の判定は [Kubernetes manifests CI](k8s/README.md#kubernetes-compatibility-ci) が担当します。
 
 Renovate GitHub App を有効化する手順:
 

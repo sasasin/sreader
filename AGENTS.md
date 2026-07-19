@@ -275,6 +275,25 @@ kubectl delete -k k8s/overlays/local
 - ConfigMap のキーは `app/src/main/resources/application.yml` と一致していること
 - Java アプリケーションコード、DB migration、Docker Compose workflow は k8s 変更だけでは変更しないこと
 
+### Kubernetes compatibility CI を変更した場合の確認
+
+`k8s/`、`ops/kubernetes/`、`scripts/k8s/`、Kubernetes manifest workflow、または Kubernetes 用 Renovate 設定を変更した場合は、`ops/kubernetes/versions.env` を唯一の target k3s version として扱い、少なくとも次を実行してください。
+
+```sh
+scripts/k8s/test-scripts.sh
+scripts/k8s/check-upgrade-step.sh ops/kubernetes/versions.env
+scripts/k8s/render.sh
+```
+
+CI tools と Docker が利用可能な Linux 環境では、さらに次を実行してください。
+
+```sh
+scripts/k8s/validate-static.sh
+scripts/k8s/validate-target-k3s.sh
+```
+
+render script は working tree の home secret を操作せず、temporary copy に example のダミー値を配置します。CI は home-server へ接続・deploy してはならず、target k3s の k3d cluster に対する server-side dry-run だけを実行します。K3S_VERSION の PR 更新は major change、downgrade、minor version の飛び越しを禁止します。
+
 ## Docker / Compose を変更した場合の確認
 
 Dockerfile、`docker-compose.yml`、`.env.example` を変更した場合は、以下を実行してください。
@@ -325,6 +344,28 @@ README を変更した場合は、以下を確認してください。
 
 ```sh
 docker compose run --rm maven mvn dependency:tree
+```
+
+## renovate.json を変更した場合の検証と修正
+
+`renovate.json` を変更した場合は、Renovate の公式 config validator を実行してください。ホストに Node.js を導入せず、repository root で Docker の Node.js 24 系最新 `node:24` image を使います。
+
+```sh
+docker run --rm \
+  -v "$PWD:/workspace:ro" \
+  -w /workspace \
+  node:24 \
+  npx --yes --package renovate -- renovate-config-validator
+```
+
+- `Config validated successfully` が出るまで、validator が報告する error / warning を `renovate.json` で修正して再実行すること。
+- 既存の `customManagers`、package rule、対象範囲を不用意に削除・置換しないこと。最小差分で修正すること。
+- GitHub Actions workflow と同じ Node.js 24 系で validator を実行し、Renovate の migration warning も解消すること。custom manager と Kubernetes manager の file pattern は `managerFilePatterns` を使うこと。
+- npx の推移的依存関係に対する npm deprecation warning は、repository の Renovate 設定エラーとは区別すること。validator の設定診断を解消しても npm warning 自体を repository 側で抑止しようとしないこと。
+- 修正後は JSON syntax と whitespace も確認すること。
+
+```sh
+git diff --check
 ```
 
 ## 期待する最終状態
