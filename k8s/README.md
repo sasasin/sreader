@@ -173,3 +173,21 @@ kubectl kustomize k8s/overlays/home
 ```
 
 The home overlay requires `sreader-db.secret.env` to exist before `kubectl kustomize` succeeds.
+
+## Kubernetes compatibility CI
+
+`ops/kubernetes/versions.env` is the single source of truth for the target k3s release. Renovate proposes k3s, Kubernetes API migration, image, and pinned CI-tool updates; the **Kubernetes manifests** GitHub Actions workflow decides whether they are compatible.
+
+The workflow renders both overlays, using only the tracked home-secret example in a temporary copy of `k8s/`. It runs Kubeconform in strict mode against the derived Kubernetes schema version, reports deprecated APIs with Pluto, blocks removed APIs or unavailable replacements, then creates an ephemeral k3d cluster with the exact target k3s image and performs server-side dry-runs. It never connects to or deploys to the home server.
+
+Run the equivalent scripts on a Linux host with Docker, `kubectl`, and the pinned tools installed:
+
+```bash
+scripts/k8s/test-scripts.sh
+scripts/k8s/check-upgrade-step.sh ops/kubernetes/versions.env
+scripts/k8s/render.sh
+scripts/k8s/validate-static.sh
+scripts/k8s/validate-target-k3s.sh
+```
+
+Kubernetes minor releases may advance by at most one minor per PR; downgrades and skipped minors are rejected. A green workflow is manifest/API compatibility evidence only: it does not guarantee a home-server upgrade or application rollout. If CRDs are added later, add their schemas (or a narrowly scoped exclusion) instead of enabling a blanket `-ignore-missing-schemas` option.

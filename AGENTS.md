@@ -275,6 +275,25 @@ kubectl delete -k k8s/overlays/local
 - ConfigMap のキーは `app/src/main/resources/application.yml` と一致していること
 - Java アプリケーションコード、DB migration、Docker Compose workflow は k8s 変更だけでは変更しないこと
 
+### Kubernetes compatibility CI を変更した場合の確認
+
+`k8s/`、`ops/kubernetes/`、`scripts/k8s/`、Kubernetes manifest workflow、または Kubernetes 用 Renovate 設定を変更した場合は、`ops/kubernetes/versions.env` を唯一の target k3s version として扱い、少なくとも次を実行してください。
+
+```sh
+scripts/k8s/test-scripts.sh
+scripts/k8s/check-upgrade-step.sh ops/kubernetes/versions.env
+scripts/k8s/render.sh
+```
+
+CI tools と Docker が利用可能な Linux 環境では、さらに次を実行してください。
+
+```sh
+scripts/k8s/validate-static.sh
+scripts/k8s/validate-target-k3s.sh
+```
+
+render script は working tree の home secret を操作せず、temporary copy に example のダミー値を配置します。CI は home-server へ接続・deploy してはならず、target k3s の k3d cluster に対する server-side dry-run だけを実行します。K3S_VERSION の PR 更新は major change、downgrade、minor version の飛び越しを禁止します。
+
 ## Docker / Compose を変更した場合の確認
 
 Dockerfile、`docker-compose.yml`、`.env.example` を変更した場合は、以下を実行してください。
