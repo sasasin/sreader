@@ -9,7 +9,7 @@ import picocli.CommandLine.Command;
       "SReader: lightweight RSS/Atom feed reader.",
       "When invoked without a subcommand (and without --help), the application starts ",
       "normally. Scheduler runs according to sreader.scheduler.* properties unless disabled. ",
-      "Use --sreader.job.run-once=true (or env) to run jobs once then exit.",
+      "Use the run-once subcommand to run jobs once then exit.",
     },
     mixinStandardHelpOptions = true,
     subcommands = {
