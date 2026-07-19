@@ -7,9 +7,6 @@ on:
     branches: [master]
     paths: ['k8s/**', 'ops/kubernetes/**', 'scripts/k8s/**', 'renovate.json', '.github/workflows/kubernetes-manifests.yml', 'AGENTS.md', 'README.md']
   workflow_dispatch:
-  schedule:
-    # GitHub Actions cron is UTC (03:17 UTC is 12:17 JST).
-    - cron: '17 3 * * 1'
 
 permissions:
   contents: read
