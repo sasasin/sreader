@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$repo_root/scripts/k8s/versions.sh"
-k8s_load_versions "$repo_root/ops/kubernetes/versions.env"
+k8s_load_versions "$repo_root/k8s/ops/versions.env"
 manifest_dir="${1:-$repo_root/var/kubernetes-manifests}"
 cluster_name="sreader-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-0}-$$"
 cluster_name="${cluster_name//[^a-zA-Z0-9-]/-}"

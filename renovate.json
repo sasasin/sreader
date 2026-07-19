@@ -33,7 +33,7 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "/^ops\\/kubernetes\\/versions\\.env$/"
+        "/^k8s\\/ops\\/versions\\.env$/"
       ],
       "matchStrings": [
         "K3S_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+\\+k3s\\d+)"
@@ -45,7 +45,7 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "/^ops\\/kubernetes\\/ci-tools\\.env$/"
+        "/^k8s\\/ops\\/ci-tools\\.env$/"
       ],
       "matchStrings": [
         "KUBECONFORM_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
@@ -56,7 +56,7 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "/^ops\\/kubernetes\\/ci-tools\\.env$/"
+        "/^k8s\\/ops\\/ci-tools\\.env$/"
       ],
       "matchStrings": [
         "PLUTO_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
@@ -67,7 +67,7 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "/^ops\\/kubernetes\\/ci-tools\\.env$/"
+        "/^k8s\\/ops\\/ci-tools\\.env$/"
       ],
       "matchStrings": [
         "K3D_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
