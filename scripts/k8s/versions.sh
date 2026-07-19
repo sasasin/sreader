@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared parser for ops/kubernetes/versions.env. Source this file; it exports values.
+# Shared parser for k8s/ops/versions.env. Source this file; it exports values.
 
 set -euo pipefail
 

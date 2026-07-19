@@ -67,7 +67,7 @@ fetch_release_versions() {
 }
 
 source "$repo_root/scripts/k8s/versions.sh"
-k8s_load_versions "$repo_root/ops/kubernetes/versions.env"
+k8s_load_versions "$repo_root/k8s/ops/versions.env"
 target_version="$K3S_VERSION"
 target_major="${BASH_REMATCH[1]}"
 target_minor="${BASH_REMATCH[2]}"
@@ -119,6 +119,6 @@ write_version_file "$base" "$target_version"
 if "$repo_root/scripts/k8s/check-upgrade-step.sh" "$candidate" "$base"; then exit 1; fi
 printf 'K3S_VERSION=invalid\n' > "$candidate"
 if "$repo_root/scripts/k8s/check-upgrade-step.sh" "$candidate"; then exit 1; fi
-k8s_load_versions "$repo_root/ops/kubernetes/versions.env"
+k8s_load_versions "$repo_root/k8s/ops/versions.env"
 assert_derived_versions
 echo "Kubernetes script tests passed."
