@@ -114,14 +114,14 @@ public class ProbeFeedCommand implements Callable<Integer> {
         result = fullTextProbeService.probeFeed(uri, method, selection, xp);
       } catch (FullTextProbeService.NoMatchingEntryException e) {
         spec.commandLine().getErr().println("No matching feed entry: " + e.getMessage());
-        return 3;
+        return CliExitCodes.NO_MATCHING_ENTRY;
       }
 
       if (result.text() == null || result.text().isBlank()) {
         if (verbose) {
           new ProbeOutputWriter(spec).writeResult(result, true, output, maxChars);
         }
-        return 4;
+        return CliExitCodes.EMPTY_RESULT;
       }
 
       return new ProbeOutputWriter(spec).writeResult(result, verbose, output, maxChars);
@@ -130,10 +130,10 @@ public class ProbeFeedCommand implements Callable<Integer> {
       throw pe;
     } catch (FullTextProbeService.PlaywrightDisabledException e) {
       spec.commandLine().getErr().println(e.getMessage());
-      return 5;
+      return CliExitCodes.PLAYWRIGHT_DISABLED;
     } catch (Exception e) {
       spec.commandLine().getErr().println("Error: " + e.getMessage());
-      return 1;
+      return CliExitCodes.EXECUTION_ERROR;
     }
   }
 

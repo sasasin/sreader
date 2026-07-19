@@ -31,14 +31,10 @@ public class FeedEntryPicker {
       case INDEX ->
           pickByIndex(entries, selection.index() != null ? selection.index() : 0, requireLink);
       case TITLE_REGEX ->
-          pickByRegex(
-              entries,
-              selection.titleRegex() != null ? selection.titleRegex() : "",
-              true,
-              requireLink);
+          pickByTitleRegex(
+              entries, selection.titleRegex() != null ? selection.titleRegex() : "", requireLink);
       case URL_REGEX ->
-          pickByRegex(
-              entries, selection.urlRegex() != null ? selection.urlRegex() : "", false, true);
+          pickByUrlRegex(entries, selection.urlRegex() != null ? selection.urlRegex() : "");
     };
   }
 
@@ -66,8 +62,20 @@ public class FeedEntryPicker {
     return canPick(e, requireLink) ? Optional.of(e) : Optional.empty();
   }
 
+  private Optional<SyndEntry> pickByTitleRegex(
+      List<SyndEntry> entries, String regex, boolean requireLink) {
+    return pickByRegex(entries, regex, requireLink, SyndEntry::getTitle);
+  }
+
+  private Optional<SyndEntry> pickByUrlRegex(List<SyndEntry> entries, String regex) {
+    return pickByRegex(entries, regex, true, SyndEntry::getLink);
+  }
+
   private Optional<SyndEntry> pickByRegex(
-      List<SyndEntry> entries, String regex, boolean useTitle, boolean requireLink) {
+      List<SyndEntry> entries,
+      String regex,
+      boolean requireLink,
+      java.util.function.Function<SyndEntry, String> matchTarget) {
     if (regex == null || regex.isBlank()) {
       return Optional.empty();
     }
@@ -81,7 +89,7 @@ public class FeedEntryPicker {
         .filter(e -> canPick(e, requireLink))
         .filter(
             e -> {
-              String target = useTitle ? e.getTitle() : e.getLink();
+              String target = matchTarget.apply(e);
               return target != null && pattern.matcher(target).find();
             })
         .findFirst();
