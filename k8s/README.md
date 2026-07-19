@@ -176,7 +176,7 @@ The home overlay requires `sreader-db.secret.env` to exist before `kubectl kusto
 
 ## Kubernetes compatibility CI
 
-`ops/kubernetes/versions.env` is the single source of truth for the target k3s release. Renovate proposes k3s, Kubernetes API migration, image, and pinned CI-tool updates; the **Kubernetes manifests** GitHub Actions workflow decides whether they are compatible.
+`k8s/ops/versions.env` is the single source of truth for the target k3s release. Renovate proposes k3s, Kubernetes API migration, image, and pinned CI-tool updates; the **Kubernetes manifests** GitHub Actions workflow decides whether they are compatible.
 
 The workflow renders both overlays, using only the tracked home-secret example in a temporary copy of `k8s/`. It runs Kubeconform in strict mode against the derived Kubernetes schema version, reports deprecated APIs with Pluto, blocks removed APIs or unavailable replacements, then creates an ephemeral k3d cluster with the exact target k3s image and performs server-side dry-runs. It never connects to or deploys to the home server.
 
@@ -184,7 +184,7 @@ Run the equivalent scripts on a Linux host with Docker, `kubectl`, and the pinne
 
 ```bash
 scripts/k8s/test-scripts.sh
-scripts/k8s/check-upgrade-step.sh ops/kubernetes/versions.env
+scripts/k8s/check-upgrade-step.sh k8s/ops/versions.env
 scripts/k8s/render.sh
 scripts/k8s/validate-static.sh
 scripts/k8s/validate-target-k3s.sh

@@ -277,11 +277,11 @@ kubectl delete -k k8s/overlays/local
 
 ### Kubernetes compatibility CI を変更した場合の確認
 
-`k8s/`、`ops/kubernetes/`、`scripts/k8s/`、Kubernetes manifest workflow、または Kubernetes 用 Renovate 設定を変更した場合は、`ops/kubernetes/versions.env` を唯一の target k3s version として扱い、少なくとも次を実行してください。
+`k8s/`、`scripts/k8s/`、Kubernetes manifest workflow、または Kubernetes 用 Renovate 設定を変更した場合は、`k8s/ops/versions.env` を唯一の target k3s version として扱い、少なくとも次を実行してください。
 
 ```sh
 scripts/k8s/test-scripts.sh
-scripts/k8s/check-upgrade-step.sh ops/kubernetes/versions.env
+scripts/k8s/check-upgrade-step.sh k8s/ops/versions.env
 scripts/k8s/render.sh
 ```
 
