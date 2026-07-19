@@ -125,6 +125,7 @@ mvn verify
 ```
 
 - Java コード変更後は `mvn spotless:apply` で整形すること。
+- Java ソースコードを変更した場合は、変更箇所の分岐・振る舞いをカバーするテストコードも整備し、 `app/pom.xml` の jacoco-check に定めている既存のテストカバレッジ基準を下回らないことを確認すること。
 - レビュー前に `mvn spotless:check` と `mvn checkstyle:check` を通すこと。
 - 最終確認として `mvn verify` を実行すること。
 - generated sources や `target/` 配下を手編集しないこと。
