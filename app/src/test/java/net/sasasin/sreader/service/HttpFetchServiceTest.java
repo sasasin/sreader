@@ -147,21 +147,13 @@ class HttpFetchServiceTest {
   }
 
   @Test
-  void getAttemptsOnceForZeroOrNegativeRetriesAndDoesNotRetryInterruptions() throws Exception {
+  void getAttemptsOnceForZeroRetriesAndDoesNotRetryInterruptions() throws Exception {
     HttpClient zero = mock(HttpClient.class);
     stubByteResponse(
         zero, response(200, URI.create("https://example.test/"), new byte[0], Optional.empty()));
     new HttpFetchService(properties(0, Duration.ofSeconds(1)), zero)
         .get(URI.create("https://example.test/"));
     verify(zero).send(any(), any());
-
-    HttpClient negative = mock(HttpClient.class);
-    stubByteResponse(
-        negative,
-        response(200, URI.create("https://example.test/"), new byte[0], Optional.empty()));
-    new HttpFetchService(properties(-2, Duration.ofSeconds(1)), negative)
-        .get(URI.create("https://example.test/"));
-    verify(negative).send(any(), any());
 
     HttpClient interrupted = mock(HttpClient.class);
     doAnswer(

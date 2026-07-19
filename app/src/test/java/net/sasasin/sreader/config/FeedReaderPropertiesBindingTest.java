@@ -9,7 +9,11 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import net.sasasin.sreader.SreaderApplication;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.context.properties.bind.BindException;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
@@ -73,7 +77,7 @@ class FeedReaderPropertiesBindingTest {
   }
 
   @Test
-  void bindingUsesCompactConstructorDefaultsForBoundaryValues() {
+  void bindingRejectsExplicitInvalidBoundaryValuesWithPropertyPaths() {
     Map<String, String> values = new LinkedHashMap<>();
     values.put("sreader.playwright.viewport-width", "0");
     values.put("sreader.playwright.viewport-height", "-1");
@@ -84,16 +88,10 @@ class FeedReaderPropertiesBindingTest {
     values.put("sreader.playwright.infy-scroll-wait", "0ms");
     values.put("sreader.text-export.batch-size", "0");
 
-    FeedReaderProperties properties = bind(values);
+    BindException exception = assertThrows(BindException.class, () -> bind(values));
 
-    assertEquals(1280, properties.playwright().viewportWidth());
-    assertEquals(1600, properties.playwright().viewportHeight());
-    assertEquals(Duration.ofSeconds(60), properties.playwright().navigationTimeout());
-    assertEquals(Duration.ofSeconds(5), properties.playwright().networkIdleTimeout());
-    assertEquals(20, properties.playwright().infyMaxScrolls());
-    assertEquals(3, properties.playwright().infyStableRounds());
-    assertEquals(Duration.ofMillis(2700), properties.playwright().infyScrollWait());
-    assertEquals(100, properties.textExport().batchSize());
+    Assertions.assertThat(exception)
+        .hasStackTraceContaining("sreader.playwright.viewport-width must be positive");
   }
 
   @Test
@@ -120,6 +118,31 @@ class FeedReaderPropertiesBindingTest {
 
     assertNull(properties.playwright().infyExtensionDir());
     assertNull(properties.playwright().infyUserDataDir());
+  }
+
+  @Test
+  void bindingPreservesDefaultsWhenConfigurationGroupsAreAbsent() {
+    FeedReaderProperties properties = bind(Map.of("sreader.job.run-once", "true"));
+
+    assertEquals(true, properties.scheduler().enabled());
+    assertEquals("0 */15 * * * *", properties.scheduler().cron());
+    assertEquals(true, properties.job().runOnce());
+    assertEquals("SReader/0.1", properties.http().userAgent());
+    assertEquals(Duration.ofSeconds(5), properties.http().connectTimeout());
+    assertEquals(1280, properties.playwright().viewportWidth());
+    assertEquals(Path.of("/var/lib/sreader/content-text"), properties.textExport().outputDir());
+  }
+
+  @Test
+  void applicationContextFailsFastForInvalidConfiguredValue() {
+    SpringApplication application = new SpringApplication(SreaderApplication.class);
+    application.setWebApplicationType(WebApplicationType.NONE);
+
+    Assertions.assertThatThrownBy(
+            () ->
+                application.run(
+                    "--sreader.scheduler.enabled=false", "--sreader.playwright.viewport-width=0"))
+        .hasStackTraceContaining("sreader.playwright.viewport-width must be positive");
   }
 
   private static FeedReaderProperties bind(Map<String, String> values) {
