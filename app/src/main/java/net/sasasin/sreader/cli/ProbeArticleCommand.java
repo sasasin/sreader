@@ -96,7 +96,7 @@ public class ProbeArticleCommand implements Callable<Integer> {
           // still emit diagnostics
           writer.writeResult(result, true, output, maxChars);
         }
-        return 4;
+        return CliExitCodes.EMPTY_RESULT;
       }
 
       return writer.writeResult(result, verbose, output, maxChars);
@@ -104,10 +104,10 @@ public class ProbeArticleCommand implements Callable<Integer> {
       throw pe; // let picocli handle as usage 2
     } catch (FullTextProbeService.PlaywrightDisabledException e) {
       spec.commandLine().getErr().println(e.getMessage());
-      return 5;
+      return CliExitCodes.PLAYWRIGHT_DISABLED;
     } catch (Exception e) {
       spec.commandLine().getErr().println("Error: " + e.getMessage());
-      return 1;
+      return CliExitCodes.EXECUTION_ERROR;
     }
   }
 }

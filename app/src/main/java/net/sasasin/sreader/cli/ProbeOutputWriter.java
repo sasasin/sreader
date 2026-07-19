@@ -41,13 +41,13 @@ public class ProbeOutputWriter {
       } catch (IOException e) {
         throw new RuntimeException("Failed to write --output file: " + outputPath, e);
       }
-      return 0;
+      return CliExitCodes.SUCCESS;
     } else {
       // default: body to STDOUT, no extra
       if (!text.isBlank()) {
         spec.commandLine().getOut().print(text);
       }
-      return 0;
+      return CliExitCodes.SUCCESS;
     }
   }
 

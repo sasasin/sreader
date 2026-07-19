@@ -18,7 +18,10 @@ public class SreaderCliExecutor {
   public int execute(String... args) {
     CommandLine cli = new CommandLine(sreaderCommand, picocliFactory);
     cli.setExitCodeExceptionMapper(
-        exception -> exception instanceof CommandLine.ParameterException ? 2 : 1);
+        exception ->
+            exception instanceof CommandLine.ParameterException
+                ? CliExitCodes.USAGE_ERROR
+                : CliExitCodes.EXECUTION_ERROR);
     return cli.execute(args);
   }
 }
