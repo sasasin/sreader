@@ -92,15 +92,15 @@ public class FeedsDiscoverCommand implements Callable<Integer> {
           spec.commandLine().getOut().println(u);
         }
       }
-      return 0;
+      return CliExitCodes.SUCCESS;
     } catch (picocli.CommandLine.ParameterException pe) {
       throw pe;
     } catch (IllegalStateException e) {
       spec.commandLine().getErr().println(e.getMessage());
-      return 5;
+      return CliExitCodes.PLAYWRIGHT_DISABLED;
     } catch (Exception e) {
       spec.commandLine().getErr().println("Error: " + e.getMessage());
-      return 1;
+      return CliExitCodes.EXECUTION_ERROR;
     }
   }
 

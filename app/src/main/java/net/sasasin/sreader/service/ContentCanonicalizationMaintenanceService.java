@@ -36,7 +36,7 @@ public class ContentCanonicalizationMaintenanceService {
   }
 
   public ContentCanonicalizationResult canonicalize(Options options) {
-    ContentCanonicalizationResult result = emptyResult();
+    ContentCanonicalizationResult result = ContentCanonicalizationResult.empty();
     String after = null;
     Set<String> processed = new HashSet<>();
     while (options.limit() == null || result.processedGroups() < options.limit()) {
@@ -47,7 +47,7 @@ public class ContentCanonicalizationMaintenanceService {
       }
       after = candidates.getLast();
       for (String candidate : candidates) {
-        result = addScanned(result);
+        result = result.incrementScannedRows();
         String normalized = canonicalizer.canonicalize(URI.create(candidate)).toString();
         if (!processed.add(normalized)) {
           continue;
@@ -66,16 +66,20 @@ public class ContentCanonicalizationMaintenanceService {
             new ContentCanonicalizationGroup(
                 normalized, matchingMembers, group.exportHistoryRows());
         if (!needsChange(group)) {
-          result = addUnchanged(result, matchingMembers.size());
+          result = result.addUnchangedRows(matchingMembers.size());
           continue;
         }
         ContentCanonicalizationPlan plan = plan(group);
-        result = addPlan(result, plan);
+        result = result.addPlannedGroup(plan.merge(), plan.feedConflict());
         if (options.apply()) {
           try {
             ContentCanonicalizationMaintenanceRepository.MergeCounts counts =
                 repository.merge(plan);
-            result = addMergeCounts(result, counts);
+            result =
+                result.addMergedRows(
+                    counts.deletedHeaders(),
+                    counts.deletedFullTexts(),
+                    counts.deletedExportHistories());
             for (String id : plan.memberIds()) {
               ContentTextFileStore.DeleteResult fileResult = fileStore.deleteForHeaderId(id);
               result = addFileResult(result, fileResult);
@@ -181,80 +185,6 @@ public class ContentCanonicalizationMaintenanceService {
 
   private boolean blank(String value) {
     return value == null || value.isBlank();
-  }
-
-  private ContentCanonicalizationResult emptyResult() {
-    return new ContentCanonicalizationResult(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  }
-
-  private ContentCanonicalizationResult addScanned(ContentCanonicalizationResult r) {
-    return new ContentCanonicalizationResult(
-        r.scannedRows() + 1,
-        r.unchangedRows(),
-        r.renameGroups(),
-        r.mergeGroups(),
-        r.deletedContentHeaders(),
-        r.deletedFullTexts(),
-        r.deletedExportHistories(),
-        r.feedConflictGroups(),
-        r.processedGroups(),
-        r.deletedFiles(),
-        r.missingFiles(),
-        r.failedFiles(),
-        r.failedGroups());
-  }
-
-  private ContentCanonicalizationResult addUnchanged(ContentCanonicalizationResult r, int rows) {
-    return new ContentCanonicalizationResult(
-        r.scannedRows(),
-        r.unchangedRows() + rows,
-        r.renameGroups(),
-        r.mergeGroups(),
-        r.deletedContentHeaders(),
-        r.deletedFullTexts(),
-        r.deletedExportHistories(),
-        r.feedConflictGroups(),
-        r.processedGroups(),
-        r.deletedFiles(),
-        r.missingFiles(),
-        r.failedFiles(),
-        r.failedGroups());
-  }
-
-  private ContentCanonicalizationResult addPlan(
-      ContentCanonicalizationResult r, ContentCanonicalizationPlan plan) {
-    return new ContentCanonicalizationResult(
-        r.scannedRows(),
-        r.unchangedRows(),
-        r.renameGroups() + (plan.merge() ? 0 : 1),
-        r.mergeGroups() + (plan.merge() ? 1 : 0),
-        r.deletedContentHeaders(),
-        r.deletedFullTexts(),
-        r.deletedExportHistories(),
-        r.feedConflictGroups() + (plan.feedConflict() ? 1 : 0),
-        r.processedGroups() + 1,
-        r.deletedFiles(),
-        r.missingFiles(),
-        r.failedFiles(),
-        r.failedGroups());
-  }
-
-  private ContentCanonicalizationResult addMergeCounts(
-      ContentCanonicalizationResult r, ContentCanonicalizationMaintenanceRepository.MergeCounts c) {
-    return new ContentCanonicalizationResult(
-        r.scannedRows(),
-        r.unchangedRows(),
-        r.renameGroups(),
-        r.mergeGroups(),
-        r.deletedContentHeaders() + c.deletedHeaders(),
-        r.deletedFullTexts() + c.deletedFullTexts(),
-        r.deletedExportHistories() + c.deletedExportHistories(),
-        r.feedConflictGroups(),
-        r.processedGroups(),
-        r.deletedFiles(),
-        r.missingFiles(),
-        r.failedFiles(),
-        r.failedGroups());
   }
 
   private ContentCanonicalizationResult addFileResult(
