@@ -5,14 +5,14 @@
   ],
   "minimumReleaseAge": "3 days",
   "kubernetes": {
-    "fileMatch": [
+    "managerFilePatterns": [
       "/^k8s\\/.*\\.ya?ml$/"
     ]
   },
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": [
+      "managerFilePatterns": [
         "/^\\.env\\.example$/"
       ],
       "matchStrings": [
@@ -22,7 +22,7 @@
     },
     {
       "customType": "regex",
-      "fileMatch": [
+      "managerFilePatterns": [
         "/^docker\\/app\\/Dockerfile$/"
       ],
       "matchStrings": [
@@ -32,7 +32,7 @@
     },
     {
       "customType": "regex",
-      "fileMatch": [
+      "managerFilePatterns": [
         "/^ops\\/kubernetes\\/versions\\.env$/"
       ],
       "matchStrings": [
@@ -44,7 +44,7 @@
     },
     {
       "customType": "regex",
-      "fileMatch": [
+      "managerFilePatterns": [
         "/^ops\\/kubernetes\\/ci-tools\\.env$/"
       ],
       "matchStrings": [
@@ -55,7 +55,7 @@
     },
     {
       "customType": "regex",
-      "fileMatch": [
+      "managerFilePatterns": [
         "/^ops\\/kubernetes\\/ci-tools\\.env$/"
       ],
       "matchStrings": [
@@ -66,7 +66,7 @@
     },
     {
       "customType": "regex",
-      "fileMatch": [
+      "managerFilePatterns": [
         "/^ops\\/kubernetes\\/ci-tools\\.env$/"
       ],
       "matchStrings": [
