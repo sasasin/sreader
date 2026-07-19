@@ -348,19 +348,19 @@ docker compose run --rm maven mvn dependency:tree
 
 ## renovate.json を変更した場合の検証と修正
 
-`renovate.json` を変更した場合は、Renovate の公式 config validator を実行してください。ホストに Node.js を導入せず、repository root で Docker の `node:latest` image を使います。
+`renovate.json` を変更した場合は、Renovate の公式 config validator を実行してください。ホストに Node.js を導入せず、repository root で Docker の Node.js 24 系最新 `node:24` image を使います。
 
 ```sh
 docker run --rm \
   -v "$PWD:/workspace:ro" \
   -w /workspace \
-  node:latest \
+  node:24 \
   npx --yes --package renovate -- renovate-config-validator
 ```
 
 - `Config validated successfully` が出るまで、validator が報告する error / warning を `renovate.json` で修正して再実行すること。
 - 既存の `customManagers`、package rule、対象範囲を不用意に削除・置換しないこと。最小差分で修正すること。
-- Renovate のバージョンによって設定キーの互換性が変わる場合は、実行した公式 validator の診断を優先すること。たとえば validator が `managerFilePatterns` を拒否した場合は、同じ正規表現を `fileMatch` に移して再検証すること。
+- GitHub Actions workflow と同じ Node.js 24 系で validator を実行し、Renovate の migration warning も解消すること。custom manager と Kubernetes manager の file pattern は `managerFilePatterns` を使うこと。
 - npx の推移的依存関係に対する npm deprecation warning は、repository の Renovate 設定エラーとは区別すること。validator の設定診断を解消しても npm warning 自体を repository 側で抑止しようとしないこと。
 - 修正後は JSON syntax と whitespace も確認すること。
 
