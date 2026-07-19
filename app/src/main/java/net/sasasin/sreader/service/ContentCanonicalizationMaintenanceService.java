@@ -1,14 +1,5 @@
 package net.sasasin.sreader.service;
 
-import java.net.URI;
-import java.time.OffsetDateTime;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import net.sasasin.sreader.domain.ContentCanonicalizationGroup;
-import net.sasasin.sreader.domain.ContentCanonicalizationMember;
 import net.sasasin.sreader.domain.ContentCanonicalizationPlan;
 import net.sasasin.sreader.domain.ContentCanonicalizationResult;
 import net.sasasin.sreader.repository.ContentCanonicalizationMaintenanceRepository;
@@ -22,72 +13,52 @@ public class ContentCanonicalizationMaintenanceService {
   private static final Logger logger =
       LoggerFactory.getLogger(ContentCanonicalizationMaintenanceService.class);
 
-  private final ArticleUrlCanonicalizer canonicalizer;
-  private final ContentCanonicalizationMaintenanceRepository repository;
-  private final ContentTextFileStore fileStore;
+  private final ContentCanonicalizationCandidateScanner candidateScanner;
+  private final ContentCanonicalizationPlanner planner;
+  private final ContentCanonicalizationExecutor executor;
+  private final ContentCanonicalizationFileCleaner fileCleaner;
 
   public ContentCanonicalizationMaintenanceService(
       ArticleUrlCanonicalizer canonicalizer,
       ContentCanonicalizationMaintenanceRepository repository,
       ContentTextFileStore fileStore) {
-    this.canonicalizer = canonicalizer;
-    this.repository = repository;
-    this.fileStore = fileStore;
+    this.candidateScanner = new ContentCanonicalizationCandidateScanner(canonicalizer, repository);
+    this.planner = new ContentCanonicalizationPlanner();
+    this.executor = new ContentCanonicalizationExecutor(repository);
+    this.fileCleaner = new ContentCanonicalizationFileCleaner(fileStore);
   }
 
   public ContentCanonicalizationResult canonicalize(Options options) {
     ContentCanonicalizationResult result = ContentCanonicalizationResult.empty();
-    String after = null;
-    Set<String> processed = new HashSet<>();
+    ContentCanonicalizationCandidateScanner.Session scanner =
+        candidateScanner.start(options.host(), options.batchSize());
     while (options.limit() == null || result.processedGroups() < options.limit()) {
-      List<String> candidates =
-          repository.findCandidateCanonicalUrls(options.host(), after, options.batchSize());
-      if (candidates.isEmpty()) {
+      ContentCanonicalizationCandidateScanner.Page page = scanner.next();
+      if (page.isFinished()) {
         return result;
       }
-      after = candidates.getLast();
-      for (String candidate : candidates) {
+      for (int ignored = 0; ignored < page.scannedRows(); ignored++) {
         result = result.incrementScannedRows();
-        String normalized = canonicalizer.canonicalize(URI.create(candidate)).toString();
-        if (!processed.add(normalized)) {
+      }
+      for (ContentCanonicalizationCandidateScanner.GroupCandidate candidate : page.groups()) {
+        String normalized = candidate.normalizedUrl();
+        var group = candidate.group();
+        if (!planner.needsChange(group)) {
+          result = result.addUnchangedRows(group.members().size());
           continue;
         }
-        ContentCanonicalizationGroup group = repository.loadGroup(normalized);
-        List<ContentCanonicalizationMember> matchingMembers =
-            group.members().stream()
-                .filter(
-                    member ->
-                        canonicalizer
-                            .canonicalize(URI.create(member.canonicalUrl()))
-                            .toString()
-                            .equals(normalized))
-                .toList();
-        group =
-            new ContentCanonicalizationGroup(
-                normalized, matchingMembers, group.exportHistoryRows());
-        if (!needsChange(group)) {
-          result = result.addUnchangedRows(matchingMembers.size());
-          continue;
-        }
-        ContentCanonicalizationPlan plan = plan(group);
+        ContentCanonicalizationPlan plan = planner.plan(group);
         result = result.addPlannedGroup(plan.merge(), plan.feedConflict());
         if (options.apply()) {
           try {
             ContentCanonicalizationMaintenanceRepository.MergeCounts counts =
-                repository.merge(plan);
+                executor.execute(plan);
             result =
                 result.addMergedRows(
                     counts.deletedHeaders(),
                     counts.deletedFullTexts(),
                     counts.deletedExportHistories());
-            for (String id : plan.memberIds()) {
-              ContentTextFileStore.DeleteResult fileResult = fileStore.deleteForHeaderId(id);
-              result = addFileResult(result, fileResult);
-              if (fileResult.status() == ContentTextFileStore.Status.FAILED) {
-                logger.error(
-                    "Could not delete stale content text file for {}: {}", id, fileResult.error());
-              }
-            }
+            result = fileCleaner.clean(plan, result);
           } catch (RuntimeException e) {
             logger.error("Could not canonicalize group {}", normalized, e);
             result = result.withFailedGroup();
@@ -99,101 +70,6 @@ public class ContentCanonicalizationMaintenanceService {
       }
     }
     return result;
-  }
-
-  private boolean needsChange(ContentCanonicalizationGroup group) {
-    return group.members().size() > 1
-        || group.members().stream()
-            .anyMatch(member -> !member.canonicalUrl().equals(group.canonicalUrl()));
-  }
-
-  private ContentCanonicalizationPlan plan(ContentCanonicalizationGroup group) {
-    List<ContentCanonicalizationMember> members = group.members();
-    Comparator<ContentCanonicalizationMember> oldest =
-        Comparator.comparing(ContentCanonicalizationMember::createdAt)
-            .thenComparing(ContentCanonicalizationMember::id);
-    ContentCanonicalizationMember source =
-        members.stream()
-            .filter(member -> !member.sourceUrl().equals(group.canonicalUrl()))
-            .min(oldest)
-            .orElseGet(() -> members.stream().min(oldest).orElseThrow());
-    ContentCanonicalizationMember fetch =
-        members.stream()
-            .max(
-                Comparator.comparing(ContentCanonicalizationMember::updatedAt)
-                    .thenComparing(ContentCanonicalizationMember::createdAt)
-                    .thenComparing(ContentCanonicalizationMember::id))
-            .orElseThrow();
-    ContentCanonicalizationMember feed = members.stream().min(oldest).orElseThrow();
-    ContentCanonicalizationMember title =
-        members.stream()
-            .filter(member -> !blank(member.title()))
-            .max(
-                Comparator.comparing(ContentCanonicalizationMember::updatedAt)
-                    .thenComparing(ContentCanonicalizationMember::id))
-            .orElse(feed);
-    ContentCanonicalizationMember feedText =
-        members.stream()
-            .filter(member -> !blank(member.feedText()))
-            .max(
-                Comparator.comparingInt(
-                        (ContentCanonicalizationMember member) -> member.feedText().length())
-                    .thenComparing(ContentCanonicalizationMember::updatedAt)
-                    .thenComparing(ContentCanonicalizationMember::id))
-            .orElse(feed);
-    OffsetDateTime publishedAt =
-        members.stream()
-            .map(ContentCanonicalizationMember::publishedAt)
-            .filter(Objects::nonNull)
-            .min(OffsetDateTime::compareTo)
-            .orElse(null);
-    ContentCanonicalizationMember values =
-        new ContentCanonicalizationMember(
-            feed.id(),
-            feed.feedUrlId(),
-            source.sourceUrl(),
-            fetch.fetchUrl(),
-            group.canonicalUrl(),
-            title.title(),
-            publishedAt,
-            feedText.feedText(),
-            members.stream()
-                .map(ContentCanonicalizationMember::createdAt)
-                .min(OffsetDateTime::compareTo)
-                .orElseThrow(),
-            fetch.updatedAt(),
-            null,
-            null,
-            null,
-            null);
-    ContentCanonicalizationMember fullText =
-        members.stream()
-            .filter(member -> !blank(member.fullText()))
-            .max(
-                Comparator.comparingInt(
-                        (ContentCanonicalizationMember member) -> member.fullText().length())
-                    .thenComparing(ContentCanonicalizationMember::extractedAt)
-                    .thenComparing(
-                        ContentCanonicalizationMember::fullTextCreatedAt, Comparator.reverseOrder())
-                    .thenComparing(ContentCanonicalizationMember::fullTextId))
-            .orElse(null);
-    boolean feedConflict =
-        members.stream().map(ContentCanonicalizationMember::feedUrlId).distinct().count() > 1;
-    return new ContentCanonicalizationPlan(
-        group, values, fullText, HashIds.md5(group.canonicalUrl()), feedConflict);
-  }
-
-  private boolean blank(String value) {
-    return value == null || value.isBlank();
-  }
-
-  private ContentCanonicalizationResult addFileResult(
-      ContentCanonicalizationResult r, ContentTextFileStore.DeleteResult f) {
-    return switch (f.status()) {
-      case DELETED -> r.withFileResult(1, 0, 0);
-      case MISSING -> r.withFileResult(0, 1, 0);
-      case FAILED -> r.withFileResult(0, 0, 1);
-    };
   }
 
   public record Options(String host, int batchSize, Integer limit, boolean apply) {
