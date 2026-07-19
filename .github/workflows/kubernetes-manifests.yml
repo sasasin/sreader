@@ -27,6 +27,8 @@ jobs:
           fetch-depth: 0
       - name: Validate scripts and version policy
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           scripts/k8s/test-scripts.sh
@@ -54,6 +56,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Validate version files
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: scripts/k8s/test-scripts.sh
       - name: Install pinned Kubernetes CI tools
         run: scripts/k8s/install-ci-tools.sh
