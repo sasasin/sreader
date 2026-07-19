@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 public class FullTextProbeService {
 
   private final HttpFetchService httpFetchService;
-  private final PlaywrightHtmlSource playwrightHtmlSource;
+  private final ProbeDocumentFetcher documentFetcher;
   private final HtmlTextExtractor htmlTextExtractor;
   private final FeedDocumentService feedDocumentService;
   private final FeedEntryPicker feedEntryPicker;
@@ -33,7 +33,7 @@ public class FullTextProbeService {
       FeedEntryFullTextExtractor feedEntryFullTextExtractor,
       FeedReaderProperties properties) {
     this.httpFetchService = httpFetchService;
-    this.playwrightHtmlSource = playwrightHtmlSource;
+    this.documentFetcher = new ProbeDocumentFetcher(httpFetchService, playwrightHtmlSource);
     this.htmlTextExtractor = htmlTextExtractor;
     this.feedDocumentService = feedDocumentService;
     this.feedEntryPicker = feedEntryPicker;
@@ -49,38 +49,17 @@ public class FullTextProbeService {
     ExtractionPlan plan = ExtractionPlan.from(method);
     checkPlaywrightEnabled(plan);
 
-    URI finalUrl;
-    String html;
-    String usedUrlForExtract;
-
-    switch (plan.sourceKind()) {
-      case HTTP -> {
-        try {
-          HttpFetchService.FetchedResource res = httpFetchService.get(articleUrl);
-          finalUrl = res.uri();
-          html = res.body();
-          usedUrlForExtract = finalUrl.toString();
-        } catch (Exception e) {
-          if (e instanceof InterruptedException) {
-            Thread.currentThread().interrupt();
-          }
-          throw new RuntimeException("HTTP fetch failed for " + articleUrl, e);
-        }
-      }
-      case PLAYWRIGHT -> {
-        RenderedPage page = renderPage(articleUrl, plan);
-        finalUrl = page.finalUri() != null ? page.finalUri() : articleUrl;
-        html = page.html();
-        usedUrlForExtract = finalUrl.toString();
-      }
-      default ->
-          throw new IllegalStateException("Unexpected source for article: " + plan.sourceKind());
-    }
-
+    ProbeDocumentFetcher.FetchedProbeDocument document =
+        documentFetcher.fetch(articleUrl, plan, articleUrl.toString());
     String text =
-        htmlTextExtractor.extract(usedUrlForExtract, html, plan.extractorKind(), xpathOverride);
-    String title = extractTitleFromHtml(html);
-    return new ProbeResult(articleUrl, finalUrl, title, method, text == null ? "" : text);
+        htmlTextExtractor.extract(
+            document.finalUri().toString(), document.html(), plan.extractorKind(), xpathOverride);
+    return new ProbeResult(
+        articleUrl,
+        document.finalUri(),
+        extractTitleFromHtml(document.html()),
+        method,
+        text == null ? "" : text);
   }
 
   public ProbeResult probeFeed(
@@ -120,40 +99,15 @@ public class FullTextProbeService {
     if (entryLink == null) {
       throw new NoMatchingEntryException("Selected entry has no link for " + feedUrl);
     }
-    // recurse like, but to avoid stack use direct
     ExtractionPlan plan = ExtractionPlan.from(method);
     checkPlaywrightEnabled(plan);
-
-    URI finalUrl;
-    String html;
-    String usedUrl;
-
-    switch (plan.sourceKind()) {
-      case HTTP -> {
-        try {
-          HttpFetchService.FetchedResource res = httpFetchService.get(entryLink);
-          finalUrl = res.uri();
-          html = res.body();
-          usedUrl = finalUrl.toString();
-        } catch (Exception e) {
-          if (e instanceof InterruptedException) {
-            Thread.currentThread().interrupt();
-          }
-          throw new RuntimeException("HTTP fetch failed for entry " + entryLink, e);
-        }
-      }
-      case PLAYWRIGHT -> {
-        RenderedPage page = renderPage(entryLink, plan);
-        finalUrl = page.finalUri() != null ? page.finalUri() : entryLink;
-        html = page.html();
-        usedUrl = finalUrl.toString();
-      }
-      default -> throw new IllegalStateException("Unexpected for feed probe: " + plan.sourceKind());
-    }
-
-    String text = htmlTextExtractor.extract(usedUrl, html, plan.extractorKind(), xpathOverride);
-    String title = entryTitle != null ? entryTitle : extractTitleFromHtml(html);
-    return new ProbeResult(feedUrl, finalUrl, title, method, text == null ? "" : text);
+    ProbeDocumentFetcher.FetchedProbeDocument document =
+        documentFetcher.fetch(entryLink, plan, "entry " + entryLink);
+    String text =
+        htmlTextExtractor.extract(
+            document.finalUri().toString(), document.html(), plan.extractorKind(), xpathOverride);
+    String title = entryTitle != null ? entryTitle : extractTitleFromHtml(document.html());
+    return new ProbeResult(feedUrl, document.finalUri(), title, method, text == null ? "" : text);
   }
 
   private void checkPlaywrightEnabled(ExtractionPlan plan) {
@@ -161,14 +115,6 @@ public class FullTextProbeService {
         && !properties.playwright().enabled()) {
       throw new PlaywrightDisabledException(
           "Playwright is required for method but is disabled or misconfigured");
-    }
-  }
-
-  private RenderedPage renderPage(URI url, ExtractionPlan plan) {
-    try {
-      return playwrightHtmlSource.renderPage(url.toString(), plan.useInfyScroll());
-    } catch (IllegalStateException e) {
-      throw new PlaywrightDisabledException(e.getMessage());
     }
   }
 
