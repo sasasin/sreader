@@ -19,7 +19,10 @@ if [[ "$server_version" != "$K3S_VERSION" ]]; then
   exit 1
 fi
 kubectl wait --for=condition=Ready node --all --timeout=120s
-kubectl create namespace sreader --dry-run=client -o yaml | kubectl apply -f -
+# The namespace must exist for namespaced resources in the server-side dry-runs.
+# Create it without client-side apply metadata, which would otherwise conflict
+# with server-side apply's migration of last-applied-configuration.
+kubectl create namespace sreader
 for overlay in local home; do
   kubectl apply --server-side --dry-run=server --validate=strict -f "$manifest_dir/$overlay.yaml"
   echo "Server-side dry-run passed: $overlay"
