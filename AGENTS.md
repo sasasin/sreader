@@ -197,7 +197,7 @@ docker compose logs --tail=300 app | grep -i -E "scheduler|feed|job|sreader|erro
 手動実行 path が用意されている場合は、README の記載と一致するコマンドで実行してください。例:
 
 ```sh
-docker compose run --rm app java -jar /app/app.jar --sreader.scheduler.enabled=false --sreader.job.run-once=true
+docker compose run --rm app --sreader.scheduler.enabled=false run-once
 ```
 
 実際の jar path / option は現在の Dockerfile と README に合わせてください。

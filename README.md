@@ -230,8 +230,10 @@ docker compose run --rm -e SREADER_SCHEDULER_ENABLED=false app
 1 回だけ job を実行:
 
 ```sh
-docker compose run --rm app --sreader.scheduler.enabled=false --sreader.job.run-once=true
+docker compose run --rm app --sreader.scheduler.enabled=false run-once
 ```
+
+既存の `--sreader.job.run-once=true` も後方互換のため利用できます。
 
 ## 全文取得 method
 
