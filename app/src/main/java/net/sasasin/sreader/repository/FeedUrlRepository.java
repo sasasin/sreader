@@ -10,6 +10,7 @@ import net.sasasin.sreader.domain.FeedUrl;
 import net.sasasin.sreader.domain.FullTextMethod;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
+import org.jooq.Record;
 import org.jooq.impl.DSL;
 import org.springframework.stereotype.Repository;
 
@@ -34,16 +35,7 @@ public class FeedUrlRepository {
         .from(FEED_URL)
         .where(FEED_URL.STATUS.eq(FeedStatus.ACTIVE.value()))
         .orderBy(FEED_URL.URL)
-        .fetch(
-            record ->
-                new FeedUrl(
-                    record.get(FEED_URL.ID),
-                    record.get(FEED_URL.URL),
-                    record.get(FEED_URL.STATUS),
-                    record.get(FEED_URL.UNSUBSCRIBE_REASON),
-                    record.get(FEED_URL.UNSUBSCRIBED_AT),
-                    record.get(FEED_URL.NOTE),
-                    toFullTextMethod(record.get(FEED_URL.FULL_TEXT_METHOD))));
+        .fetch(this::mapFeedUrl);
   }
 
   public List<FeedUrl> findAllForExport(boolean activeOnly) {
@@ -60,16 +52,7 @@ public class FeedUrlRepository {
         .from(FEED_URL)
         .where(condition)
         .orderBy(FEED_URL.URL)
-        .fetch(
-            record ->
-                new FeedUrl(
-                    record.get(FEED_URL.ID),
-                    record.get(FEED_URL.URL),
-                    record.get(FEED_URL.STATUS),
-                    record.get(FEED_URL.UNSUBSCRIBE_REASON),
-                    record.get(FEED_URL.UNSUBSCRIBED_AT),
-                    record.get(FEED_URL.NOTE),
-                    toFullTextMethod(record.get(FEED_URL.FULL_TEXT_METHOD))));
+        .fetch(this::mapFeedUrl);
   }
 
   public Optional<FeedUrl> findByUrl(String url) {
@@ -83,16 +66,7 @@ public class FeedUrlRepository {
             FEED_URL.FULL_TEXT_METHOD)
         .from(FEED_URL)
         .where(FEED_URL.URL.eq(url))
-        .fetchOptional(
-            record ->
-                new FeedUrl(
-                    record.get(FEED_URL.ID),
-                    record.get(FEED_URL.URL),
-                    record.get(FEED_URL.STATUS),
-                    record.get(FEED_URL.UNSUBSCRIBE_REASON),
-                    record.get(FEED_URL.UNSUBSCRIBED_AT),
-                    record.get(FEED_URL.NOTE),
-                    toFullTextMethod(record.get(FEED_URL.FULL_TEXT_METHOD))));
+        .fetchOptional(this::mapFeedUrl);
   }
 
   public boolean insertIfAbsent(String id, String url) {
@@ -171,5 +145,16 @@ public class FeedUrlRepository {
 
   private FullTextMethod toFullTextMethod(String value) {
     return value == null ? FullTextMethod.HTTP : FullTextMethod.fromValue(value);
+  }
+
+  private FeedUrl mapFeedUrl(Record record) {
+    return new FeedUrl(
+        record.get(FEED_URL.ID),
+        record.get(FEED_URL.URL),
+        record.get(FEED_URL.STATUS),
+        record.get(FEED_URL.UNSUBSCRIBE_REASON),
+        record.get(FEED_URL.UNSUBSCRIBED_AT),
+        record.get(FEED_URL.NOTE),
+        toFullTextMethod(record.get(FEED_URL.FULL_TEXT_METHOD)));
   }
 }
