@@ -36,4 +36,24 @@ jobs:
           node-version: 24.13.0
 
       - name: Validate renovate.json
-        run: npx --yes --package renovate -- renovate-config-validator
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          validator_output="$(mktemp)"
+          trap 'rm -f "$validator_output"' EXIT
+
+          set +e
+          npx --yes --package renovate -- renovate-config-validator 2>&1 | tee "$validator_output"
+          validator_status="${PIPESTATUS[0]}"
+          set -e
+
+          if [[ "$validator_status" -ne 0 ]]; then
+            echo "::error::Renovate config validator failed with exit code $validator_status"
+            exit "$validator_status"
+          fi
+
+          if grep -Eq '^[[:space:]]*(WARN|ERROR):' "$validator_output"; then
+            echo "::error::Renovate config validator reported a warning or error"
+            exit 1
+          fi
