@@ -10,10 +10,14 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class FeedDiscoveryService {
+
+  private static final Logger logger = LoggerFactory.getLogger(FeedDiscoveryService.class);
 
   private final PlaywrightHtmlSource playwrightHtmlSource;
 
@@ -50,15 +54,16 @@ public class FeedDiscoveryService {
         // absUrl may fail if no base, fallback
         try {
           href = siteUrl.resolve(href).toString();
-        } catch (Exception ignored) {
+        } catch (IllegalArgumentException e) {
+          logger.debug("Skipping feed link with unresolved href {} from {}", href, siteUrl, e);
           continue;
         }
       }
       if (seen.add(href)) {
         try {
           results.add(URI.create(href));
-        } catch (IllegalArgumentException ignored) {
-          // skip bad
+        } catch (IllegalArgumentException e) {
+          logger.debug("Skipping invalid discovered feed URL {} from {}", href, siteUrl, e);
         }
       }
     }
