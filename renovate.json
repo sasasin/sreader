@@ -4,6 +4,11 @@
     "config:recommended"
   ],
   "minimumReleaseAge": "3 days",
+  "kubernetes": {
+    "managerFilePatterns": [
+      "/^k8s\\/.*\\.ya?ml$/"
+    ]
+  },
   "customManagers": [
     {
       "customType": "regex",
@@ -24,6 +29,77 @@
         "(?<depName>org\\.codehaus\\.mojo:exec-maven-plugin):(?<currentValue>[^:]+):java"
       ],
       "datasourceTemplate": "maven"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^ops\\/kubernetes\\/versions\\.env$/"
+      ],
+      "matchStrings": [
+        "K3S_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+\\+k3s\\d+)"
+      ],
+      "depNameTemplate": "k3s-io/k3s",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\+k3s(?<build>\\d+)$"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^ops\\/kubernetes\\/ci-tools\\.env$/"
+      ],
+      "matchStrings": [
+        "KUBECONFORM_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "yannh/kubeconform",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^ops\\/kubernetes\\/ci-tools\\.env$/"
+      ],
+      "matchStrings": [
+        "PLUTO_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "FairwindsOps/pluto",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^ops\\/kubernetes\\/ci-tools\\.env$/"
+      ],
+      "matchStrings": [
+        "K3D_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "k3d-io/k3d",
+      "datasourceTemplate": "github-releases"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": ["k3s-io/k3s"],
+      "groupName": "K3s version (CI required)",
+      "minimumReleaseAge": "7 days",
+      "automerge": false,
+      "ignoreUnstable": true
+    },
+    {
+      "matchDatasources": ["kubernetes-api"],
+      "groupName": "Kubernetes API migrations",
+      "automerge": false
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/sasasin/sreader"],
+      "enabled": false
+    },
+    {
+      "matchPackageNames": ["yannh/kubeconform", "FairwindsOps/pluto", "k3d-io/k3d"],
+      "groupName": "Kubernetes CI tools",
+      "minimumReleaseAge": "3 days",
+      "automerge": false,
+      "ignoreUnstable": true
     }
   ]
 }

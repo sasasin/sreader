@@ -1,0 +1,61 @@
+name: Kubernetes manifests
+
+on:
+  pull_request:
+    paths: ['k8s/**', 'ops/kubernetes/**', 'scripts/k8s/**', 'renovate.json', '.github/workflows/kubernetes-manifests.yml', 'AGENTS.md', 'README.md']
+  push:
+    branches: [master]
+    paths: ['k8s/**', 'ops/kubernetes/**', 'scripts/k8s/**', 'renovate.json', '.github/workflows/kubernetes-manifests.yml', 'AGENTS.md', 'README.md']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kubernetes-manifests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-validation:
+    name: Kubernetes manifest static validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Validate scripts and version policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts/k8s/test-scripts.sh
+          if [[ "${{ github.event_name }}" == pull_request ]]; then
+            base_file="$(mktemp)"
+            trap 'rm -f "$base_file"' EXIT
+            if git show "origin/${{ github.base_ref }}:ops/kubernetes/versions.env" > "$base_file" 2>/dev/null; then
+              scripts/k8s/check-upgrade-step.sh ops/kubernetes/versions.env "$base_file"
+            else
+              scripts/k8s/check-upgrade-step.sh ops/kubernetes/versions.env
+            fi
+          else
+            scripts/k8s/check-upgrade-step.sh ops/kubernetes/versions.env
+          fi
+      - name: Install pinned Kubernetes CI tools
+        run: scripts/k8s/install-ci-tools.sh
+      - name: Render and statically validate manifests
+        run: scripts/k8s/validate-static.sh
+  target-k3s-validation:
+    name: Kubernetes manifest target k3s validation
+    needs: static-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Validate version files
+        run: scripts/k8s/test-scripts.sh
+      - name: Install pinned Kubernetes CI tools
+        run: scripts/k8s/install-ci-tools.sh
+      - name: Validate manifests against target k3s API server
+        run: scripts/k8s/validate-target-k3s.sh
