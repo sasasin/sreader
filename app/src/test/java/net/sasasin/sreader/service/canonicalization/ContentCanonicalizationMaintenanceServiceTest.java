@@ -21,7 +21,7 @@ import net.sasasin.sreader.domain.ContentCanonicalizationResult.FileSummary;
 import net.sasasin.sreader.domain.ContentCanonicalizationResult.GroupSummary;
 import net.sasasin.sreader.domain.ContentCanonicalizationResult.ScanSummary;
 import net.sasasin.sreader.repository.ContentCanonicalizationMaintenanceRepository;
-import net.sasasin.sreader.service.article.ArticleUrlCanonicalizer;
+import net.sasasin.sreader.service.article.ArticleUrlCanonicalizerFixtures;
 import net.sasasin.sreader.service.text.ContentTextFileStore;
 import org.junit.jupiter.api.Test;
 
@@ -31,7 +31,9 @@ class ContentCanonicalizationMaintenanceServiceTest {
   private final ContentTextFileStore fileStore = mock();
   private final ContentCanonicalizationMaintenanceService service =
       new ContentCanonicalizationMaintenanceService(
-          new ArticleUrlCanonicalizer("canonicalization.test", "/n/"), repository, fileStore);
+          ArticleUrlCanonicalizerFixtures.configuredFor("canonicalization.test", "/n/"),
+          repository,
+          fileStore);
 
   @Test
   void dryRunPlansSyntheticMergeWithoutChangingDatabaseOrFiles() {

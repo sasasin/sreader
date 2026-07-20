@@ -13,7 +13,7 @@ import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FeedUrl;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.repository.ContentHeaderRepository;
-import net.sasasin.sreader.service.article.ArticleUrlCanonicalizer;
+import net.sasasin.sreader.service.article.ArticleUrlCanonicalizerFixtures;
 import net.sasasin.sreader.service.article.HashIds;
 import net.sasasin.sreader.service.extraction.ContentFullTextWriteOutcome;
 import net.sasasin.sreader.service.extraction.ContentFullTextWriter;
@@ -87,7 +87,11 @@ class FeedEntryImportServiceTest {
     ContentFullTextWriter writer = mock(ContentFullTextWriter.class);
     FeedEntryImportService service =
         new FeedEntryImportService(
-            http, new ArticleUrlCanonicalizer(), repository, extractor, writer);
+            http,
+            ArticleUrlCanonicalizerFixtures.configuredFor("example.test", "/n/"),
+            repository,
+            extractor,
+            writer);
     URI feed = URI.create("https://example.test/rss.xml");
     URI article = URI.create("https://example.test/article");
     when(http.get(feed))
@@ -171,7 +175,7 @@ class FeedEntryImportServiceTest {
       HttpFetchService http, ContentHeaderRepository repository) {
     return new FeedEntryImportService(
         http,
-        new ArticleUrlCanonicalizer("publisher.example.test", "/articles/"),
+        ArticleUrlCanonicalizerFixtures.configuredFor("publisher.example.test", "/articles/"),
         repository,
         mock(FeedEntryFullTextExtractor.class),
         mock(ContentFullTextWriter.class));

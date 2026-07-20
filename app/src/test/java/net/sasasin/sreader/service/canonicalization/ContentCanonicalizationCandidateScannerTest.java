@@ -12,7 +12,7 @@ import net.sasasin.sreader.domain.ContentCanonicalizationCandidate;
 import net.sasasin.sreader.domain.ContentCanonicalizationGroup;
 import net.sasasin.sreader.domain.ContentCanonicalizationHeader;
 import net.sasasin.sreader.repository.ContentCanonicalizationMaintenanceRepository;
-import net.sasasin.sreader.service.article.ArticleUrlCanonicalizer;
+import net.sasasin.sreader.service.article.ArticleUrlCanonicalizerFixtures;
 import org.junit.jupiter.api.Test;
 
 class ContentCanonicalizationCandidateScannerTest {
@@ -20,7 +20,7 @@ class ContentCanonicalizationCandidateScannerTest {
   private final ContentCanonicalizationMaintenanceRepository repository = mock();
   private final ContentCanonicalizationCandidateScanner scanner =
       new ContentCanonicalizationCandidateScanner(
-          new ArticleUrlCanonicalizer("example.test", "/n/"), repository);
+          ArticleUrlCanonicalizerFixtures.configuredFor("example.test", "/n/"), repository);
 
   @Test
   void advancesByRawCandidateAndEmitsNormalizedGroupOnlyOnce() {

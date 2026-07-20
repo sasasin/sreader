@@ -17,7 +17,7 @@ public class ArticleUrlCanonicalizer {
     this(COMEMO_HOST, COMEMO_ARTICLE_PATH_PREFIX);
   }
 
-  public ArticleUrlCanonicalizer(String canonicalizableHost, String canonicalizablePathPrefix) {
+  ArticleUrlCanonicalizer(String canonicalizableHost, String canonicalizablePathPrefix) {
     this.canonicalizableHost = canonicalizableHost;
     this.canonicalizablePathPrefix = canonicalizablePathPrefix;
   }
