@@ -1,7 +1,5 @@
 package net.sasasin.sreader.cli;
 
-import java.net.URI;
-import java.util.Optional;
 import java.util.concurrent.Callable;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.service.probe.FullTextProbeService;
@@ -76,18 +74,12 @@ public class ProbeArticleCommand implements Callable<Integer> {
   @Override
   public Integer call() {
     try {
-      URI uri = UrlValidator.validateHttpUrl(url, "--url", spec);
+      ProbeArticleCliRequest request =
+          ProbeArticleCliRequest.create(spec, url, method, xpath, verbose, output, maxChars);
 
-      if (!method.supportsArticleProbe()) {
-        throw new picocli.CommandLine.ParameterException(
-            spec.commandLine(), "--method feed is not valid for 'probe article'");
-      }
-
-      Optional<String> xp =
-          (xpath != null && !xpath.isBlank()) ? Optional.of(xpath) : Optional.empty();
-
-      ProbeOutcome outcome = fullTextProbeService.probeArticle(uri, method, xp);
-      return mapOutcome(outcome);
+      ProbeOutcome outcome =
+          fullTextProbeService.probeArticle(request.url(), request.method(), request.xpath());
+      return mapOutcome(outcome, request);
     } catch (picocli.CommandLine.ParameterException pe) {
       throw pe;
     } catch (RuntimeException e) {
@@ -96,13 +88,18 @@ public class ProbeArticleCommand implements Callable<Integer> {
     }
   }
 
-  private int mapOutcome(ProbeOutcome outcome) {
+  private int mapOutcome(ProbeOutcome outcome, ProbeArticleCliRequest request) {
     ProbeOutputWriter writer = new ProbeOutputWriter(spec);
     return switch (outcome) {
       case ProbeOutcome.Succeeded succeeded ->
-          writer.writeSucceeded(succeeded.document(), succeeded.text(), verbose, output, maxChars);
+          writer.writeSucceeded(
+              succeeded.document(),
+              succeeded.text(),
+              request.verbose(),
+              request.output().orElse(null),
+              request.maxChars().orElse(null));
       case ProbeOutcome.NoContent noContent -> {
-        if (verbose) {
+        if (request.verbose()) {
           writer.writeNoContentDiagnostics(noContent.document());
         }
         yield CliExitCodes.EMPTY_RESULT;

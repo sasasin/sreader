@@ -191,6 +191,39 @@ class ProbeArticleCommandTest {
   }
 
   @Test
+  void interruptedFailureRestoresInterruptFlagAndReturnsOne() {
+    FullTextProbeService service = mock(FullTextProbeService.class);
+    when(service.probeArticle(any(), any(), any()))
+        .thenReturn(
+            new ProbeOutcome.Failed(
+                OperationFailure.of(
+                    FailureStage.FETCH_ARTICLE,
+                    FailureKind.INTERRUPTED,
+                    "https://x",
+                    "interrupted")));
+    Harness harness = harness(service);
+    Thread.interrupted(); // clear any previous flag
+    try {
+      assertThat(harness.execute()).isEqualTo(1);
+      assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      assertThat(harness.stderr()).contains("Error: interrupted");
+    } finally {
+      Thread.interrupted(); // clear for other tests
+    }
+  }
+
+  @Test
+  void noMatchingEntryMapsToExitThree() {
+    FullTextProbeService service = mock(FullTextProbeService.class);
+    when(service.probeArticle(any(), any(), any()))
+        .thenReturn(new ProbeOutcome.NoMatchingEntry("none"));
+    Harness harness = harness(service);
+
+    assertThat(harness.execute()).isEqualTo(3);
+    assertThat(harness.stderr()).contains("No matching feed entry: none");
+  }
+
+  @Test
   void genericRuntimeExceptionMapsToExitOneWithErrorPrefix() {
     FullTextProbeService service = mock(FullTextProbeService.class);
     when(service.probeArticle(any(), any(), any())).thenThrow(new RuntimeException("boom"));

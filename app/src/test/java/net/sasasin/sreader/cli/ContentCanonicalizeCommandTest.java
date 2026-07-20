@@ -4,10 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import net.sasasin.sreader.domain.ContentCanonicalizationResult;
 import net.sasasin.sreader.domain.ContentCanonicalizationResult.DatabaseSummary;
@@ -55,6 +57,27 @@ class ContentCanonicalizeCommandTest {
             "missing_files=0",
             "failed_files=0",
             "failed_groups=0");
+  }
+
+  @Test
+  void explicitDryRunUsesDryRunMode() {
+    ContentCanonicalizationMaintenanceService service = mock();
+    when(service.canonicalize(any())).thenReturn(ContentCanonicalizationResult.empty());
+    CommandLine cli = new CommandLine(new ContentCanonicalizeCommand(service));
+
+    ByteArrayOutputStream captured = new ByteArrayOutputStream();
+    PrintStream originalOut = System.out;
+    System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+    try {
+      assertThat(cli.execute("--dry-run")).isZero();
+    } finally {
+      System.setOut(originalOut);
+    }
+
+    verify(service)
+        .canonicalize(
+            new ContentCanonicalizationMaintenanceService.Options(null, 100, null, false));
+    assertThat(captured.toString(StandardCharsets.UTF_8)).contains("mode=dry-run");
   }
 
   @Test
@@ -108,13 +131,61 @@ class ContentCanonicalizeCommandTest {
   }
 
   @Test
-  void rejectsConflictingModesAndInvalidNumbers() {
+  void rejectsConflictingModesWithoutCallingService() {
+    ContentCanonicalizationMaintenanceService service = mock();
+    ByteArrayOutputStream err = new ByteArrayOutputStream();
+    CommandLine applyThenDryRun = new CommandLine(new ContentCanonicalizeCommand(service));
+    applyThenDryRun.setErr(new PrintWriter(err, true, StandardCharsets.UTF_8));
+    assertThat(applyThenDryRun.execute("--apply", "--dry-run")).isEqualTo(2);
+    assertThat(err.toString(StandardCharsets.UTF_8))
+        .containsIgnoringCase("mutually exclusive")
+        .contains("--apply")
+        .contains("--dry-run");
+    verifyNoInteractions(service);
+
+    ByteArrayOutputStream err2 = new ByteArrayOutputStream();
+    CommandLine dryRunThenApply = new CommandLine(new ContentCanonicalizeCommand(service));
+    dryRunThenApply.setErr(new PrintWriter(err2, true, StandardCharsets.UTF_8));
+    assertThat(dryRunThenApply.execute("--dry-run", "--apply")).isEqualTo(2);
+    assertThat(err2.toString(StandardCharsets.UTF_8))
+        .containsIgnoringCase("mutually exclusive")
+        .contains("--apply")
+        .contains("--dry-run");
+    verifyNoInteractions(service);
+  }
+
+  @Test
+  void invalidNumbersRemainExecutionErrors() {
     ContentCanonicalizationMaintenanceService service = mock();
     CommandLine cli = new CommandLine(new ContentCanonicalizeCommand(service));
 
-    assertThat(cli.execute("--apply", "--dry-run")).isEqualTo(2);
     assertThat(cli.execute("--batch-size", "0")).isEqualTo(1);
     assertThat(cli.execute("--limit", "0")).isEqualTo(1);
+  }
+
+  @Test
+  void executionModeOptionsDefensiveInvariantRejectsBothFlags() {
+    ContentCanonicalizeCommand.ExecutionModeOptions options =
+        new ContentCanonicalizeCommand.ExecutionModeOptions();
+    options.dryRun = true;
+    options.apply = true;
+    org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, options::mode);
+  }
+
+  @Test
+  void helpShowsExecutionModeGroup() {
+    ContentCanonicalizationMaintenanceService service = mock();
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    CommandLine cli = new CommandLine(new ContentCanonicalizeCommand(service));
+    cli.setOut(new PrintWriter(out, true, StandardCharsets.UTF_8));
+
+    assertThat(cli.execute("--help")).isZero();
+    String help = out.toString(StandardCharsets.UTF_8);
+    assertThat(help).contains("Execution mode:");
+    assertThat(help).contains("--dry-run");
+    assertThat(help).contains("--apply");
+    // Flat Options section must not also list the group members a second time as root options.
+    assertThat(help).doesNotContain("Options:\n  --dry-run");
   }
 
   private ContentCanonicalizationResult result() {

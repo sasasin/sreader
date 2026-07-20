@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import net.sasasin.sreader.scheduler.FeedReaderScheduler;
+import net.sasasin.sreader.service.canonicalization.ContentCanonicalizationMaintenanceService;
 import net.sasasin.sreader.service.feed.FeedDiscoveryService;
 import net.sasasin.sreader.service.feed.toml.FeedTomlService;
 import net.sasasin.sreader.service.probe.FullTextProbeService;
@@ -40,19 +42,110 @@ class SreaderCliExecutorTest {
     assertEquals(1, executor(scheduler).execute("run-once"));
   }
 
+  @Test
+  void contentCanonicalizeModeConflictIsUsageErrorWithoutCallingService() {
+    ContentCanonicalizationMaintenanceService maintenance = mock();
+    FullTextProbeService probe = mock();
+    SreaderCliExecutor executor = executor(mock(FeedReaderScheduler.class), maintenance, probe);
+
+    assertEquals(2, executor.execute("content", "canonicalize", "--dry-run", "--apply"));
+    verifyNoInteractions(maintenance);
+  }
+
+  @Test
+  void probeFeedSelectorConflictIsUsageErrorWithoutCallingService() {
+    FullTextProbeService probe = mock();
+    SreaderCliExecutor executor =
+        executor(
+            mock(FeedReaderScheduler.class),
+            mock(ContentCanonicalizationMaintenanceService.class),
+            probe);
+
+    assertEquals(
+        2,
+        executor.execute(
+            "probe",
+            "feed",
+            "--feed-url",
+            "https://example.com/feed.xml",
+            "--method",
+            "http",
+            "--entry",
+            "first",
+            "--entry-index",
+            "0"));
+    verifyNoInteractions(probe);
+  }
+
+  @Test
+  void probeFeedInvalidSelectorConversionIsUsageErrorWithoutCallingService() {
+    FullTextProbeService probe = mock();
+    SreaderCliExecutor executor =
+        executor(
+            mock(FeedReaderScheduler.class),
+            mock(ContentCanonicalizationMaintenanceService.class),
+            probe);
+
+    assertEquals(
+        2,
+        executor.execute(
+            "probe",
+            "feed",
+            "--feed-url",
+            "https://example.com/feed.xml",
+            "--method",
+            "http",
+            "--entry",
+            "newest"));
+    verifyNoInteractions(probe);
+  }
+
+  @Test
+  void probeArticleFeedMethodIsUsageErrorWithoutCallingService() {
+    FullTextProbeService probe = mock();
+    SreaderCliExecutor executor =
+        executor(
+            mock(FeedReaderScheduler.class),
+            mock(ContentCanonicalizationMaintenanceService.class),
+            probe);
+
+    assertEquals(
+        2,
+        executor.execute("probe", "article", "--url", "https://example.com/a", "--method", "feed"));
+    verifyNoInteractions(probe);
+  }
+
   private SreaderCliExecutor executor(FeedReaderScheduler scheduler) {
-    return new SreaderCliExecutor(new SreaderCommand(), new TestPicocliFactory(scheduler));
+    return executor(
+        scheduler,
+        mock(ContentCanonicalizationMaintenanceService.class),
+        mock(FullTextProbeService.class));
+  }
+
+  private SreaderCliExecutor executor(
+      FeedReaderScheduler scheduler,
+      ContentCanonicalizationMaintenanceService maintenanceService,
+      FullTextProbeService fullTextProbeService) {
+    return new SreaderCliExecutor(
+        new SreaderCommand(),
+        new TestPicocliFactory(scheduler, maintenanceService, fullTextProbeService));
   }
 
   private static final class TestPicocliFactory extends PicocliFactory {
     private final FeedReaderScheduler scheduler;
+    private final ContentCanonicalizationMaintenanceService maintenanceService;
+    private final FullTextProbeService fullTextProbeService;
     private final FeedTomlService feedTomlService = mock(FeedTomlService.class);
     private final FeedDiscoveryService feedDiscoveryService = mock(FeedDiscoveryService.class);
-    private final FullTextProbeService fullTextProbeService = mock(FullTextProbeService.class);
 
-    TestPicocliFactory(FeedReaderScheduler scheduler) {
+    TestPicocliFactory(
+        FeedReaderScheduler scheduler,
+        ContentCanonicalizationMaintenanceService maintenanceService,
+        FullTextProbeService fullTextProbeService) {
       super(null);
       this.scheduler = scheduler;
+      this.maintenanceService = maintenanceService;
+      this.fullTextProbeService = fullTextProbeService;
     }
 
     @Override
@@ -68,6 +161,12 @@ class SreaderCliExecutorTest {
       }
       if (cls == ProbeFeedCommand.class) {
         return cls.cast(new ProbeFeedCommand(fullTextProbeService));
+      }
+      if (cls == ContentCommand.class) {
+        return cls.cast(new ContentCommand());
+      }
+      if (cls == ContentCanonicalizeCommand.class) {
+        return cls.cast(new ContentCanonicalizeCommand(maintenanceService));
       }
       if (cls == FeedsDiscoverCommand.class) {
         return cls.cast(new FeedsDiscoverCommand(feedDiscoveryService));
