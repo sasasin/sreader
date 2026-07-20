@@ -1,128 +1,88 @@
 package net.sasasin.sreader.domain;
 
+import java.util.Objects;
+
+/**
+ * Immutable snapshot of a canonicalization run, grouped by scan / group / database / file counters.
+ */
 public record ContentCanonicalizationResult(
-    int scannedRows,
-    int unchangedRows,
-    int renameGroups,
-    int mergeGroups,
-    int deletedContentHeaders,
-    int deletedFullTexts,
-    int deletedExportHistories,
-    int feedConflictGroups,
-    int processedGroups,
-    int deletedFiles,
-    int missingFiles,
-    int failedFiles,
-    int failedGroups) {
+    ScanSummary scan, GroupSummary groups, DatabaseSummary database, FileSummary files) {
+
+  public ContentCanonicalizationResult {
+    Objects.requireNonNull(scan, "scan must not be null");
+    Objects.requireNonNull(groups, "groups must not be null");
+    Objects.requireNonNull(database, "database must not be null");
+    Objects.requireNonNull(files, "files must not be null");
+  }
 
   public static ContentCanonicalizationResult empty() {
-    return new ContentCanonicalizationResult(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  }
-
-  public ContentCanonicalizationResult incrementScannedRows() {
     return new ContentCanonicalizationResult(
-        scannedRows + 1,
-        unchangedRows,
-        renameGroups,
-        mergeGroups,
-        deletedContentHeaders,
-        deletedFullTexts,
-        deletedExportHistories,
-        feedConflictGroups,
-        processedGroups,
-        deletedFiles,
-        missingFiles,
-        failedFiles,
-        failedGroups);
-  }
-
-  public ContentCanonicalizationResult addUnchangedRows(int rows) {
-    return new ContentCanonicalizationResult(
-        scannedRows,
-        unchangedRows + rows,
-        renameGroups,
-        mergeGroups,
-        deletedContentHeaders,
-        deletedFullTexts,
-        deletedExportHistories,
-        feedConflictGroups,
-        processedGroups,
-        deletedFiles,
-        missingFiles,
-        failedFiles,
-        failedGroups);
-  }
-
-  public ContentCanonicalizationResult addPlannedGroup(boolean merge, boolean feedConflict) {
-    return new ContentCanonicalizationResult(
-        scannedRows,
-        unchangedRows,
-        renameGroups + (merge ? 0 : 1),
-        mergeGroups + (merge ? 1 : 0),
-        deletedContentHeaders,
-        deletedFullTexts,
-        deletedExportHistories,
-        feedConflictGroups + (feedConflict ? 1 : 0),
-        processedGroups + 1,
-        deletedFiles,
-        missingFiles,
-        failedFiles,
-        failedGroups);
-  }
-
-  public ContentCanonicalizationResult addMergedRows(
-      int headers, int fullTexts, int exportHistories) {
-    return new ContentCanonicalizationResult(
-        scannedRows,
-        unchangedRows,
-        renameGroups,
-        mergeGroups,
-        deletedContentHeaders + headers,
-        deletedFullTexts + fullTexts,
-        deletedExportHistories + exportHistories,
-        feedConflictGroups,
-        processedGroups,
-        deletedFiles,
-        missingFiles,
-        failedFiles,
-        failedGroups);
-  }
-
-  public ContentCanonicalizationResult withFileResult(int deleted, int missing, int failed) {
-    return new ContentCanonicalizationResult(
-        scannedRows,
-        unchangedRows,
-        renameGroups,
-        mergeGroups,
-        deletedContentHeaders,
-        deletedFullTexts,
-        deletedExportHistories,
-        feedConflictGroups,
-        processedGroups,
-        deletedFiles + deleted,
-        missingFiles + missing,
-        failedFiles + failed,
-        failedGroups);
-  }
-
-  public ContentCanonicalizationResult withFailedGroup() {
-    return new ContentCanonicalizationResult(
-        scannedRows,
-        unchangedRows,
-        renameGroups,
-        mergeGroups,
-        deletedContentHeaders,
-        deletedFullTexts,
-        deletedExportHistories,
-        feedConflictGroups,
-        processedGroups,
-        deletedFiles,
-        missingFiles,
-        failedFiles,
-        failedGroups + 1);
+        ScanSummary.empty(), GroupSummary.empty(), DatabaseSummary.empty(), FileSummary.empty());
   }
 
   public boolean hasFailures() {
-    return failedFiles > 0 || failedGroups > 0;
+    return groups.failedGroups() > 0 || files.failedFiles() > 0;
+  }
+
+  public record ScanSummary(int scannedRows, int unchangedRows) {
+    public ScanSummary {
+      scannedRows = requireNonNegative("scannedRows", scannedRows);
+      unchangedRows = requireNonNegative("unchangedRows", unchangedRows);
+    }
+
+    public static ScanSummary empty() {
+      return new ScanSummary(0, 0);
+    }
+  }
+
+  public record GroupSummary(
+      int renameGroups, int mergeGroups, int feedConflictGroups, int failedGroups) {
+    public GroupSummary {
+      renameGroups = requireNonNegative("renameGroups", renameGroups);
+      mergeGroups = requireNonNegative("mergeGroups", mergeGroups);
+      feedConflictGroups = requireNonNegative("feedConflictGroups", feedConflictGroups);
+      failedGroups = requireNonNegative("failedGroups", failedGroups);
+    }
+
+    public static GroupSummary empty() {
+      return new GroupSummary(0, 0, 0, 0);
+    }
+
+    /** Changed groups that were planned (rename or merge). Not a stored counter. */
+    public int processedGroups() {
+      return renameGroups + mergeGroups;
+    }
+  }
+
+  public record DatabaseSummary(
+      int deletedContentHeaders, int deletedFullTexts, int deletedExportHistories) {
+    public DatabaseSummary {
+      deletedContentHeaders = requireNonNegative("deletedContentHeaders", deletedContentHeaders);
+      deletedFullTexts = requireNonNegative("deletedFullTexts", deletedFullTexts);
+      deletedExportHistories = requireNonNegative("deletedExportHistories", deletedExportHistories);
+    }
+
+    public static DatabaseSummary empty() {
+      return new DatabaseSummary(0, 0, 0);
+    }
+  }
+
+  public record FileSummary(int deletedFiles, int missingFiles, int failedFiles) {
+    public FileSummary {
+      deletedFiles = requireNonNegative("deletedFiles", deletedFiles);
+      missingFiles = requireNonNegative("missingFiles", missingFiles);
+      failedFiles = requireNonNegative("failedFiles", failedFiles);
+    }
+
+    public static FileSummary empty() {
+      return new FileSummary(0, 0, 0);
+    }
+  }
+
+  private static int requireNonNegative(String name, int value) {
+    if (value < 0) {
+      throw new IllegalArgumentException(name + " must be non-negative: " + value);
+    }
+    return value;
   }
 }
