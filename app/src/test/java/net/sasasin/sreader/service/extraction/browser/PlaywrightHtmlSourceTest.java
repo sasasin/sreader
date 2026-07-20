@@ -30,6 +30,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.sasasin.sreader.config.FeedReaderProperties;
+import net.sasasin.sreader.domain.FullTextMethod.PlaywrightMode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InOrder;
@@ -51,9 +52,7 @@ class PlaywrightHtmlSourceTest {
     assertThat(service.isAutoStartup()).isFalse();
     assertThatIllegalStateException()
         .isThrownBy(
-            () ->
-                service.renderPage(
-                    URI.create("https://example.test"), PlaywrightRenderMode.STANDARD))
+            () -> service.renderPage(URI.create("https://example.test"), PlaywrightMode.STANDARD))
         .withMessageContaining("disabled");
     verify(standard, never()).render(any());
   }
@@ -69,9 +68,8 @@ class PlaywrightHtmlSourceTest {
     PlaywrightHtmlSource service =
         new PlaywrightHtmlSource(properties(true), lifecycle, standard, infy);
 
-    assertThat(service.render(uri, PlaywrightRenderMode.STANDARD)).isEqualTo("<standard>");
-    assertThat(service.renderPage(uri, PlaywrightRenderMode.INFY_SCROLL).html())
-        .isEqualTo("<infy>");
+    assertThat(service.render(uri, PlaywrightMode.STANDARD)).isEqualTo("<standard>");
+    assertThat(service.renderPage(uri, PlaywrightMode.INFY_SCROLL).html()).isEqualTo("<infy>");
     verify(standard).render(uri);
     verify(infy).render(uri);
   }
@@ -85,7 +83,7 @@ class PlaywrightHtmlSourceTest {
             mock(StandardPlaywrightPageRenderer.class),
             mock(InfyScrollPageRenderer.class));
     assertThatNullPointerException()
-        .isThrownBy(() -> service.renderPage(null, PlaywrightRenderMode.STANDARD));
+        .isThrownBy(() -> service.renderPage(null, PlaywrightMode.STANDARD));
     assertThatNullPointerException()
         .isThrownBy(() -> service.renderPage(URI.create("https://example.test/"), null));
   }
@@ -120,9 +118,7 @@ class PlaywrightHtmlSourceTest {
             mock(InfyScrollPageRenderer.class));
 
     assertThatThrownBy(
-            () ->
-                service.renderPage(
-                    URI.create("https://example.test/"), PlaywrightRenderMode.STANDARD))
+            () -> service.renderPage(URI.create("https://example.test/"), PlaywrightMode.STANDARD))
         .hasMessage("boom");
   }
 
@@ -164,14 +160,14 @@ class PlaywrightHtmlSourceTest {
           executor.submit(
               () ->
                   service.renderPage(
-                      URI.create("https://example.test/1"), PlaywrightRenderMode.STANDARD));
+                      URI.create("https://example.test/1"), PlaywrightMode.STANDARD));
       assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
       Future<?> second =
           executor.submit(
               () -> {
                 secondRenderRequested.countDown();
                 return service.renderPage(
-                    URI.create("https://example.test/2"), PlaywrightRenderMode.STANDARD);
+                    URI.create("https://example.test/2"), PlaywrightMode.STANDARD);
               });
       // While first render holds the monitor, second must not enter renderer.
       assertThat(secondRenderRequested.await(5, TimeUnit.SECONDS)).isTrue();
@@ -227,8 +223,7 @@ class PlaywrightHtmlSourceTest {
       Future<?> renderFuture =
           executor.submit(
               () ->
-                  service.renderPage(
-                      URI.create("https://example.test/"), PlaywrightRenderMode.STANDARD));
+                  service.renderPage(URI.create("https://example.test/"), PlaywrightMode.STANDARD));
       assertThat(inRender.await(5, TimeUnit.SECONDS)).isTrue();
       Future<?> stopFuture = executor.submit(() -> service.stop());
       // stop must not run while render holds the monitor
@@ -253,8 +248,7 @@ class PlaywrightHtmlSourceTest {
     when(page.content()).thenReturn("<main>ok</main>");
     PlaywrightHtmlSource service = source(settings(true), started.factory());
 
-    assertThat(
-            service.render(URI.create("https://example.test/start"), PlaywrightRenderMode.STANDARD))
+    assertThat(service.render(URI.create("https://example.test/start"), PlaywrightMode.STANDARD))
         .isEqualTo("<main>ok</main>");
     verify(started.factory()).create();
     verify(started.context()).close();
@@ -298,7 +292,7 @@ class PlaywrightHtmlSourceTest {
             Duration.ofMillis(10));
     PlaywrightHtmlSource service = source(playwrightSettings, started.factory());
 
-    service.renderPage(URI.create("https://example.test/"), PlaywrightRenderMode.INFY_SCROLL);
+    service.renderPage(URI.create("https://example.test/"), PlaywrightMode.INFY_SCROLL);
     service.stop();
 
     InOrder order = inOrder(started.infyContext(), started.browser(), started.playwright());

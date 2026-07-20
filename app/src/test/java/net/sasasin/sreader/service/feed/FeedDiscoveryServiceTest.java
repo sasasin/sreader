@@ -6,8 +6,8 @@ import static org.mockito.Mockito.when;
 
 import java.net.URI;
 import java.util.List;
+import net.sasasin.sreader.domain.FullTextMethod.PlaywrightMode;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
-import net.sasasin.sreader.service.extraction.browser.PlaywrightRenderMode;
 import net.sasasin.sreader.service.extraction.browser.RenderedPage;
 import org.junit.jupiter.api.Test;
 
@@ -16,7 +16,7 @@ class FeedDiscoveryServiceTest {
   @Test
   void discoversRssAndAtomLinksAndMakesAbsolute() {
     PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
-    when(pw.renderPage(URI.create("https://example.com/"), PlaywrightRenderMode.STANDARD))
+    when(pw.renderPage(URI.create("https://example.com/"), PlaywrightMode.STANDARD))
         .thenReturn(
             new RenderedPage(
                 URI.create("https://example.com/"),
@@ -39,7 +39,7 @@ class FeedDiscoveryServiceTest {
   @Test
   void removesDuplicatesAndSkipsNonFeed() {
     PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
-    when(pw.renderPage(URI.create("https://ex.com/s"), PlaywrightRenderMode.STANDARD))
+    when(pw.renderPage(URI.create("https://ex.com/s"), PlaywrightMode.STANDARD))
         .thenReturn(
             new RenderedPage(
                 URI.create("https://ex.com/s"),
@@ -59,7 +59,7 @@ class FeedDiscoveryServiceTest {
   @Test
   void acceptsAdditionalFeedTypes() {
     PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
-    when(pw.renderPage(URI.create("https://ex.com/"), PlaywrightRenderMode.STANDARD))
+    when(pw.renderPage(URI.create("https://ex.com/"), PlaywrightMode.STANDARD))
         .thenReturn(
             new RenderedPage(
                 URI.create("https://ex.com/"),
@@ -76,7 +76,7 @@ class FeedDiscoveryServiceTest {
   @Test
   void exposesFinalUrlForVerboseDiagnostics() {
     PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
-    when(pw.renderPage(URI.create("https://ex.com/start"), PlaywrightRenderMode.STANDARD))
+    when(pw.renderPage(URI.create("https://ex.com/start"), PlaywrightMode.STANDARD))
         .thenReturn(
             new RenderedPage(
                 URI.create("https://ex.com/final"),
@@ -96,7 +96,7 @@ class FeedDiscoveryServiceTest {
   void usesRenderedFinalUriAsBaseForRelativeFeedLinks() {
     PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
     URI input = URI.create("https://ex.com/start");
-    when(pw.renderPage(input, PlaywrightRenderMode.STANDARD))
+    when(pw.renderPage(input, PlaywrightMode.STANDARD))
         .thenReturn(
             new RenderedPage(
                 input,
@@ -115,7 +115,7 @@ class FeedDiscoveryServiceTest {
   @Test
   void discoverDelegatesToDiscoverWithResultFeedUrls() {
     PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
-    when(pw.renderPage(URI.create("https://ex.com/"), PlaywrightRenderMode.STANDARD))
+    when(pw.renderPage(URI.create("https://ex.com/"), PlaywrightMode.STANDARD))
         .thenReturn(
             new RenderedPage(
                 URI.create("https://ex.com/"),
@@ -132,7 +132,7 @@ class FeedDiscoveryServiceTest {
   @Test
   void acceptsCaseWhitespaceAndJsonFeedTypes() {
     PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
-    when(pw.renderPage(URI.create("https://ex.com/"), PlaywrightRenderMode.STANDARD))
+    when(pw.renderPage(URI.create("https://ex.com/"), PlaywrightMode.STANDARD))
         .thenReturn(
             new RenderedPage(
                 URI.create("https://ex.com/"),
@@ -160,7 +160,7 @@ class FeedDiscoveryServiceTest {
   void skipsBlankHrefAndUsesFallbackResolveWhenAbsUrlBlank() {
     PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
     // data: base yields blank absUrl for relative hrefs; raw href remains nonblank
-    when(pw.renderPage(URI.create("https://ex.com/base/path"), PlaywrightRenderMode.STANDARD))
+    when(pw.renderPage(URI.create("https://ex.com/base/path"), PlaywrightMode.STANDARD))
         .thenReturn(
             new RenderedPage(
                 URI.create("data:text/html,base"),
@@ -180,7 +180,7 @@ class FeedDiscoveryServiceTest {
   void skipsWhenFallbackResolveThrows() {
     PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
     // data: final URI makes absUrl blank; raw href "%zz" is nonblank but siteUrl.resolve throws.
-    when(pw.renderPage(URI.create("https://ex.com/base"), PlaywrightRenderMode.STANDARD))
+    when(pw.renderPage(URI.create("https://ex.com/base"), PlaywrightMode.STANDARD))
         .thenReturn(
             new RenderedPage(
                 URI.create("data:text/html,base"),
@@ -198,7 +198,7 @@ class FeedDiscoveryServiceTest {
   @Test
   void skipsInvalidAbsoluteUriAfterSeenAddAndContinues() {
     PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
-    when(pw.renderPage(URI.create("https://ex.com/"), PlaywrightRenderMode.STANDARD))
+    when(pw.renderPage(URI.create("https://ex.com/"), PlaywrightMode.STANDARD))
         .thenReturn(
             new RenderedPage(
                 URI.create("https://ex.com/"),
@@ -217,7 +217,7 @@ class FeedDiscoveryServiceTest {
   @Test
   void preservesInsertionOrderAndDeduplicatesResolvedUrls() {
     PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
-    when(pw.renderPage(URI.create("https://ex.com/"), PlaywrightRenderMode.STANDARD))
+    when(pw.renderPage(URI.create("https://ex.com/"), PlaywrightMode.STANDARD))
         .thenReturn(
             new RenderedPage(
                 URI.create("https://ex.com/"),
@@ -239,7 +239,7 @@ class FeedDiscoveryServiceTest {
   @Test
   void emptyListWhenNoFeedLinks() {
     PlaywrightHtmlSource pw = mock(PlaywrightHtmlSource.class);
-    when(pw.renderPage(URI.create("https://ex.com/"), PlaywrightRenderMode.STANDARD))
+    when(pw.renderPage(URI.create("https://ex.com/"), PlaywrightMode.STANDARD))
         .thenReturn(
             new RenderedPage(URI.create("https://ex.com/"), "<html><body>none</body></html>"));
 

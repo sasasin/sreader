@@ -3,6 +3,7 @@ package net.sasasin.sreader.service.extraction.browser;
 import java.net.URI;
 import java.util.Objects;
 import net.sasasin.sreader.config.FeedReaderProperties;
+import net.sasasin.sreader.domain.FullTextMethod.PlaywrightMode;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.stereotype.Service;
 
@@ -32,11 +33,11 @@ public class PlaywrightHtmlSource implements SmartLifecycle {
     this.infyRenderer = Objects.requireNonNull(infyRenderer, "infyRenderer must not be null");
   }
 
-  public synchronized String render(URI uri, PlaywrightRenderMode mode) {
+  public synchronized String render(URI uri, PlaywrightMode mode) {
     return renderPage(uri, mode).html();
   }
 
-  public synchronized RenderedPage renderPage(URI uri, PlaywrightRenderMode mode) {
+  public synchronized RenderedPage renderPage(URI uri, PlaywrightMode mode) {
     Objects.requireNonNull(uri, "uri must not be null");
     Objects.requireNonNull(mode, "mode must not be null");
     if (!settings.enabled()) {
