@@ -5,8 +5,9 @@ import java.net.URI;
 import java.util.Objects;
 import net.sasasin.sreader.config.FeedReaderProperties;
 import net.sasasin.sreader.domain.ExtractionPlan;
-import net.sasasin.sreader.service.extraction.PlaywrightHtmlSource;
-import net.sasasin.sreader.service.extraction.RenderedPage;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightRenderMode;
+import net.sasasin.sreader.service.extraction.browser.RenderedPage;
 import net.sasasin.sreader.service.http.HttpFetchService;
 import net.sasasin.sreader.service.outcome.FailureKind;
 import net.sasasin.sreader.service.outcome.FailureStage;
@@ -100,10 +101,10 @@ final class ProbeDocumentFetcher {
           "Playwright is required for method but is disabled or misconfigured");
     }
     try {
-      RenderedPage page = playwrightHtmlSource.renderPage(uri.toString(), plan.useInfyScroll());
-      return new FetchOutcome.Fetched(
-          new FetchedProbeDocument(
-              uri, page.finalUri() == null ? uri : page.finalUri(), page.html()));
+      PlaywrightRenderMode mode =
+          plan.useInfyScroll() ? PlaywrightRenderMode.INFY_SCROLL : PlaywrightRenderMode.STANDARD;
+      RenderedPage page = playwrightHtmlSource.renderPage(uri, mode);
+      return new FetchOutcome.Fetched(new FetchedProbeDocument(uri, page.finalUri(), page.html()));
     } catch (RuntimeException e) {
       return new FetchOutcome.Failed(
           OperationFailure.of(

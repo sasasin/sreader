@@ -10,6 +10,8 @@ import net.sasasin.sreader.domain.ExtractionPlan;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.domain.PendingFullTextTarget;
 import net.sasasin.sreader.repository.ContentHeaderRepository;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightRenderMode;
 import net.sasasin.sreader.service.http.HttpFetchService;
 import net.sasasin.sreader.service.outcome.BatchStopReason;
 import net.sasasin.sreader.service.outcome.FailureKind;
@@ -200,7 +202,11 @@ public class FullTextExtractionService {
       return new TextExtractionOutcome.Skipped(TextExtractionSkipReason.PLAYWRIGHT_DISABLED);
     }
     try {
-      String html = playwrightHtmlSource.render(header.fetchUrl(), plan.useInfyScroll());
+      URI requestedUri = URI.create(header.fetchUrl());
+      PlaywrightRenderMode mode =
+          plan.useInfyScroll() ? PlaywrightRenderMode.INFY_SCROLL : PlaywrightRenderMode.STANDARD;
+      // Keep header.fetchUrl() for extract-rule matching (unchanged semantics).
+      String html = playwrightHtmlSource.render(requestedUri, mode);
       return htmlTextExtractor.extract(header.fetchUrl(), html, plan.extractorKind());
     } catch (RuntimeException e) {
       return new TextExtractionOutcome.Failed(
