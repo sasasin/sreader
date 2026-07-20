@@ -1,6 +1,7 @@
 package net.sasasin.sreader.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -24,21 +25,23 @@ class ContentFullTextWriterTest {
   @ParameterizedTest
   @NullAndEmptySource
   @ValueSource(strings = {"   ", "\t\n"})
-  void saveIfAbsentReturnsFalseAndSkipsRepositoryForBlankFullText(String fullText) {
+  void saveIfAbsentReturnsNoContentAndSkipsRepositoryForBlankFullText(String fullText) {
     ContentHeader header =
         new ContentHeader("header-id", "feed-id", "https://example.com/a", "Title", null);
 
-    assertThat(writer.saveIfAbsent(header, fullText)).isFalse();
+    assertThat(writer.saveIfAbsent(header, fullText))
+        .isEqualTo(ContentFullTextWriteOutcome.NO_CONTENT);
     verify(repository, never()).insertIfAbsent(any());
   }
 
   @Test
-  void saveIfAbsentInsertsContentFullTextAndReturnsRepositoryResultTrue() {
+  void saveIfAbsentInsertsContentFullTextAndReturnsInserted() {
     ContentHeader header =
         new ContentHeader("header-id", "feed-id", "https://example.com/a", "Title", null);
     when(repository.insertIfAbsent(any())).thenReturn(true);
 
-    assertThat(writer.saveIfAbsent(header, "body text")).isTrue();
+    assertThat(writer.saveIfAbsent(header, "body text"))
+        .isEqualTo(ContentFullTextWriteOutcome.INSERTED);
 
     ArgumentCaptor<ContentFullText> captor = ArgumentCaptor.forClass(ContentFullText.class);
     verify(repository).insertIfAbsent(captor.capture());
@@ -49,12 +52,24 @@ class ContentFullTextWriterTest {
   }
 
   @Test
-  void saveIfAbsentReturnsRepositoryResultFalse() {
+  void saveIfAbsentReturnsAlreadyExistsWhenRepositoryFalse() {
     ContentHeader header =
         new ContentHeader("header-id", "feed-id", "https://example.com/a", "Title", null);
     when(repository.insertIfAbsent(any())).thenReturn(false);
 
-    assertThat(writer.saveIfAbsent(header, "body text")).isFalse();
+    assertThat(writer.saveIfAbsent(header, "body text"))
+        .isEqualTo(ContentFullTextWriteOutcome.ALREADY_EXISTS);
     verify(repository).insertIfAbsent(any(ContentFullText.class));
+  }
+
+  @Test
+  void saveIfAbsentDoesNotSwallowRepositoryExceptions() {
+    ContentHeader header =
+        new ContentHeader("header-id", "feed-id", "https://example.com/a", "Title", null);
+    when(repository.insertIfAbsent(any())).thenThrow(new RuntimeException("db down"));
+
+    assertThatThrownBy(() -> writer.saveIfAbsent(header, "body text"))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessage("db down");
   }
 }

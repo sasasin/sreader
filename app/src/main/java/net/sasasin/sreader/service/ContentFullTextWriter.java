@@ -14,11 +14,15 @@ public class ContentFullTextWriter {
     this.repository = repository;
   }
 
-  public boolean saveIfAbsent(ContentHeader header, String fullText) {
+  public ContentFullTextWriteOutcome saveIfAbsent(ContentHeader header, String fullText) {
     if (fullText == null || fullText.isBlank()) {
-      return false;
+      return ContentFullTextWriteOutcome.NO_CONTENT;
     }
-    return repository.insertIfAbsent(
-        new ContentFullText(HashIds.md5(header.canonicalUrl()), header.id(), fullText));
+    boolean inserted =
+        repository.insertIfAbsent(
+            new ContentFullText(HashIds.md5(header.canonicalUrl()), header.id(), fullText));
+    return inserted
+        ? ContentFullTextWriteOutcome.INSERTED
+        : ContentFullTextWriteOutcome.ALREADY_EXISTS;
   }
 }
