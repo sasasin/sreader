@@ -4,7 +4,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import net.dankito.readability4j.Article;
-import net.sasasin.sreader.domain.ExtractionPlan;
+import net.sasasin.sreader.domain.FullTextMethod.HtmlExtractor;
 import net.sasasin.sreader.service.outcome.FailureKind;
 import net.sasasin.sreader.service.outcome.FailureStage;
 import net.sasasin.sreader.service.outcome.OperationFailure;
@@ -43,21 +43,18 @@ public class HtmlTextExtractor {
     this.readabilityParser = readabilityParser;
   }
 
-  public TextExtractionOutcome extract(
-      String url, String html, ExtractionPlan.ExtractorKind extractorKind) {
-    return extract(url, html, extractorKind, Optional.empty());
+  public TextExtractionOutcome extract(String url, String html, HtmlExtractor extractor) {
+    return extract(url, html, extractor, Optional.empty());
   }
 
   public TextExtractionOutcome extract(
-      String url,
-      String html,
-      ExtractionPlan.ExtractorKind extractorKind,
-      Optional<String> xpathOverride) {
+      String url, String html, HtmlExtractor extractor, Optional<String> xpathOverride) {
+    Objects.requireNonNull(extractor, "extractor must not be null");
     Objects.requireNonNull(xpathOverride, "xpathOverride must not be null");
     if (xpathOverride.isPresent()) {
       return extractWithExplicitXpath(url, html, xpathOverride.get());
     }
-    return switch (extractorKind) {
+    return switch (extractor) {
       case XPATH_OR_BODY_TEXT -> extractByXpathOrBody(url, html);
       case READABILITY -> extractByReadability(url, html);
     };

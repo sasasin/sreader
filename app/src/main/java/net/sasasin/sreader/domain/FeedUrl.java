@@ -34,6 +34,6 @@ public record FeedUrl(
   }
 
   public FeedUrl(String id, String url) {
-    this(id, url, FeedStatus.ACTIVE, null, null, null, FullTextMethod.HTTP);
+    this(id, url, FeedStatus.ACTIVE, null, null, null, FullTextMethod.defaultMethod());
   }
 }

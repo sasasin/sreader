@@ -44,9 +44,11 @@ public class ProbeFeedCommand implements Callable<Integer> {
       names = "--method",
       paramLabel = "<METHOD>",
       description =
-          "Full text method (feed uses entry body; others fetch article URL from chosen entry)",
+          "Full text method (feed uses entry body; others fetch article URL from chosen entry)."
+              + " Invalid input reports all valid values.",
       required = true,
-      converter = FullTextMethodConverter.class)
+      converter = FullTextMethodConverter.class,
+      completionCandidates = FullTextMethodCandidates.class)
   private FullTextMethod method;
 
   @Option(
@@ -100,7 +102,7 @@ public class ProbeFeedCommand implements Callable<Integer> {
     try {
       URI uri = UrlValidator.validateHttpUrl(feedUrl, "--feed-url", spec);
 
-      if (xpath != null && !xpath.isBlank() && method == FullTextMethod.FEED) {
+      if (xpath != null && !xpath.isBlank() && !method.supportsXpathOverride()) {
         throw new ParameterException(
             spec.commandLine(), "--xpath cannot be used with --method feed");
       }

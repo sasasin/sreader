@@ -327,6 +327,30 @@ class FeedCommandsTest {
   }
 
   @Test
+  void feedsDiscoverTomlUsesCatalogDefaultMethod() {
+    FeedDiscoveryService disc = mock(FeedDiscoveryService.class);
+    when(disc.discoverWithResult(any(java.net.URI.class)))
+        .thenReturn(
+            new DiscoveryResult(
+                java.net.URI.create("https://example.com/"),
+                java.net.URI.create("https://example.com/"),
+                List.of(java.net.URI.create("https://example.com/rss.xml"))));
+
+    FeedsDiscoverCommand cmd = new FeedsDiscoverCommand(disc);
+    CommandLine cli = new CommandLine(cmd);
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    cli.setOut(new PrintWriter(out));
+
+    int exit = cli.execute("--site-url", "https://example.com/", "--format", "toml");
+
+    cli.getOut().flush();
+    assertEquals(0, exit);
+    assertTrue(
+        out.toString(StandardCharsets.UTF_8)
+            .contains("full_text_method = \"" + FullTextMethod.defaultMethod().value() + "\""));
+  }
+
+  @Test
   void feedsDiscoverInvalidFormatIsUsageError() {
     FeedDiscoveryService disc = mock(FeedDiscoveryService.class);
     FeedsDiscoverCommand cmd = new FeedsDiscoverCommand(disc);

@@ -8,7 +8,6 @@ import java.util.Date;
 import java.util.Optional;
 import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FeedUrl;
-import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.repository.ContentHeaderRepository;
 import net.sasasin.sreader.service.article.ArticleUrlCanonicalizer;
 import net.sasasin.sreader.service.article.HashIds;
@@ -71,8 +70,9 @@ final class FeedEntryImporter {
     URI fetch = redirect.effectiveUri();
     URI canonical = canonicalizer.canonicalize(fetch);
 
+    boolean saveFeedEntryText = feedUrl.fullTextMethod().usesFeedEntryContent();
     String feedTextValue = null;
-    if (feedUrl.fullTextMethod() == FullTextMethod.FEED) {
+    if (saveFeedEntryText) {
       TextExtractionOutcome feedTextOutcome = feedTextExtractor.extract(entry);
       switch (feedTextOutcome) {
         case TextExtractionOutcome.Extracted extracted -> feedTextValue = extracted.text();
@@ -118,7 +118,7 @@ final class FeedEntryImporter {
     }
 
     Optional<ContentFullTextWriteOutcome> feedTextWrite = Optional.empty();
-    if (feedUrl.fullTextMethod() == FullTextMethod.FEED) {
+    if (saveFeedEntryText) {
       try {
         feedTextWrite = Optional.of(fullTextWriter.saveIfAbsent(header, feedTextValue));
       } catch (DataAccessException e) {

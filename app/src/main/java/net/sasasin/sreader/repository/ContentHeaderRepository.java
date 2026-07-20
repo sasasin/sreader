@@ -98,7 +98,7 @@ public class ContentHeaderRepository {
   }
 
   private FullTextMethod toFullTextMethod(String value) {
-    return value == null ? FullTextMethod.HTTP : FullTextMethod.fromValue(value);
+    return value == null ? FullTextMethod.defaultMethod() : FullTextMethod.fromValue(value);
   }
 
   private ContentHeader mapContentHeader(Record record) {

@@ -99,7 +99,8 @@ class RepositoryIntegrationTest {
                 .findByUrl("https://example.test/default-method.xml")
                 .orElseThrow()
                 .fullTextMethod())
-        .isEqualTo(FullTextMethod.HTTP);
+        .isEqualTo(FullTextMethod.defaultMethod());
+    assertThat(FullTextMethod.defaultMethod().value()).isEqualTo("http");
 
     assertThatThrownBy(
             () ->
@@ -109,6 +110,41 @@ class RepositoryIntegrationTest {
                     .set(FEED_URL.FULL_TEXT_METHOD, "bad_method")
                     .execute())
         .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  void allCatalogFullTextMethodsRoundTripThroughFeedUrlRepository() {
+    int index = 0;
+    for (FullTextMethod method : FullTextMethod.values()) {
+      String id = String.format("feed000000000000000000000000%04d", 100 + index);
+      String url = "https://example.test/method-" + method.value() + ".xml";
+      feedUrlRepository.insertFromImport(
+          new FeedUrl(id, url, FeedStatus.ACTIVE, null, null, null, method));
+      FeedUrl loaded = feedUrlRepository.findByUrl(url).orElseThrow();
+      assertThat(loaded.fullTextMethod()).isEqualTo(method);
+      assertThat(loaded.fullTextMethod().value()).isEqualTo(method.value());
+      index++;
+    }
+  }
+
+  @Test
+  void pendingUrlExtractionMapsEveryCatalogMethod() {
+    int index = 0;
+    for (FullTextMethod method : FullTextMethod.values()) {
+      String feedId = String.format("feed000000000000000000000000%04d", 200 + index);
+      String headerId = String.format("head000000000000000000000000%04d", 200 + index);
+      String feedUrl = "https://example.test/pending-method-" + method.value() + ".xml";
+      String articleUrl = "https://example.test/pending-article-" + method.value();
+      feedUrlRepository.insertFromImport(
+          new FeedUrl(feedId, feedUrl, FeedStatus.ACTIVE, null, null, null, method));
+      contentHeaderRepository.insertOrRefreshFetchUrl(
+          new ContentHeader(headerId, feedId, articleUrl, "title", null));
+      index++;
+    }
+
+    assertThat(contentHeaderRepository.findWithoutFullTextForUrlExtraction(20))
+        .extracting(target -> target.method())
+        .containsExactlyInAnyOrder(FullTextMethod.values());
   }
 
   @Test

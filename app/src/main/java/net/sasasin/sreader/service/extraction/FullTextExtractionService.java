@@ -6,12 +6,12 @@ import java.util.List;
 import java.util.Optional;
 import net.sasasin.sreader.config.FeedReaderProperties;
 import net.sasasin.sreader.domain.ContentHeader;
-import net.sasasin.sreader.domain.ExtractionPlan;
 import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.domain.FullTextMethod.Definition;
+import net.sasasin.sreader.domain.FullTextMethod.HtmlExtractor;
 import net.sasasin.sreader.domain.PendingFullTextTarget;
 import net.sasasin.sreader.repository.ContentHeaderRepository;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
-import net.sasasin.sreader.service.extraction.browser.PlaywrightRenderMode;
 import net.sasasin.sreader.service.http.HttpFetchService;
 import net.sasasin.sreader.service.outcome.BatchStopReason;
 import net.sasasin.sreader.service.outcome.FailureKind;
@@ -141,15 +141,14 @@ public class FullTextExtractionService {
   }
 
   public TextExtractionOutcome extract(ContentHeader header) {
-    return extract(header, FullTextMethod.HTTP);
+    return extract(header, FullTextMethod.defaultMethod());
   }
 
   public TextExtractionOutcome extract(ContentHeader header, FullTextMethod method) {
-    ExtractionPlan plan = ExtractionPlan.from(method);
-    return switch (plan.sourceKind()) {
-      case FEED -> extractFromFeed(header);
-      case HTTP -> extractFromHttp(header, plan);
-      case PLAYWRIGHT -> extractFromPlaywright(header, plan);
+    return switch (method.definition()) {
+      case Definition.FeedEntry ignored -> extractFromFeed(header);
+      case Definition.HttpArticle http -> extractFromHttp(header, http.extractor());
+      case Definition.PlaywrightArticle playwright -> extractFromPlaywright(header, playwright);
     };
   }
 
@@ -167,12 +166,11 @@ public class FullTextExtractionService {
     return new TextExtractionOutcome.Extracted(text, ExtractionDecision.of(ExtractionSource.FEED));
   }
 
-  private TextExtractionOutcome extractFromHttp(ContentHeader header, ExtractionPlan plan) {
+  private TextExtractionOutcome extractFromHttp(ContentHeader header, HtmlExtractor extractor) {
     try {
       HttpFetchService.FetchedResource resource =
           httpFetchService.get(URI.create(header.fetchUrl()));
-      return htmlTextExtractor.extract(
-          resource.uri().toString(), resource.body(), plan.extractorKind());
+      return htmlTextExtractor.extract(resource.uri().toString(), resource.body(), extractor);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return new TextExtractionOutcome.Failed(
@@ -197,17 +195,16 @@ public class FullTextExtractionService {
     }
   }
 
-  private TextExtractionOutcome extractFromPlaywright(ContentHeader header, ExtractionPlan plan) {
+  private TextExtractionOutcome extractFromPlaywright(
+      ContentHeader header, Definition.PlaywrightArticle definition) {
     if (!properties.playwright().enabled()) {
       return new TextExtractionOutcome.Skipped(TextExtractionSkipReason.PLAYWRIGHT_DISABLED);
     }
     try {
       URI requestedUri = URI.create(header.fetchUrl());
-      PlaywrightRenderMode mode =
-          plan.useInfyScroll() ? PlaywrightRenderMode.INFY_SCROLL : PlaywrightRenderMode.STANDARD;
       // Keep header.fetchUrl() for extract-rule matching (unchanged semantics).
-      String html = playwrightHtmlSource.render(requestedUri, mode);
-      return htmlTextExtractor.extract(header.fetchUrl(), html, plan.extractorKind());
+      String html = playwrightHtmlSource.render(requestedUri, definition.mode());
+      return htmlTextExtractor.extract(header.fetchUrl(), html, definition.extractor());
     } catch (RuntimeException e) {
       return new TextExtractionOutcome.Failed(
           OperationFailure.of(

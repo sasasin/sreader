@@ -210,7 +210,7 @@ class OutcomeBranchCoverageExtractionTest {
             extractor.extract(
                 "https://example.test/a",
                 "<html><body></body></html>",
-                net.sasasin.sreader.domain.ExtractionPlan.ExtractorKind.READABILITY);
+                net.sasasin.sreader.domain.FullTextMethod.HtmlExtractor.READABILITY);
     assertThat(noContent.reason()).isEqualTo(NoContentReason.BODY_TEXT_EMPTY);
     assertThat(noContent.decision().fallbackReason())
         .contains(ExtractionFallbackReason.READABILITY_EMPTY);
@@ -229,7 +229,7 @@ class OutcomeBranchCoverageExtractionTest {
             extractor.extract(
                 url,
                 "<html><body>   </body></html>",
-                net.sasasin.sreader.domain.ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT);
+                net.sasasin.sreader.domain.FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT);
     assertThat(noContent.reason()).isEqualTo(NoContentReason.BODY_TEXT_EMPTY);
     assertThat(noContent.decision().fallbackReason())
         .contains(ExtractionFallbackReason.CONFIGURED_XPATH_NO_MATCH);

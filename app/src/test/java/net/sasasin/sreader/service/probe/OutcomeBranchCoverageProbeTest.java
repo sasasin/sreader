@@ -15,13 +15,13 @@ import java.util.List;
 import java.util.Optional;
 import net.sasasin.sreader.config.FeedReaderProperties;
 import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.domain.FullTextMethod.PlaywrightMode;
 import net.sasasin.sreader.service.extraction.ExtractionDecision;
 import net.sasasin.sreader.service.extraction.ExtractionSource;
 import net.sasasin.sreader.service.extraction.FeedEntryFullTextExtractor;
 import net.sasasin.sreader.service.extraction.HtmlTextExtractor;
 import net.sasasin.sreader.service.extraction.TextExtractionOutcome;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
-import net.sasasin.sreader.service.extraction.browser.PlaywrightRenderMode;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentOutcome;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentService;
 import net.sasasin.sreader.service.http.HttpFetchService;
@@ -63,28 +63,19 @@ class OutcomeBranchCoverageProbeTest {
         .thenThrow(new IOException("GET https://a returned HTTP 500"));
     ProbeDocumentFetcher.FetchOutcome.Failed status =
         (ProbeDocumentFetcher.FetchOutcome.Failed)
-            fetcher.fetch(
-                URI.create("https://a"),
-                net.sasasin.sreader.domain.ExtractionPlan.from(FullTextMethod.HTTP),
-                "https://a");
+            fetcher.fetch(URI.create("https://a"), FullTextMethod.HTTP, "https://a");
     assertThat(status.failure().kind()).isEqualTo(FailureKind.HTTP_STATUS);
 
-    when(playwright.renderPage(any(), eq(PlaywrightRenderMode.STANDARD)))
+    when(playwright.renderPage(any(), eq(PlaywrightMode.STANDARD)))
         .thenThrow(new RuntimeException("render"));
     ProbeDocumentFetcher.FetchOutcome.Failed render =
         (ProbeDocumentFetcher.FetchOutcome.Failed)
-            fetcher.fetch(
-                URI.create("https://a"),
-                net.sasasin.sreader.domain.ExtractionPlan.from(FullTextMethod.PLAYWRIGHT),
-                "https://a");
+            fetcher.fetch(URI.create("https://a"), FullTextMethod.PLAYWRIGHT, "https://a");
     assertThat(render.failure().kind()).isEqualTo(FailureKind.RENDER);
 
     ProbeDocumentFetcher.FetchOutcome.Failed unexpected =
         (ProbeDocumentFetcher.FetchOutcome.Failed)
-            fetcher.fetch(
-                URI.create("https://a"),
-                net.sasasin.sreader.domain.ExtractionPlan.from(FullTextMethod.FEED),
-                "https://a");
+            fetcher.fetch(URI.create("https://a"), FullTextMethod.FEED, "https://a");
     assertThat(unexpected.failure().kind()).isEqualTo(FailureKind.INVALID_INPUT);
   }
 

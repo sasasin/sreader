@@ -48,13 +48,19 @@ class FullTextMethodConverterTest {
     assertThatThrownBy(() -> converter.convert(input))
         .isInstanceOf(TypeConversionException.class)
         .hasMessageContaining("Invalid --method value '" + input + "'")
-        .hasMessageContaining("Valid values:")
+        .hasMessageContaining("Valid values: " + FullTextMethod.supportedValues())
         .satisfies(
             ex -> {
-              for (FullTextMethod method : FullTextMethod.values()) {
-                assertThat(ex.getMessage()).contains(method.value());
+              for (String wire : FullTextMethod.wireValues()) {
+                assertThat(ex.getMessage()).contains(wire);
               }
             });
+  }
+
+  @Test
+  void validValuesMessageTracksCatalog() {
+    assertThat(FullTextMethod.supportedValues())
+        .isEqualTo(String.join(", ", FullTextMethod.wireValues()));
   }
 
   @Test

@@ -16,9 +16,9 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.stream.Stream;
 import net.sasasin.sreader.config.FeedReaderProperties;
-import net.sasasin.sreader.domain.ExtractionPlan.ExtractorKind;
 import net.sasasin.sreader.domain.FeedEntrySelection;
 import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.domain.FullTextMethod.PlaywrightMode;
 import net.sasasin.sreader.service.extraction.ExtractionDecision;
 import net.sasasin.sreader.service.extraction.ExtractionSource;
 import net.sasasin.sreader.service.extraction.FeedEntryFullTextExtractor;
@@ -26,7 +26,6 @@ import net.sasasin.sreader.service.extraction.HtmlTextExtractor;
 import net.sasasin.sreader.service.extraction.NoContentReason;
 import net.sasasin.sreader.service.extraction.TextExtractionOutcome;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
-import net.sasasin.sreader.service.extraction.browser.PlaywrightRenderMode;
 import net.sasasin.sreader.service.extraction.browser.RenderedPage;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentOutcome;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentService;
@@ -71,7 +70,7 @@ class FullTextProbeServiceTest {
     when(d.extractor.extract(
             finalUrl.toString(),
             "<title>Article Title</title>",
-            ExtractorKind.XPATH_OR_BODY_TEXT,
+            FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT,
             xpath))
         .thenReturn(
             new TextExtractionOutcome.Extracted(
@@ -93,7 +92,7 @@ class FullTextProbeServiceTest {
     Dependencies d = dependencies();
     when(d.http.get(ARTICLE_URL))
         .thenReturn(new HttpFetchService.FetchedResource(ARTICLE_URL, "<body>body</body>"));
-    when(d.extractor.extract(any(), any(), eq(ExtractorKind.READABILITY), any()))
+    when(d.extractor.extract(any(), any(), eq(FullTextMethod.HtmlExtractor.READABILITY), any()))
         .thenReturn(
             new TextExtractionOutcome.NoContent(
                 NoContentReason.BODY_TEXT_EMPTY,
@@ -110,7 +109,7 @@ class FullTextProbeServiceTest {
         .extract(
             ARTICLE_URL.toString(),
             "<body>body</body>",
-            ExtractorKind.READABILITY,
+            FullTextMethod.HtmlExtractor.READABILITY,
             Optional.of("//ignored"));
   }
 
@@ -119,7 +118,10 @@ class FullTextProbeServiceTest {
     Dependencies d = dependencies();
     when(d.http.get(ARTICLE_URL)).thenReturn(new HttpFetchService.FetchedResource(ARTICLE_URL, ""));
     when(d.extractor.extract(
-            ARTICLE_URL.toString(), "", ExtractorKind.XPATH_OR_BODY_TEXT, Optional.empty()))
+            ARTICLE_URL.toString(),
+            "",
+            FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT,
+            Optional.empty()))
         .thenReturn(
             new TextExtractionOutcome.Extracted(
                 "text", ExtractionDecision.of(ExtractionSource.BODY_TEXT)));
@@ -159,12 +161,11 @@ class FullTextProbeServiceTest {
   @ParameterizedTest
   @MethodSource("playwrightMethods")
   void articlePlaywrightMethodsMapScrollAndExtractor(
-      FullTextMethod method, boolean infy, ExtractorKind kind) throws Exception {
+      FullTextMethod method, boolean infy, FullTextMethod.HtmlExtractor kind) throws Exception {
     Dependencies d = dependencies();
     URI finalUrl = URI.create("https://final/rendered");
     when(d.playwright.renderPage(
-            eq(ARTICLE_URL),
-            eq(infy ? PlaywrightRenderMode.INFY_SCROLL : PlaywrightRenderMode.STANDARD)))
+            eq(ARTICLE_URL), eq(infy ? PlaywrightMode.INFY_SCROLL : PlaywrightMode.STANDARD)))
         .thenReturn(new RenderedPage(finalUrl, "<body>rendered</body>"));
     when(d.extractor.extract(finalUrl.toString(), "<body>rendered</body>", kind, Optional.empty()))
         .thenReturn(
@@ -182,10 +183,13 @@ class FullTextProbeServiceTest {
   @Test
   void articlePlaywrightUsesInputUrlWhenRendererHasNoFinalUrl() {
     Dependencies d = dependencies();
-    when(d.playwright.renderPage(ARTICLE_URL, PlaywrightRenderMode.STANDARD))
+    when(d.playwright.renderPage(ARTICLE_URL, PlaywrightMode.STANDARD))
         .thenReturn(new RenderedPage(ARTICLE_URL, "html"));
     when(d.extractor.extract(
-            ARTICLE_URL.toString(), "html", ExtractorKind.XPATH_OR_BODY_TEXT, Optional.empty()))
+            ARTICLE_URL.toString(),
+            "html",
+            FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT,
+            Optional.empty()))
         .thenReturn(
             new TextExtractionOutcome.Extracted(
                 "text", ExtractionDecision.of(ExtractionSource.BODY_TEXT)));
@@ -330,7 +334,7 @@ class FullTextProbeServiceTest {
     when(d.extractor.extract(
             finalUrl.toString(),
             "<title>HTML title</title>",
-            ExtractorKind.XPATH_OR_BODY_TEXT,
+            FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT,
             Optional.empty()))
         .thenReturn(
             new TextExtractionOutcome.Extracted(
@@ -365,7 +369,7 @@ class FullTextProbeServiceTest {
                     "bad redirect")));
     when(d.http.get(link))
         .thenReturn(new HttpFetchService.FetchedResource(link, "<title>HTML title</title>"));
-    when(d.extractor.extract(any(), any(), eq(ExtractorKind.READABILITY), any()))
+    when(d.extractor.extract(any(), any(), eq(FullTextMethod.HtmlExtractor.READABILITY), any()))
         .thenReturn(
             new TextExtractionOutcome.NoContent(
                 NoContentReason.BODY_TEXT_EMPTY,
@@ -442,7 +446,7 @@ class FullTextProbeServiceTest {
   @ParameterizedTest
   @MethodSource("feedPlaywrightMethods")
   void nonFeedPlaywrightMapsScrollReadabilityAndFinalUrlFallback(
-      FullTextMethod method, boolean infy, ExtractorKind kind) {
+      FullTextMethod method, boolean infy, FullTextMethod.HtmlExtractor kind) {
     Dependencies d = dependencies();
     SyndFeed feed = mock(SyndFeed.class);
     SyndEntry entry = entry("https://entry", "title");
@@ -451,7 +455,7 @@ class FullTextProbeServiceTest {
     when(d.picker.pick(feed, FeedEntrySelection.first(), true)).thenReturn(Optional.of(entry));
     when(d.http.resolveRedirect(link)).thenReturn(new RedirectResolution.Resolved(link, link));
     when(d.playwright.renderPage(
-            eq(link), eq(infy ? PlaywrightRenderMode.INFY_SCROLL : PlaywrightRenderMode.STANDARD)))
+            eq(link), eq(infy ? PlaywrightMode.INFY_SCROLL : PlaywrightMode.STANDARD)))
         .thenReturn(new RenderedPage(link, "html"));
     when(d.extractor.extract(link.toString(), "html", kind, Optional.empty()))
         .thenReturn(
@@ -475,10 +479,13 @@ class FullTextProbeServiceTest {
     when(d.documents.fetch(FEED_URL)).thenReturn(new FeedDocumentOutcome.Fetched(feed));
     when(d.picker.pick(feed, FeedEntrySelection.first(), true)).thenReturn(Optional.of(entry));
     when(d.http.resolveRedirect(link)).thenReturn(new RedirectResolution.Resolved(link, link));
-    when(d.playwright.renderPage(link, PlaywrightRenderMode.STANDARD))
+    when(d.playwright.renderPage(link, PlaywrightMode.STANDARD))
         .thenReturn(new RenderedPage(finalUrl, "html"));
     when(d.extractor.extract(
-            finalUrl.toString(), "html", ExtractorKind.XPATH_OR_BODY_TEXT, Optional.empty()))
+            finalUrl.toString(),
+            "html",
+            FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT,
+            Optional.empty()))
         .thenReturn(
             new TextExtractionOutcome.Extracted(
                 "text", ExtractionDecision.of(ExtractionSource.BODY_TEXT)));
@@ -516,23 +523,31 @@ class FullTextProbeServiceTest {
   private static Stream<org.junit.jupiter.params.provider.Arguments> playwrightMethods() {
     return Stream.of(
         org.junit.jupiter.params.provider.Arguments.of(
-            FullTextMethod.PLAYWRIGHT, false, ExtractorKind.XPATH_OR_BODY_TEXT),
+            FullTextMethod.PLAYWRIGHT, false, FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT),
         org.junit.jupiter.params.provider.Arguments.of(
-            FullTextMethod.PLAYWRIGHT_READABILITY, false, ExtractorKind.READABILITY),
+            FullTextMethod.PLAYWRIGHT_READABILITY, false, FullTextMethod.HtmlExtractor.READABILITY),
         org.junit.jupiter.params.provider.Arguments.of(
-            FullTextMethod.PLAYWRIGHT_INFY_SCROLL, true, ExtractorKind.XPATH_OR_BODY_TEXT),
+            FullTextMethod.PLAYWRIGHT_INFY_SCROLL,
+            true,
+            FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT),
         org.junit.jupiter.params.provider.Arguments.of(
-            FullTextMethod.PLAYWRIGHT_INFY_SCROLL_READABILITY, true, ExtractorKind.READABILITY));
+            FullTextMethod.PLAYWRIGHT_INFY_SCROLL_READABILITY,
+            true,
+            FullTextMethod.HtmlExtractor.READABILITY));
   }
 
   private static Stream<org.junit.jupiter.params.provider.Arguments> feedPlaywrightMethods() {
     return Stream.of(
         org.junit.jupiter.params.provider.Arguments.of(
-            FullTextMethod.PLAYWRIGHT, false, ExtractorKind.XPATH_OR_BODY_TEXT),
+            FullTextMethod.PLAYWRIGHT, false, FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT),
         org.junit.jupiter.params.provider.Arguments.of(
-            FullTextMethod.PLAYWRIGHT_INFY_SCROLL, true, ExtractorKind.XPATH_OR_BODY_TEXT),
+            FullTextMethod.PLAYWRIGHT_INFY_SCROLL,
+            true,
+            FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT),
         org.junit.jupiter.params.provider.Arguments.of(
-            FullTextMethod.PLAYWRIGHT_READABILITY, false, ExtractorKind.READABILITY));
+            FullTextMethod.PLAYWRIGHT_READABILITY,
+            false,
+            FullTextMethod.HtmlExtractor.READABILITY));
   }
 
   private SyndEntry entry(String link, String title) {
