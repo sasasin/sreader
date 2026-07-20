@@ -159,7 +159,7 @@ final class FeedTomlImportMapper {
 
   private FullTextMethod mapFullTextMethod(FeedTomlEntry entry, List<FeedTomlIssue> issues) {
     if (entry.fullTextMethod().isEmpty()) {
-      return FullTextMethod.HTTP;
+      return FullTextMethod.defaultMethod();
     }
     String value = entry.fullTextMethod().get();
     try {
@@ -171,7 +171,7 @@ final class FeedTomlImportMapper {
               entry.path("full_text_method"),
               entry.path("full_text_method") + " is invalid: " + value,
               issues.size()));
-      return FullTextMethod.HTTP;
+      return FullTextMethod.defaultMethod();
     }
   }
 }

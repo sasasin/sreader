@@ -75,7 +75,7 @@ public class FeedUrlRepository {
             .set(FEED_URL.ID, id)
             .set(FEED_URL.URL, url)
             .set(FEED_URL.STATUS, FeedStatus.ACTIVE.value())
-            .set(FEED_URL.FULL_TEXT_METHOD, FullTextMethod.HTTP.value())
+            .set(FEED_URL.FULL_TEXT_METHOD, FullTextMethod.defaultMethod().value())
             .set(FEED_URL.CREATED_AT, OffsetDateTime.now())
             .set(FEED_URL.UPDATED_AT, OffsetDateTime.now())
             .onConflict(FEED_URL.ID)
@@ -144,7 +144,7 @@ public class FeedUrlRepository {
   }
 
   private FullTextMethod toFullTextMethod(String value) {
-    return value == null ? FullTextMethod.HTTP : FullTextMethod.fromValue(value);
+    return value == null ? FullTextMethod.defaultMethod() : FullTextMethod.fromValue(value);
   }
 
   private UnsubscribeReason toUnsubscribeReason(String value) {
