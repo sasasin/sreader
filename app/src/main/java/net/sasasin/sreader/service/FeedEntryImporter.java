@@ -10,6 +10,7 @@ import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FeedUrl;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.repository.ContentHeaderRepository;
+import org.springframework.dao.DataAccessException;
 
 /** Maps and persists one parsed feed entry. */
 final class FeedEntryImporter {
@@ -62,8 +63,18 @@ final class FeedEntryImporter {
     String feedTextValue = null;
     if (feedUrl.fullTextMethod() == FullTextMethod.FEED) {
       TextExtractionOutcome feedTextOutcome = feedTextExtractor.extract(entry);
-      if (feedTextOutcome instanceof TextExtractionOutcome.Extracted extracted) {
-        feedTextValue = extracted.text();
+      switch (feedTextOutcome) {
+        case TextExtractionOutcome.Extracted extracted -> feedTextValue = extracted.text();
+        case TextExtractionOutcome.NoContent ignored -> {
+          // The header is still importable; the explicit NO_CONTENT write outcome is recorded
+          // below.
+        }
+        case TextExtractionOutcome.Skipped skipped ->
+            throw new IllegalStateException(
+                "Feed entry extraction must not be skipped: " + skipped.reason());
+        case TextExtractionOutcome.Failed failed -> {
+          return new FeedEntryImportOutcome.Failed(failed.failure());
+        }
       }
     }
 
@@ -81,7 +92,7 @@ final class FeedEntryImporter {
     final ContentHeaderUpsertOutcome upsert;
     try {
       upsert = headers.insertOrRefreshFetchUrl(header);
-    } catch (RuntimeException e) {
+    } catch (DataAccessException e) {
       return new FeedEntryImportOutcome.Failed(
           OperationFailure.of(
               FailureStage.PERSIST_HEADER,
@@ -99,7 +110,7 @@ final class FeedEntryImporter {
     if (feedUrl.fullTextMethod() == FullTextMethod.FEED) {
       try {
         feedTextWrite = Optional.of(fullTextWriter.saveIfAbsent(header, feedTextValue));
-      } catch (RuntimeException e) {
+      } catch (DataAccessException e) {
         return new FeedEntryImportOutcome.Failed(
             OperationFailure.of(
                 FailureStage.PERSIST_FULL_TEXT,

@@ -31,6 +31,7 @@ import net.sasasin.sreader.repository.ContentHeaderRepository;
 import net.sasasin.sreader.repository.FeedUrlRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessResourceFailureException;
 
 /** Extra branch coverage for P0-3 outcome paths. */
 class OutcomeBranchCoverageTest {
@@ -309,7 +310,9 @@ class OutcomeBranchCoverageTest {
         (FeedEntryImportOutcome.Inserted) importer.importEntry(feed("feed"), entry);
     assertThat(inserted.feedTextWrite()).contains(ContentFullTextWriteOutcome.NO_CONTENT);
 
-    doThrow(new RuntimeException("header fail")).when(headers).insertOrRefreshFetchUrl(any());
+    doThrow(new DataAccessResourceFailureException("header fail"))
+        .when(headers)
+        .insertOrRefreshFetchUrl(any());
     FeedEntryImportOutcome.Failed headerFail =
         (FeedEntryImportOutcome.Failed) importer.importEntry(feed("feed"), entry);
     assertThat(headerFail.failure().stage()).isEqualTo(FailureStage.PERSIST_HEADER);
@@ -319,7 +322,9 @@ class OutcomeBranchCoverageTest {
         .thenReturn(
             new TextExtractionOutcome.Extracted(
                 "body", ExtractionDecision.of(ExtractionSource.FEED)));
-    doThrow(new RuntimeException("ft fail")).when(writer).saveIfAbsent(any(), eq("body"));
+    doThrow(new DataAccessResourceFailureException("ft fail"))
+        .when(writer)
+        .saveIfAbsent(any(), eq("body"));
     FeedEntryImportOutcome.Failed textFail =
         (FeedEntryImportOutcome.Failed) importer.importEntry(feed("feed"), entry);
     assertThat(textFail.failure().stage()).isEqualTo(FailureStage.PERSIST_FULL_TEXT);
@@ -345,6 +350,89 @@ class OutcomeBranchCoverageTest {
     entry.setPublishedDate(new java.util.Date());
     assertThat(importer.importEntry(feed("http"), entry))
         .isInstanceOf(FeedEntryImportOutcome.AlreadyPresent.class);
+  }
+
+  @Test
+  void feedEntryImporterPropagatesFeedTextExtractionFailure() {
+    HttpFetchService http = mock(HttpFetchService.class);
+    ContentHeaderRepository headers = mock(ContentHeaderRepository.class);
+    FeedEntryFullTextExtractor extractor = mock(FeedEntryFullTextExtractor.class);
+    FeedEntryImporter importer =
+        new FeedEntryImporter(
+            http,
+            new ArticleUrlCanonicalizer(),
+            headers,
+            extractor,
+            mock(ContentFullTextWriter.class));
+    URI article = URI.create("https://example.test/a");
+    SyndEntryImpl entry = new SyndEntryImpl();
+    entry.setLink(article.toString());
+    when(http.resolveRedirect(article))
+        .thenReturn(new RedirectResolution.Resolved(article, article));
+    when(extractor.extract(entry))
+        .thenReturn(
+            new TextExtractionOutcome.Failed(
+                OperationFailure.of(
+                    FailureStage.EXTRACT_TEXT,
+                    FailureKind.EXTRACTION,
+                    article.toString(),
+                    "bad feed text")));
+
+    FeedEntryImportOutcome.Failed failed =
+        (FeedEntryImportOutcome.Failed) importer.importEntry(feed("feed"), entry);
+
+    assertThat(failed.failure().stage()).isEqualTo(FailureStage.EXTRACT_TEXT);
+    verify(headers, never()).insertOrRefreshFetchUrl(any());
+  }
+
+  @Test
+  void feedEntryImporterRejectsUnexpectedFeedTextSkip() {
+    HttpFetchService http = mock(HttpFetchService.class);
+    FeedEntryFullTextExtractor extractor = mock(FeedEntryFullTextExtractor.class);
+    FeedEntryImporter importer =
+        new FeedEntryImporter(
+            http,
+            new ArticleUrlCanonicalizer(),
+            mock(ContentHeaderRepository.class),
+            extractor,
+            mock(ContentFullTextWriter.class));
+    URI article = URI.create("https://example.test/a");
+    SyndEntryImpl entry = new SyndEntryImpl();
+    entry.setLink(article.toString());
+    when(http.resolveRedirect(article))
+        .thenReturn(new RedirectResolution.Resolved(article, article));
+    when(extractor.extract(entry))
+        .thenReturn(
+            new TextExtractionOutcome.Skipped(TextExtractionSkipReason.PLAYWRIGHT_DISABLED));
+
+    assertThatThrownBy(() -> importer.importEntry(feed("feed"), entry))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("must not be skipped");
+  }
+
+  @Test
+  void feedEntryImporterDoesNotHideUnexpectedPersistenceFailure() {
+    HttpFetchService http = mock(HttpFetchService.class);
+    ContentHeaderRepository headers = mock(ContentHeaderRepository.class);
+    FeedEntryImporter importer =
+        new FeedEntryImporter(
+            http,
+            new ArticleUrlCanonicalizer(),
+            headers,
+            mock(FeedEntryFullTextExtractor.class),
+            mock(ContentFullTextWriter.class));
+    URI article = URI.create("https://example.test/a");
+    SyndEntryImpl entry = new SyndEntryImpl();
+    entry.setLink(article.toString());
+    when(http.resolveRedirect(article))
+        .thenReturn(new RedirectResolution.Resolved(article, article));
+    doThrow(new IllegalStateException("programming defect"))
+        .when(headers)
+        .insertOrRefreshFetchUrl(any());
+
+    assertThatThrownBy(() -> importer.importEntry(feed("http"), entry))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("programming defect");
   }
 
   @Test

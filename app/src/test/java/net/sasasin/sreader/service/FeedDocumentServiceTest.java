@@ -66,6 +66,18 @@ class FeedDocumentServiceTest {
   }
 
   @Test
+  void fetchHttpStatusFailureIsFailedWithHttpStatusKind() throws Exception {
+    IOException cause = new IOException("GET " + feedUrl + " returned HTTP 503");
+    when(http.get(feedUrl)).thenThrow(cause);
+
+    FeedDocumentOutcome.Failed failed = (FeedDocumentOutcome.Failed) service.fetch(feedUrl);
+
+    assertThat(failed.failure().stage()).isEqualTo(FailureStage.FETCH_FEED);
+    assertThat(failed.failure().kind()).isEqualTo(FailureKind.HTTP_STATUS);
+    assertThat(failed.failure().cause()).contains(cause);
+  }
+
+  @Test
   void fetchInterruptedIsFailedAndRestoresInterruptFlag() throws Exception {
     InterruptedException cause = new InterruptedException("interrupted");
     when(http.get(feedUrl)).thenThrow(cause);

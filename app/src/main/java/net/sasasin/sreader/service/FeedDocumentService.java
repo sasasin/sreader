@@ -41,7 +41,7 @@ public class FeedDocumentService {
       return new FeedDocumentOutcome.Failed(
           OperationFailure.of(
               FailureStage.FETCH_FEED,
-              FailureKind.IO,
+              fetchFailureKind(e),
               feedUrl.toString(),
               "Failed to fetch feed: " + feedUrl + ": " + e.getMessage(),
               e));
@@ -54,5 +54,12 @@ public class FeedDocumentService {
               "Failed to parse feed: " + feedUrl + ": " + e.getMessage(),
               e));
     }
+  }
+
+  private FailureKind fetchFailureKind(IOException exception) {
+    String message = exception.getMessage();
+    return message != null && message.contains(" returned HTTP ")
+        ? FailureKind.HTTP_STATUS
+        : FailureKind.IO;
   }
 }
