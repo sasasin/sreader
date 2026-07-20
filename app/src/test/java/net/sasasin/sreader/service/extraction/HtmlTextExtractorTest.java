@@ -10,7 +10,7 @@ import static org.mockito.Mockito.when;
 import java.util.Optional;
 import net.dankito.readability4j.Article;
 import net.sasasin.sreader.domain.ExtractRule;
-import net.sasasin.sreader.domain.ExtractionPlan;
+import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.service.outcome.FailureKind;
 import net.sasasin.sreader.service.outcome.FailureStage;
 import org.jsoup.Jsoup;
@@ -31,7 +31,7 @@ class HtmlTextExtractorTest {
             extractor.extract(
                 url,
                 "<html><body><p>First</p><p>Second</p><aside>Skip</aside></body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT);
+                FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT);
     assertThat(extracted.text()).isEqualTo("First\n\nSecond");
     assertThat(extracted.decision().source()).isEqualTo(ExtractionSource.CONFIGURED_XPATH);
   }
@@ -48,7 +48,7 @@ class HtmlTextExtractorTest {
             extractor.extract(
                 url,
                 "<html><body><main>Fallback body</main></body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT);
+                FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT);
     assertThat(extracted.text()).isEqualTo("Fallback body");
     assertThat(extracted.decision().source()).isEqualTo(ExtractionSource.BODY_TEXT);
     assertThat(extracted.decision().fallbackReason())
@@ -72,7 +72,7 @@ class HtmlTextExtractorTest {
                 </article>
                 </body></html>
                 """,
-                ExtractionPlan.ExtractorKind.READABILITY);
+                FullTextMethod.HtmlExtractor.READABILITY);
     assertThat(extracted.text()).contains("main article text");
     assertThat(extracted.decision().source()).isEqualTo(ExtractionSource.READABILITY);
   }
@@ -90,7 +90,7 @@ class HtmlTextExtractorTest {
                 url,
                 "<html><body><h1>Skip</h1><p class=\"c\">Hit</p><p"
                     + " class=\"c\">Two</p></body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
+                FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT,
                 Optional.of("//p[@class='c']"));
     assertThat(extracted.text()).isEqualTo("Hit\n\nTwo");
     assertThat(extracted.decision().source()).isEqualTo(ExtractionSource.XPATH_OVERRIDE);
@@ -107,7 +107,7 @@ class HtmlTextExtractorTest {
             extractor.extract(
                 "u",
                 "<html><body><div>no</div></body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
+                FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT,
                 Optional.of("//p"));
     assertThat(noContent.reason()).isEqualTo(NoContentReason.XPATH_NO_MATCH);
   }
@@ -122,7 +122,7 @@ class HtmlTextExtractorTest {
             extractor.extract(
                 "u",
                 "<html><body><p>   </p></body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
+                FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT,
                 Optional.of("//p"));
     assertThat(noContent.reason()).isEqualTo(NoContentReason.XPATH_MATCHED_EMPTY);
   }
@@ -137,7 +137,7 @@ class HtmlTextExtractorTest {
             extractor.extract(
                 "u",
                 "<html><body><div>no</div></body></html>",
-                ExtractionPlan.ExtractorKind.READABILITY,
+                FullTextMethod.HtmlExtractor.READABILITY,
                 Optional.of("///bad["));
     assertThat(failed.failure().kind()).isEqualTo(FailureKind.INVALID_INPUT);
     assertThat(failed.failure().stage()).isEqualTo(FailureStage.EXTRACT_TEXT);
@@ -153,7 +153,7 @@ class HtmlTextExtractorTest {
             extractor.extract(
                 "u",
                 "<html><body><article>Main</article></body></html>",
-                ExtractionPlan.ExtractorKind.READABILITY,
+                FullTextMethod.HtmlExtractor.READABILITY,
                 Optional.of("//article"));
     assertThat(extracted.text()).isEqualTo("Main");
   }
@@ -168,7 +168,7 @@ class HtmlTextExtractorTest {
                 extractor.extract(
                     "https://example.test/article",
                     "<html><body><p>Body only</p></body></html>",
-                    ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
+                    FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT,
                     null))
         .isInstanceOf(NullPointerException.class)
         .hasMessageContaining("xpathOverride");
@@ -186,7 +186,7 @@ class HtmlTextExtractorTest {
             extractor.extract(
                 url,
                 "<html><body><p>Via empty override</p></body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
+                FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT,
                 Optional.empty());
     assertThat(extracted.text()).isEqualTo("Via empty override");
     verify(rules).findBestRule(url);
@@ -203,7 +203,7 @@ class HtmlTextExtractorTest {
             extractor.extract(
                 url,
                 "<html><body><p>ignored</p></body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
+                FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT,
                 Optional.of(""));
     assertThat(failed.failure().kind()).isEqualTo(FailureKind.INVALID_INPUT);
     verify(rules, never()).findBestRule(url);
@@ -221,7 +221,7 @@ class HtmlTextExtractorTest {
             extractor.extract(
                 url,
                 "<html><body>Three-arg body</body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT);
+                FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT);
     assertThat(extracted.text()).isEqualTo("Three-arg body");
   }
 
@@ -251,7 +251,7 @@ class HtmlTextExtractorTest {
             extractor.extract(
                 url,
                 "<html><body><p>   </p><div>Real body</div></body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT);
+                FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT);
     assertThat(extracted.text()).isEqualTo("Real body");
     assertThat(extracted.decision().fallbackReason())
         .contains(ExtractionFallbackReason.CONFIGURED_XPATH_EMPTY);
@@ -270,7 +270,7 @@ class HtmlTextExtractorTest {
             extractor.extract(
                 url,
                 "<html><body><main>Safe body</main></body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT);
+                FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT);
     assertThat(extracted.text()).isEqualTo("Safe body");
     assertThat(extracted.decision().fallbackReason())
         .contains(ExtractionFallbackReason.CONFIGURED_XPATH_INVALID);
@@ -317,7 +317,7 @@ class HtmlTextExtractorTest {
             blankExtractor.extract(
                 "https://example.test/a",
                 "<html><body><p>Blank readability body</p></body></html>",
-                ExtractionPlan.ExtractorKind.READABILITY);
+                FullTextMethod.HtmlExtractor.READABILITY);
     assertThat(blank.text()).isEqualTo("Blank readability body");
     assertThat(blank.decision().fallbackReason())
         .contains(ExtractionFallbackReason.READABILITY_EMPTY);
@@ -331,7 +331,7 @@ class HtmlTextExtractorTest {
             nullExtractor.extract(
                 "https://example.test/a",
                 "<html><body><p>Null readability body</p></body></html>",
-                ExtractionPlan.ExtractorKind.READABILITY);
+                FullTextMethod.HtmlExtractor.READABILITY);
     assertThat(nullText.text()).isEqualTo("Null readability body");
   }
 
@@ -350,7 +350,7 @@ class HtmlTextExtractorTest {
             extractor.extract(
                 "https://example.test/a",
                 "<html><body><p>Exception fallback body</p></body></html>",
-                ExtractionPlan.ExtractorKind.READABILITY);
+                FullTextMethod.HtmlExtractor.READABILITY);
     assertThat(extracted.text()).isEqualTo("Exception fallback body");
     assertThat(extracted.decision().fallbackReason())
         .contains(ExtractionFallbackReason.READABILITY_FAILED);
@@ -368,7 +368,7 @@ class HtmlTextExtractorTest {
             extractor.extract(
                 "https://example.test/a",
                 "<html><body><p>ignored body</p></body></html>",
-                ExtractionPlan.ExtractorKind.READABILITY);
+                FullTextMethod.HtmlExtractor.READABILITY);
     assertThat(extracted.text()).isEqualTo("Injected article text");
   }
 
@@ -384,7 +384,16 @@ class HtmlTextExtractorTest {
             extractor.extract(
                 url,
                 "<html><body>   </body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT);
+                FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT);
     assertThat(noContent.reason()).isEqualTo(NoContentReason.BODY_TEXT_EMPTY);
+  }
+
+  @Test
+  void rejectsNullExtractor() {
+    ExtractRuleService rules = mock(ExtractRuleService.class);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
+    assertThatThrownBy(() -> extractor.extract("https://example.test/a", "<html></html>", null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessageContaining("extractor");
   }
 }
