@@ -3,6 +3,7 @@ package net.sasasin.sreader.cli;
 import net.sasasin.sreader.domain.ContentCanonicalizationResult;
 import net.sasasin.sreader.service.canonicalization.ContentCanonicalizationMaintenanceService;
 import org.springframework.stereotype.Component;
+import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -16,13 +17,8 @@ public class ContentCanonicalizeCommand implements java.util.concurrent.Callable
 
   private final ContentCanonicalizationMaintenanceService service;
 
-  @Option(
-      names = "--dry-run",
-      description = "Report changes without modifying the database or files")
-  private boolean dryRun;
-
-  @Option(names = "--apply", description = "Apply database changes and remove stale text files")
-  private boolean apply;
+  @ArgGroup(exclusive = true, multiplicity = "0..1", heading = "Execution mode:%n")
+  private ExecutionModeOptions executionMode;
 
   @Option(
       names = "--host",
@@ -49,15 +45,17 @@ public class ContentCanonicalizeCommand implements java.util.concurrent.Callable
 
   @Override
   public Integer call() {
-    if (dryRun && apply) {
-      throw new picocli.CommandLine.ParameterException(
-          new picocli.CommandLine(this), "--dry-run and --apply are mutually exclusive");
-    }
+    CanonicalizationExecutionMode mode = executionMode();
     ContentCanonicalizationResult result =
         service.canonicalize(
-            new ContentCanonicalizationMaintenanceService.Options(host, batchSize, limit, apply));
-    print(result, apply ? "apply" : "dry-run");
+            new ContentCanonicalizationMaintenanceService.Options(
+                host, batchSize, limit, mode.apply()));
+    print(result, mode.displayValue());
     return result.hasFailures() ? 1 : 0;
+  }
+
+  private CanonicalizationExecutionMode executionMode() {
+    return executionMode == null ? CanonicalizationExecutionMode.DRY_RUN : executionMode.mode();
   }
 
   private void print(ContentCanonicalizationResult result, String mode) {
@@ -79,5 +77,52 @@ public class ContentCanonicalizeCommand implements java.util.concurrent.Callable
     System.out.printf("missing_files=%d%n", files.missingFiles());
     System.out.printf("failed_files=%d%n", files.failedFiles());
     System.out.printf("failed_groups=%d%n", groups.failedGroups());
+  }
+
+  /** CLI execution mode for content canonicalization (dry-run vs apply). */
+  enum CanonicalizationExecutionMode {
+    DRY_RUN(false, "dry-run"),
+    APPLY(true, "apply");
+
+    private final boolean apply;
+    private final String displayValue;
+
+    CanonicalizationExecutionMode(boolean apply, String displayValue) {
+      this.apply = apply;
+      this.displayValue = displayValue;
+    }
+
+    boolean apply() {
+      return apply;
+    }
+
+    String displayValue() {
+      return displayValue;
+    }
+  }
+
+  /**
+   * Optional exclusive group for {@code --dry-run} / {@code --apply}. When the group is omitted,
+   * {@link CanonicalizationExecutionMode#DRY_RUN} is used.
+   */
+  static final class ExecutionModeOptions {
+
+    @Option(
+        names = "--dry-run",
+        description = "Report changes without modifying the database or files (default mode)")
+    boolean dryRun;
+
+    @Option(names = "--apply", description = "Apply database changes and remove stale text files")
+    boolean apply;
+
+    CanonicalizationExecutionMode mode() {
+      if (dryRun && apply) {
+        throw new IllegalStateException("Picocli exclusive group invariant violated");
+      }
+      if (apply) {
+        return CanonicalizationExecutionMode.APPLY;
+      }
+      return CanonicalizationExecutionMode.DRY_RUN;
+    }
   }
 }
