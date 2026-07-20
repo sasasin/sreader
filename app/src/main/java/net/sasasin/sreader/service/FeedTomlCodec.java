@@ -21,15 +21,13 @@ final class FeedTomlCodec {
     toml.append("generated_at = \"").append(OffsetDateTime.now(clock)).append("\"\n");
     for (FeedUrl feed : feeds) {
       toml.append("\n[[feeds]]\nurl = \"").append(escape(feed.url())).append("\"\n");
-      toml.append("status = \"").append(feed.status()).append("\"\n");
-      toml.append("full_text_method = \"")
-          .append(
-              feed.fullTextMethod() == null
-                  ? FullTextMethod.HTTP.value()
-                  : feed.fullTextMethod().value())
-          .append("\"\n");
-      if (FeedStatus.UNSUBSCRIBED.value().equals(feed.status())) {
-        appendString(toml, "unsubscribe_reason", feed.unsubscribeReason());
+      toml.append("status = \"").append(feed.status().value()).append("\"\n");
+      toml.append("full_text_method = \"").append(feed.fullTextMethod().value()).append("\"\n");
+      if (feed.status() == FeedStatus.UNSUBSCRIBED) {
+        appendString(
+            toml,
+            "unsubscribe_reason",
+            feed.unsubscribeReason() == null ? null : feed.unsubscribeReason().value());
         if (feed.unsubscribedAt() != null) {
           toml.append("unsubscribed_at = \"").append(feed.unsubscribedAt()).append("\"\n");
         }
@@ -63,44 +61,53 @@ final class FeedTomlCodec {
       (current == null ? root : current)
           .put(line.substring(0, equals).trim(), line.substring(equals + 1).trim());
     }
-    int schemaVersion = schemaVersion(root, errors);
+    schemaVersion(root, errors);
     Set<String> seenUrls = new HashSet<>();
     List<FeedTomlService.ImportFeed> feeds = new ArrayList<>();
     for (int i = 0; i < tables.size(); i++) {
       int index = i + 1;
       Map<String, String> table = tables.get(i);
+      int errorsBefore = errors.size();
       String rawUrl = stringValue(table.get("url"), "feeds[" + index + "].url", errors);
       String url = normalizedUrl(rawUrl, index, seenUrls, errors);
-      String status = stringValue(table.get("status"), "feeds[" + index + "].status", errors);
-      if (status == null) {
-        status = FeedStatus.ACTIVE.value();
+      String statusValue = stringValue(table.get("status"), "feeds[" + index + "].status", errors);
+      FeedStatus status = FeedStatus.ACTIVE;
+      boolean statusOk = true;
+      if (statusValue != null) {
+        try {
+          status = FeedStatus.fromValue(statusValue);
+        } catch (IllegalArgumentException e) {
+          errors.add("feeds[" + index + "].status must be active or unsubscribed: " + statusValue);
+          statusOk = false;
+        }
       }
-      if (!FeedStatus.ACTIVE.value().equals(status)
-          && !FeedStatus.UNSUBSCRIBED.value().equals(status)) {
-        errors.add("feeds[" + index + "].status must be active or unsubscribed: " + status);
-      }
-      String reason =
+      String reasonValue =
           stringValue(
               table.get("unsubscribe_reason"), "feeds[" + index + "].unsubscribe_reason", errors);
-      if (FeedStatus.UNSUBSCRIBED.value().equals(status) && reason == null) {
-        reason = UnsubscribeReason.OTHER.value();
-      }
-      if (reason != null) {
+      UnsubscribeReason reason = null;
+      boolean reasonOk = true;
+      if (status == FeedStatus.UNSUBSCRIBED && reasonValue == null) {
+        reason = UnsubscribeReason.OTHER;
+      } else if (reasonValue != null) {
         try {
-          UnsubscribeReason.fromValue(reason);
+          reason = UnsubscribeReason.fromValue(reasonValue);
         } catch (IllegalArgumentException e) {
-          errors.add("feeds[" + index + "].unsubscribe_reason is invalid: " + reason);
+          errors.add("feeds[" + index + "].unsubscribe_reason is invalid: " + reasonValue);
+          reasonOk = false;
         }
       }
       OffsetDateTime unsubscribedAt = offsetDateTime(table.get("unsubscribed_at"), index, errors);
       String note = stringValue(table.get("note"), "feeds[" + index + "].note", errors);
-      String method = fullTextMethod(table.get("full_text_method"), index, errors);
-      if (FeedStatus.ACTIVE.value().equals(status)) {
+      FullTextMethod method = fullTextMethod(table.get("full_text_method"), index, errors);
+      if (status == FeedStatus.ACTIVE) {
+        // Active feeds discard unsubscribe metadata at the TOML boundary (existing external
+        // behavior).
         reason = null;
         unsubscribedAt = null;
         note = null;
       }
-      if (url != null) {
+      // Only construct a typed ImportFeed when this table has no new validation errors.
+      if (url != null && statusOk && reasonOk && errors.size() == errorsBefore) {
         feeds.add(
             new FeedTomlService.ImportFeed(
                 index, url, status, reason, unsubscribedAt, note, method));
@@ -158,16 +165,16 @@ final class FeedTomlCodec {
     }
   }
 
-  private String fullTextMethod(String raw, int index, List<String> errors) {
+  private FullTextMethod fullTextMethod(String raw, int index, List<String> errors) {
     String value = stringValue(raw, "feeds[" + index + "].full_text_method", errors);
     if (value == null) {
-      return FullTextMethod.HTTP.value();
+      return FullTextMethod.HTTP;
     }
     try {
-      return FullTextMethod.fromValue(value).value();
+      return FullTextMethod.fromValue(value);
     } catch (IllegalArgumentException e) {
       errors.add("feeds[" + index + "].full_text_method is invalid: " + value);
-      return FullTextMethod.HTTP.value();
+      return FullTextMethod.HTTP;
     }
   }
 

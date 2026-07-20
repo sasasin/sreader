@@ -8,6 +8,7 @@ import java.util.Optional;
 import net.sasasin.sreader.domain.FeedStatus;
 import net.sasasin.sreader.domain.FeedUrl;
 import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.domain.UnsubscribeReason;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.Record;
@@ -88,24 +89,23 @@ public class FeedUrlRepository {
     dsl.insertInto(FEED_URL)
         .set(FEED_URL.ID, feedUrl.id())
         .set(FEED_URL.URL, feedUrl.url())
-        .set(FEED_URL.STATUS, feedUrl.status())
-        .set(FEED_URL.UNSUBSCRIBE_REASON, feedUrl.unsubscribeReason())
+        .set(FEED_URL.STATUS, feedUrl.status().value())
+        .set(
+            FEED_URL.UNSUBSCRIBE_REASON,
+            feedUrl.unsubscribeReason() == null ? null : feedUrl.unsubscribeReason().value())
         .set(FEED_URL.UNSUBSCRIBED_AT, feedUrl.unsubscribedAt())
         .set(FEED_URL.NOTE, feedUrl.note())
-        .set(
-            FEED_URL.FULL_TEXT_METHOD,
-            feedUrl.fullTextMethod() == null
-                ? FullTextMethod.HTTP.value()
-                : feedUrl.fullTextMethod().value())
+        .set(FEED_URL.FULL_TEXT_METHOD, feedUrl.fullTextMethod().value())
         .set(FEED_URL.CREATED_AT, now)
         .set(FEED_URL.UPDATED_AT, now)
         .execute();
   }
 
-  public void unsubscribe(String url, String reason, OffsetDateTime unsubscribedAt, String note) {
+  public void unsubscribe(
+      String url, UnsubscribeReason reason, OffsetDateTime unsubscribedAt, String note) {
     dsl.update(FEED_URL)
         .set(FEED_URL.STATUS, FeedStatus.UNSUBSCRIBED.value())
-        .set(FEED_URL.UNSUBSCRIBE_REASON, reason)
+        .set(FEED_URL.UNSUBSCRIBE_REASON, reason.value())
         .set(FEED_URL.UNSUBSCRIBED_AT, unsubscribedAt)
         .set(FEED_URL.NOTE, note)
         .set(FEED_URL.UPDATED_AT, OffsetDateTime.now())
@@ -114,9 +114,9 @@ public class FeedUrlRepository {
   }
 
   public void updateUnsubscribedMetadata(
-      String url, String reason, OffsetDateTime unsubscribedAt, String note) {
+      String url, UnsubscribeReason reason, OffsetDateTime unsubscribedAt, String note) {
     dsl.update(FEED_URL)
-        .set(FEED_URL.UNSUBSCRIBE_REASON, reason)
+        .set(FEED_URL.UNSUBSCRIBE_REASON, reason.value())
         .set(FEED_URL.UNSUBSCRIBED_AT, unsubscribedAt)
         .set(FEED_URL.NOTE, note)
         .set(FEED_URL.UPDATED_AT, OffsetDateTime.now())
@@ -135,9 +135,9 @@ public class FeedUrlRepository {
         .execute();
   }
 
-  public void updateFullTextMethod(String url, String fullTextMethod) {
+  public void updateFullTextMethod(String url, FullTextMethod fullTextMethod) {
     dsl.update(FEED_URL)
-        .set(FEED_URL.FULL_TEXT_METHOD, fullTextMethod)
+        .set(FEED_URL.FULL_TEXT_METHOD, fullTextMethod.value())
         .set(FEED_URL.UPDATED_AT, OffsetDateTime.now())
         .where(FEED_URL.URL.eq(url))
         .execute();
@@ -147,12 +147,21 @@ public class FeedUrlRepository {
     return value == null ? FullTextMethod.HTTP : FullTextMethod.fromValue(value);
   }
 
+  private UnsubscribeReason toUnsubscribeReason(String value) {
+    return value == null ? null : UnsubscribeReason.fromValue(value);
+  }
+
+  /**
+   * Maps a DB row to {@link FeedUrl}. Invalid status/reason strings fail via enum {@code
+   * fromValue}. Rows that violate active/unsubscribed correlation fail-fast in the domain
+   * constructor rather than silently normalizing corrupt data.
+   */
   private FeedUrl mapFeedUrl(Record record) {
     return new FeedUrl(
         record.get(FEED_URL.ID),
         record.get(FEED_URL.URL),
-        record.get(FEED_URL.STATUS),
-        record.get(FEED_URL.UNSUBSCRIBE_REASON),
+        FeedStatus.fromValue(record.get(FEED_URL.STATUS)),
+        toUnsubscribeReason(record.get(FEED_URL.UNSUBSCRIBE_REASON)),
         record.get(FEED_URL.UNSUBSCRIBED_AT),
         record.get(FEED_URL.NOTE),
         toFullTextMethod(record.get(FEED_URL.FULL_TEXT_METHOD)));

@@ -7,9 +7,13 @@ import static net.sasasin.sreader.jooq.Tables.CONTENT_TEXT_FILE_EXPORT;
 import java.net.URI;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
+import net.sasasin.sreader.domain.ContentCanonicalizationCandidate;
+import net.sasasin.sreader.domain.ContentCanonicalizationFullText;
 import net.sasasin.sreader.domain.ContentCanonicalizationGroup;
-import net.sasasin.sreader.domain.ContentCanonicalizationMember;
+import net.sasasin.sreader.domain.ContentCanonicalizationHeader;
 import net.sasasin.sreader.domain.ContentCanonicalizationPlan;
+import net.sasasin.sreader.domain.ContentCanonicalizationSurvivor;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
@@ -46,7 +50,7 @@ public class ContentCanonicalizationMaintenanceRepository {
   public ContentCanonicalizationGroup loadGroup(String normalizedCanonicalUrl) {
     URI uri = URI.create(normalizedCanonicalUrl);
     String prefix = uri.getScheme() + "://" + uri.getRawAuthority() + uri.getRawPath();
-    List<ContentCanonicalizationMember> members =
+    List<ContentCanonicalizationCandidate> members =
         dsl.select(
                 CONTENT_HEADER.ID,
                 CONTENT_HEADER.FEED_URL_ID,
@@ -68,29 +72,38 @@ public class ContentCanonicalizationMaintenanceRepository {
             .where(CONTENT_HEADER.CANONICAL_URL.eq(normalizedCanonicalUrl))
             .or(CONTENT_HEADER.CANONICAL_URL.startsWith(prefix + "?"))
             .fetch(
-                record ->
-                    new ContentCanonicalizationMember(
-                        record.get(CONTENT_HEADER.ID),
-                        record.get(CONTENT_HEADER.FEED_URL_ID),
-                        record.get(CONTENT_HEADER.SOURCE_URL),
-                        record.get(CONTENT_HEADER.FETCH_URL),
-                        record.get(CONTENT_HEADER.CANONICAL_URL),
-                        record.get(CONTENT_HEADER.TITLE),
-                        record.get(CONTENT_HEADER.PUBLISHED_AT),
-                        record.get(CONTENT_HEADER.FEED_TEXT),
-                        record.get(CONTENT_HEADER.CREATED_AT),
-                        record.get(CONTENT_HEADER.UPDATED_AT),
-                        record.get(CONTENT_FULL_TEXT.ID),
-                        record.get(CONTENT_FULL_TEXT.FULL_TEXT),
-                        record.get(CONTENT_FULL_TEXT.EXTRACTED_AT),
-                        record.get(CONTENT_FULL_TEXT.CREATED_AT)));
+                record -> {
+                  ContentCanonicalizationHeader header =
+                      new ContentCanonicalizationHeader(
+                          record.get(CONTENT_HEADER.ID),
+                          record.get(CONTENT_HEADER.FEED_URL_ID),
+                          record.get(CONTENT_HEADER.SOURCE_URL),
+                          record.get(CONTENT_HEADER.FETCH_URL),
+                          record.get(CONTENT_HEADER.CANONICAL_URL),
+                          record.get(CONTENT_HEADER.TITLE),
+                          record.get(CONTENT_HEADER.PUBLISHED_AT),
+                          record.get(CONTENT_HEADER.FEED_TEXT),
+                          record.get(CONTENT_HEADER.CREATED_AT),
+                          record.get(CONTENT_HEADER.UPDATED_AT));
+                  String fullTextId = record.get(CONTENT_FULL_TEXT.ID);
+                  Optional<ContentCanonicalizationFullText> fullText =
+                      fullTextId == null
+                          ? Optional.empty()
+                          : Optional.of(
+                              new ContentCanonicalizationFullText(
+                                  fullTextId,
+                                  record.get(CONTENT_FULL_TEXT.FULL_TEXT),
+                                  record.get(CONTENT_FULL_TEXT.EXTRACTED_AT),
+                                  record.get(CONTENT_FULL_TEXT.CREATED_AT)));
+                  return new ContentCanonicalizationCandidate(header, fullText);
+                });
     int exportCount =
         members.isEmpty()
             ? 0
             : dsl.fetchCount(
                 CONTENT_TEXT_FILE_EXPORT,
                 CONTENT_TEXT_FILE_EXPORT.CONTENT_HEADER_ID.in(
-                    members.stream().map(ContentCanonicalizationMember::id).toList()));
+                    members.stream().map(ContentCanonicalizationCandidate::id).toList()));
     return new ContentCanonicalizationGroup(normalizedCanonicalUrl, members, exportCount);
   }
 
@@ -113,7 +126,7 @@ public class ContentCanonicalizationMaintenanceRepository {
                   .where(CONTENT_TEXT_FILE_EXPORT.CONTENT_HEADER_ID.in(memberIds))
                   .execute();
 
-          ContentCanonicalizationMember values = plan.survivorValues();
+          ContentCanonicalizationSurvivor values = plan.survivor();
           OffsetDateTime now = OffsetDateTime.now();
           tx.insertInto(CONTENT_HEADER)
               .set(CONTENT_HEADER.ID, plan.survivorId())
@@ -139,22 +152,22 @@ public class ContentCanonicalizationMaintenanceRepository {
               .set(CONTENT_HEADER.UPDATED_AT, now)
               .execute();
 
-          ContentCanonicalizationMember selected = plan.selectedFullText();
+          Optional<ContentCanonicalizationFullText> selected = plan.selectedFullText();
           int fullTexts =
               tx.deleteFrom(CONTENT_FULL_TEXT)
                   .where(CONTENT_FULL_TEXT.CONTENT_HEADER_ID.in(memberIds))
                   .and(
-                      selected == null
-                          ? DSL.trueCondition()
-                          : CONTENT_FULL_TEXT.ID.ne(selected.fullTextId()))
+                      selected
+                          .map(ft -> CONTENT_FULL_TEXT.ID.ne(ft.id()))
+                          .orElse(DSL.trueCondition()))
                   .execute();
-          if (selected != null) {
-            tx.update(CONTENT_FULL_TEXT)
-                .set(CONTENT_FULL_TEXT.ID, plan.survivorId())
-                .set(CONTENT_FULL_TEXT.CONTENT_HEADER_ID, plan.survivorId())
-                .where(CONTENT_FULL_TEXT.ID.eq(selected.fullTextId()))
-                .execute();
-          }
+          selected.ifPresent(
+              ft ->
+                  tx.update(CONTENT_FULL_TEXT)
+                      .set(CONTENT_FULL_TEXT.ID, plan.survivorId())
+                      .set(CONTENT_FULL_TEXT.CONTENT_HEADER_ID, plan.survivorId())
+                      .where(CONTENT_FULL_TEXT.ID.eq(ft.id()))
+                      .execute());
           int headers =
               tx.deleteFrom(CONTENT_HEADER)
                   .where(CONTENT_HEADER.ID.in(memberIds))

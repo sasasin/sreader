@@ -7,14 +7,17 @@ import static net.sasasin.sreader.jooq.Tables.FEED_URL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Optional;
+import net.sasasin.sreader.domain.ContentCanonicalizationFullText;
 import net.sasasin.sreader.domain.ContentCanonicalizationGroup;
-import net.sasasin.sreader.domain.ContentCanonicalizationMember;
 import net.sasasin.sreader.domain.ContentCanonicalizationPlan;
+import net.sasasin.sreader.domain.ContentCanonicalizationSurvivor;
 import net.sasasin.sreader.domain.ContentFullText;
 import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FeedStatus;
 import net.sasasin.sreader.domain.FeedUrl;
 import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.domain.UnsubscribeReason;
 import org.jooq.DSLContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,7 +67,7 @@ class RepositoryIntegrationTest {
         new FeedUrl(
             "feed0000000000000000000000000003",
             "https://example.test/active.xml",
-            FeedStatus.ACTIVE.value(),
+            FeedStatus.ACTIVE,
             null,
             null,
             null,
@@ -73,8 +76,8 @@ class RepositoryIntegrationTest {
         new FeedUrl(
             "feed0000000000000000000000000004",
             "https://example.test/old.xml",
-            FeedStatus.UNSUBSCRIBED.value(),
-            "site_closed",
+            FeedStatus.UNSUBSCRIBED,
+            UnsubscribeReason.SITE_CLOSED,
             null,
             "closed",
             FullTextMethod.HTTP));
@@ -138,7 +141,7 @@ class RepositoryIntegrationTest {
         new FeedUrl(
             "feed0000000000000000000000000010",
             "https://example.test/http.xml",
-            FeedStatus.ACTIVE.value(),
+            FeedStatus.ACTIVE,
             null,
             null,
             null,
@@ -147,7 +150,7 @@ class RepositoryIntegrationTest {
         new FeedUrl(
             "feed0000000000000000000000000011",
             "https://example.test/feed.xml",
-            FeedStatus.ACTIVE.value(),
+            FeedStatus.ACTIVE,
             null,
             null,
             null,
@@ -156,7 +159,7 @@ class RepositoryIntegrationTest {
         new FeedUrl(
             "feed0000000000000000000000000012",
             "https://example.test/playwright.xml",
-            FeedStatus.ACTIVE.value(),
+            FeedStatus.ACTIVE,
             null,
             null,
             null,
@@ -310,13 +313,15 @@ class RepositoryIntegrationTest {
         .execute();
     ContentCanonicalizationGroup group =
         canonicalizationMaintenanceRepository.loadGroup(canonicalUrl);
-    ContentCanonicalizationMember selected =
+    var selectedMember =
         group.members().stream()
             .filter(member -> oldId.equals(member.id()))
             .findFirst()
             .orElseThrow();
-    ContentCanonicalizationMember values =
-        new ContentCanonicalizationMember(
+    assertThat(selectedMember.fullText()).isPresent();
+    ContentCanonicalizationFullText selected = selectedMember.fullText().orElseThrow();
+    ContentCanonicalizationSurvivor values =
+        new ContentCanonicalizationSurvivor(
             canonicalId,
             "feed0000000000000000000000000099",
             "https://source.test/first",
@@ -325,16 +330,11 @@ class RepositoryIntegrationTest {
             "merged title",
             null,
             "feed body",
-            selected.createdAt(),
-            selected.updatedAt(),
-            null,
-            null,
-            null,
-            null);
+            selectedMember.createdAt());
 
     ContentCanonicalizationMaintenanceRepository.MergeCounts counts =
         canonicalizationMaintenanceRepository.merge(
-            new ContentCanonicalizationPlan(group, values, selected, canonicalId, false));
+            new ContentCanonicalizationPlan(group, values, Optional.of(selected), false));
 
     assertThat(counts.deletedHeaders()).isEqualTo(1);
     assertThat(counts.deletedFullTexts()).isZero();
@@ -362,10 +362,11 @@ class RepositoryIntegrationTest {
         .set(CONTENT_FULL_TEXT.FULL_TEXT, "")
         .execute();
     ContentCanonicalizationGroup group = canonicalizationMaintenanceRepository.loadGroup(url);
-    ContentCanonicalizationMember member = group.members().getFirst();
-    ContentCanonicalizationMember values =
-        new ContentCanonicalizationMember(
-            member.id(),
+    var member = group.members().getFirst();
+    assertThat(member.fullText()).isPresent();
+    ContentCanonicalizationSurvivor values =
+        new ContentCanonicalizationSurvivor(
+            survivorId,
             member.feedUrlId(),
             member.sourceUrl(),
             member.fetchUrl(),
@@ -373,16 +374,11 @@ class RepositoryIntegrationTest {
             member.title(),
             null,
             member.feedText(),
-            member.createdAt(),
-            member.updatedAt(),
-            null,
-            null,
-            null,
-            null);
+            member.createdAt());
 
     ContentCanonicalizationMaintenanceRepository.MergeCounts counts =
         canonicalizationMaintenanceRepository.merge(
-            new ContentCanonicalizationPlan(group, values, null, survivorId, false));
+            new ContentCanonicalizationPlan(group, values, Optional.empty(), false));
 
     assertThat(counts.deletedHeaders()).isEqualTo(1);
     assertThat(counts.deletedFullTexts()).isEqualTo(1);

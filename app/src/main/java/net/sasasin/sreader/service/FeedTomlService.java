@@ -4,8 +4,10 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import net.sasasin.sreader.domain.FeedStatus;
 import net.sasasin.sreader.domain.FeedUrl;
 import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.domain.UnsubscribeReason;
 import net.sasasin.sreader.repository.FeedUrlRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -89,20 +91,31 @@ public class FeedTomlService {
   public record ImportFeed(
       int index,
       String url,
-      String status,
-      String unsubscribeReason,
+      FeedStatus status,
+      UnsubscribeReason unsubscribeReason,
       OffsetDateTime unsubscribedAt,
       String note,
-      String fullTextMethod) {
+      FullTextMethod fullTextMethod) {
+    public ImportFeed {
+      if (status == null) {
+        throw new IllegalArgumentException("status must not be null");
+      }
+      if (fullTextMethod == null) {
+        throw new IllegalArgumentException("fullTextMethod must not be null");
+      }
+      if (status == FeedStatus.ACTIVE) {
+        if (unsubscribeReason != null || unsubscribedAt != null || note != null) {
+          throw new IllegalArgumentException(
+              "active import feed must not have unsubscribe metadata");
+        }
+      } else if (status == FeedStatus.UNSUBSCRIBED && unsubscribeReason == null) {
+        throw new IllegalArgumentException("unsubscribed import feed requires unsubscribeReason");
+      }
+    }
+
     FeedUrl toFeedUrl() {
       return new FeedUrl(
-          HashIds.md5(url),
-          url,
-          status,
-          unsubscribeReason,
-          unsubscribedAt,
-          note,
-          FullTextMethod.fromValue(fullTextMethod));
+          HashIds.md5(url), url, status, unsubscribeReason, unsubscribedAt, note, fullTextMethod);
     }
   }
 

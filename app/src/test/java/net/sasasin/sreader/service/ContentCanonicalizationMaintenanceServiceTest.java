@@ -9,8 +9,11 @@ import static org.mockito.Mockito.when;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
+import net.sasasin.sreader.domain.ContentCanonicalizationCandidate;
+import net.sasasin.sreader.domain.ContentCanonicalizationFullText;
 import net.sasasin.sreader.domain.ContentCanonicalizationGroup;
-import net.sasasin.sreader.domain.ContentCanonicalizationMember;
+import net.sasasin.sreader.domain.ContentCanonicalizationHeader;
 import net.sasasin.sreader.domain.ContentCanonicalizationResult;
 import net.sasasin.sreader.repository.ContentCanonicalizationMaintenanceRepository;
 import org.junit.jupiter.api.Test;
@@ -146,22 +149,22 @@ class ContentCanonicalizationMaintenanceServiceTest {
         () -> new ContentCanonicalizationMaintenanceService.Options(null, 1, 0, false));
   }
 
-  private ContentCanonicalizationMember member(String suffix, String canonicalUrl) {
+  private ContentCanonicalizationCandidate member(String suffix, String canonicalUrl) {
     OffsetDateTime now = OffsetDateTime.parse("2026-01-01T00:00:00Z");
-    return new ContentCanonicalizationMember(
-        "0000000000000000000000000000000" + suffix,
-        "feed",
-        canonicalUrl,
-        canonicalUrl,
-        canonicalUrl,
-        "title",
-        now,
-        "feed text",
-        now,
-        now,
-        "full" + suffix,
-        "body",
-        now,
-        now);
+    ContentCanonicalizationHeader header =
+        new ContentCanonicalizationHeader(
+            "0000000000000000000000000000000" + suffix,
+            "feed",
+            canonicalUrl,
+            canonicalUrl,
+            canonicalUrl,
+            "title",
+            now,
+            "feed text",
+            now,
+            now);
+    return new ContentCanonicalizationCandidate(
+        header,
+        Optional.of(new ContentCanonicalizationFullText("full" + suffix, "body", now, now)));
   }
 }

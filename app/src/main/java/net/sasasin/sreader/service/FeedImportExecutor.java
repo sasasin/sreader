@@ -20,7 +20,7 @@ final class FeedImportExecutor {
     switch (decision) {
       case FeedImportPlanner.FeedImportDecision.Insert d -> {
         counters.inserted++;
-        if (FeedStatus.UNSUBSCRIBED.value().equals(d.feed().status())) {
+        if (d.feed().status() == FeedStatus.UNSUBSCRIBED) {
           counters.unsubscribed++;
         }
         if (!dryRun) {
