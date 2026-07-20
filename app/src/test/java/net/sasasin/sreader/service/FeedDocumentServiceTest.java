@@ -1,12 +1,9 @@
 package net.sasasin.sreader.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.rometools.rome.feed.synd.SyndFeed;
-import com.rometools.rome.io.FeedException;
 import java.io.IOException;
 import java.net.URI;
 import org.junit.jupiter.api.AfterEach;
@@ -35,48 +32,59 @@ class FeedDocumentServiceTest {
         """;
     when(http.get(feedUrl)).thenReturn(new HttpFetchService.FetchedResource(feedUrl, xml));
 
-    SyndFeed feed = service.fetch(feedUrl);
+    FeedDocumentOutcome.Fetched fetched = (FeedDocumentOutcome.Fetched) service.fetch(feedUrl);
 
-    assertThat(feed.getTitle()).isEqualTo("Example Feed");
-    assertThat(feed.getEntries()).hasSize(1);
-    assertThat(feed.getEntries().get(0).getTitle()).isEqualTo("One");
-    assertThat(feed.getEntries().get(0).getLink()).isEqualTo("https://example.test/a");
+    assertThat(fetched.feed().getTitle()).isEqualTo("Example Feed");
+    assertThat(fetched.entries()).hasSize(1);
+    assertThat(fetched.entries().get(0).getTitle()).isEqualTo("One");
+    assertThat(fetched.entries().get(0).getLink()).isEqualTo("https://example.test/a");
   }
 
   @Test
-  void fetchWrapsIoException() throws Exception {
+  void fetchEmptyFeedIsFetchedEmpty() throws Exception {
+    String xml =
+        """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0"><channel><title>Empty</title></channel></rss>
+        """;
+    when(http.get(feedUrl)).thenReturn(new HttpFetchService.FetchedResource(feedUrl, xml));
+
+    FeedDocumentOutcome.Fetched fetched = (FeedDocumentOutcome.Fetched) service.fetch(feedUrl);
+    assertThat(fetched.entries()).isEmpty();
+  }
+
+  @Test
+  void fetchIoFailureIsFailedFetchFeed() throws Exception {
     IOException cause = new IOException("network down");
     when(http.get(feedUrl)).thenThrow(cause);
 
-    assertThatThrownBy(() -> service.fetch(feedUrl))
-        .isInstanceOf(RuntimeException.class)
-        .hasMessageContaining(feedUrl.toString())
-        .hasCause(cause);
+    FeedDocumentOutcome.Failed failed = (FeedDocumentOutcome.Failed) service.fetch(feedUrl);
+    assertThat(failed.failure().stage()).isEqualTo(FailureStage.FETCH_FEED);
+    assertThat(failed.failure().kind()).isEqualTo(FailureKind.IO);
+    assertThat(failed.failure().cause()).contains(cause);
     assertThat(Thread.currentThread().isInterrupted()).isFalse();
   }
 
   @Test
-  void fetchWrapsInterruptedExceptionAndRestoresInterruptFlag() throws Exception {
+  void fetchInterruptedIsFailedAndRestoresInterruptFlag() throws Exception {
     InterruptedException cause = new InterruptedException("interrupted");
     when(http.get(feedUrl)).thenThrow(cause);
 
-    assertThatThrownBy(() -> service.fetch(feedUrl))
-        .isInstanceOf(RuntimeException.class)
-        .hasMessageContaining(feedUrl.toString())
-        .hasCause(cause);
+    FeedDocumentOutcome.Failed failed = (FeedDocumentOutcome.Failed) service.fetch(feedUrl);
+    assertThat(failed.failure().kind()).isEqualTo(FailureKind.INTERRUPTED);
+    assertThat(failed.failure().cause()).contains(cause);
     assertThat(Thread.currentThread().isInterrupted()).isTrue();
   }
 
   @Test
-  void fetchWrapsFeedExceptionFromInvalidXml() throws Exception {
+  void fetchInvalidXmlIsFailedParseFeed() throws Exception {
     when(http.get(feedUrl))
         .thenReturn(new HttpFetchService.FetchedResource(feedUrl, "not-xml-at-all"));
 
-    assertThatThrownBy(() -> service.fetch(feedUrl))
-        .isInstanceOf(RuntimeException.class)
-        .hasMessageContaining(feedUrl.toString())
-        .cause()
-        .isInstanceOf(FeedException.class);
+    FeedDocumentOutcome.Failed failed = (FeedDocumentOutcome.Failed) service.fetch(feedUrl);
+    assertThat(failed.failure().stage()).isEqualTo(FailureStage.PARSE_FEED);
+    assertThat(failed.failure().kind()).isEqualTo(FailureKind.PARSE);
+    assertThat(failed.failure().cause()).isPresent();
     assertThat(Thread.currentThread().isInterrupted()).isFalse();
   }
 }

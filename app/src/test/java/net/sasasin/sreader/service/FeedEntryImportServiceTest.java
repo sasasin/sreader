@@ -9,7 +9,6 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Optional;
 import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FeedUrl;
 import net.sasasin.sreader.domain.FullTextMethod;
@@ -36,11 +35,22 @@ class FeedEntryImportServiceTest {
     URI firstFetch = URI.create("https://publisher.example.test/articles/article?gs=first");
     URI secondFetch = URI.create("https://publisher.example.test/articles/article?gs=second");
     when(http.get(feed)).thenReturn(new HttpFetchService.FetchedResource(feed, xml));
-    when(http.resolveRedirect(source)).thenReturn(firstFetch, secondFetch);
-    when(repository.insertOrRefreshFetchUrl(any())).thenReturn(true, false);
+    when(http.resolveRedirect(source))
+        .thenReturn(
+            new RedirectResolution.Resolved(source, firstFetch),
+            new RedirectResolution.Resolved(source, secondFetch));
+    when(repository.insertOrRefreshFetchUrl(any()))
+        .thenReturn(
+            ContentHeaderUpsertOutcome.INSERTED, ContentHeaderUpsertOutcome.EXISTING_REFRESHED);
 
-    assertThat(service.importEntries(new FeedUrl("feed", feed.toString()))).isEqualTo(1);
-    assertThat(service.importEntries(new FeedUrl("feed", feed.toString()))).isZero();
+    FeedImportResult first = service.importEntries(new FeedUrl("feed", feed.toString()));
+    FeedImportResult second = service.importEntries(new FeedUrl("feed", feed.toString()));
+
+    assertThat(first).isInstanceOf(FeedImportResult.Completed.class);
+    assertThat(first.summary().insertedHeaders()).isEqualTo(1);
+    assertThat(second).isInstanceOf(FeedImportResult.Completed.class);
+    assertThat(second.summary().existingHeaders()).isEqualTo(1);
+    assertThat(second.summary().insertedHeaders()).isZero();
 
     ArgumentCaptor<ContentHeader> headers = ArgumentCaptor.forClass(ContentHeader.class);
     verify(repository, org.mockito.Mockito.times(2)).insertOrRefreshFetchUrl(headers.capture());
@@ -69,9 +79,17 @@ class FeedEntryImportServiceTest {
     URI article = URI.create("https://example.test/article");
     when(http.get(feed))
         .thenReturn(new HttpFetchService.FetchedResource(feed, rss(article.toString())));
-    when(http.resolveRedirect(article)).thenReturn(article);
-    when(repository.insertOrRefreshFetchUrl(any())).thenReturn(true, false);
-    when(extractor.extract(any())).thenReturn(Optional.of("Feed body"));
+    when(http.resolveRedirect(article))
+        .thenReturn(new RedirectResolution.Resolved(article, article));
+    when(repository.insertOrRefreshFetchUrl(any()))
+        .thenReturn(
+            ContentHeaderUpsertOutcome.INSERTED, ContentHeaderUpsertOutcome.EXISTING_REFRESHED);
+    when(extractor.extract(any()))
+        .thenReturn(
+            new TextExtractionOutcome.Extracted(
+                "Feed body", ExtractionDecision.of(ExtractionSource.FEED)));
+    when(writer.saveIfAbsent(any(), org.mockito.ArgumentMatchers.eq("Feed body")))
+        .thenReturn(ContentFullTextWriteOutcome.INSERTED);
 
     FeedUrl feedUrl =
         new FeedUrl(
@@ -82,22 +100,58 @@ class FeedEntryImportServiceTest {
             null,
             null,
             FullTextMethod.FEED);
-    assertThat(service.importEntries(feedUrl)).isEqualTo(1);
-    assertThat(service.importEntries(feedUrl)).isZero();
+    FeedImportResult first = service.importEntries(feedUrl);
+    FeedImportResult second = service.importEntries(feedUrl);
+
+    assertThat(first.summary().insertedHeaders()).isEqualTo(1);
+    assertThat(first.summary().feedTextsInserted()).isEqualTo(1);
+    assertThat(second.summary().existingHeaders()).isEqualTo(1);
     verify(writer)
         .saveIfAbsent(any(ContentHeader.class), org.mockito.ArgumentMatchers.eq("Feed body"));
   }
 
   @Test
-  void returnsZeroWithoutRepositoryCallWhenFeedFetchFails() throws Exception {
+  void feedFetchFailureIsFailedNotZeroCompleted() throws Exception {
     HttpFetchService http = mock(HttpFetchService.class);
     ContentHeaderRepository repository = mock(ContentHeaderRepository.class);
     URI feed = URI.create("https://example.test/rss.xml");
     when(http.get(feed)).thenThrow(new IOException("network"));
 
-    assertThat(service(http, repository).importEntries(new FeedUrl("feed", feed.toString())))
-        .isZero();
+    FeedImportResult result =
+        service(http, repository).importEntries(new FeedUrl("feed", feed.toString()));
+
+    assertThat(result).isInstanceOf(FeedImportResult.Failed.class);
+    FeedImportResult.Failed failed = (FeedImportResult.Failed) result;
+    assertThat(failed.failure().stage()).isEqualTo(FailureStage.FETCH_FEED);
+    assertThat(failed.summary().insertedHeaders()).isZero();
     verify(repository, never()).insertOrRefreshFetchUrl(any());
+  }
+
+  @Test
+  void redirectFallbackIsCountedAndDoesNotFailImport() throws Exception {
+    HttpFetchService http = mock(HttpFetchService.class);
+    ContentHeaderRepository repository = mock(ContentHeaderRepository.class);
+    URI feed = URI.create("https://example.test/rss.xml");
+    URI source = URI.create("https://example.test/article");
+    when(http.get(feed))
+        .thenReturn(new HttpFetchService.FetchedResource(feed, rss(source.toString())));
+    when(http.resolveRedirect(source))
+        .thenReturn(
+            new RedirectResolution.Fallback(
+                source,
+                OperationFailure.of(
+                    FailureStage.RESOLVE_REDIRECT,
+                    FailureKind.IO,
+                    source.toString(),
+                    "redirect failed")));
+    when(repository.insertOrRefreshFetchUrl(any())).thenReturn(ContentHeaderUpsertOutcome.INSERTED);
+
+    FeedImportResult result =
+        service(http, repository).importEntries(new FeedUrl("feed", feed.toString()));
+
+    assertThat(result).isInstanceOf(FeedImportResult.Completed.class);
+    assertThat(result.summary().insertedHeaders()).isEqualTo(1);
+    assertThat(result.summary().redirectFallbacks()).isEqualTo(1);
   }
 
   private FeedEntryImportService service(

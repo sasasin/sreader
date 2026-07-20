@@ -19,17 +19,40 @@ public class FeedDocumentService {
     this.httpFetchService = httpFetchService;
   }
 
-  public SyndFeed fetch(URI feedUrl) {
+  public FeedDocumentOutcome fetch(URI feedUrl) {
     try {
       HttpFetchService.FetchedResource res = httpFetchService.get(feedUrl);
-      return new SyndFeedInput()
-          .build(
-              new XmlReader(new ByteArrayInputStream(res.body().getBytes(StandardCharsets.UTF_8))));
-    } catch (IOException | InterruptedException | FeedException e) {
-      if (e instanceof InterruptedException) {
-        Thread.currentThread().interrupt();
-      }
-      throw new RuntimeException("Failed to fetch or parse feed: " + feedUrl, e);
+      SyndFeed feed =
+          new SyndFeedInput()
+              .build(
+                  new XmlReader(
+                      new ByteArrayInputStream(res.body().getBytes(StandardCharsets.UTF_8))));
+      return new FeedDocumentOutcome.Fetched(feed);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return new FeedDocumentOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.FETCH_FEED,
+              FailureKind.INTERRUPTED,
+              feedUrl.toString(),
+              "Feed fetch interrupted for " + feedUrl,
+              e));
+    } catch (IOException e) {
+      return new FeedDocumentOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.FETCH_FEED,
+              FailureKind.IO,
+              feedUrl.toString(),
+              "Failed to fetch feed: " + feedUrl + ": " + e.getMessage(),
+              e));
+    } catch (FeedException e) {
+      return new FeedDocumentOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.PARSE_FEED,
+              FailureKind.PARSE,
+              feedUrl.toString(),
+              "Failed to parse feed: " + feedUrl + ": " + e.getMessage(),
+              e));
     }
   }
 }
