@@ -5,8 +5,8 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import net.sasasin.sreader.domain.FeedEntrySelection;
 import net.sasasin.sreader.domain.FullTextMethod;
-import net.sasasin.sreader.domain.ProbeResult;
 import net.sasasin.sreader.service.FullTextProbeService;
+import net.sasasin.sreader.service.ProbeOutcome;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
@@ -110,36 +110,50 @@ public class ProbeFeedCommand implements Callable<Integer> {
       Optional<String> xp =
           (xpath != null && !xpath.isBlank()) ? Optional.of(xpath) : Optional.empty();
 
-      ProbeResult result;
-      try {
-        result = fullTextProbeService.probeFeed(uri, method, selection, xp);
-      } catch (FullTextProbeService.NoMatchingEntryException e) {
-        spec.commandLine().getErr().println("No matching feed entry: " + e.getMessage());
-        return CliExitCodes.NO_MATCHING_ENTRY;
-      }
-
-      if (result.text() == null || result.text().isBlank()) {
-        if (verbose) {
-          new ProbeOutputWriter(spec).writeResult(result, true, output, maxChars);
-        }
-        return CliExitCodes.EMPTY_RESULT;
-      }
-
-      return new ProbeOutputWriter(spec).writeResult(result, verbose, output, maxChars);
-
+      ProbeOutcome outcome = fullTextProbeService.probeFeed(uri, method, selection, xp);
+      return mapOutcome(outcome);
     } catch (ParameterException pe) {
       throw pe;
-    } catch (FullTextProbeService.PlaywrightDisabledException e) {
-      spec.commandLine().getErr().println(e.getMessage());
-      return CliExitCodes.PLAYWRIGHT_DISABLED;
-    } catch (Exception e) {
+    } catch (RuntimeException e) {
       spec.commandLine().getErr().println("Error: " + e.getMessage());
       return CliExitCodes.EXECUTION_ERROR;
     }
   }
 
+  private int mapOutcome(ProbeOutcome outcome) {
+    ProbeOutputWriter writer = new ProbeOutputWriter(spec);
+    return switch (outcome) {
+      case ProbeOutcome.Succeeded succeeded ->
+          writer.writeSucceeded(succeeded.document(), succeeded.text(), verbose, output, maxChars);
+      case ProbeOutcome.NoContent noContent -> {
+        if (verbose) {
+          writer.writeNoContentDiagnostics(noContent.document());
+        }
+        yield CliExitCodes.EMPTY_RESULT;
+      }
+      case ProbeOutcome.NoMatchingEntry noMatch -> {
+        spec.commandLine().getErr().println("No matching feed entry: " + noMatch.message());
+        yield CliExitCodes.NO_MATCHING_ENTRY;
+      }
+      case ProbeOutcome.Skipped skipped -> {
+        spec.commandLine().getErr().println(skipped.message());
+        yield CliExitCodes.PLAYWRIGHT_DISABLED;
+      }
+      case ProbeOutcome.InvalidRequest invalid -> {
+        spec.commandLine().getErr().println(invalid.message());
+        yield CliExitCodes.USAGE_ERROR;
+      }
+      case ProbeOutcome.Failed failed -> {
+        if (failed.failure().interrupted()) {
+          Thread.currentThread().interrupt();
+        }
+        spec.commandLine().getErr().println("Error: " + failed.failure().message());
+        yield CliExitCodes.EXECUTION_ERROR;
+      }
+    };
+  }
+
   private FeedEntrySelection resolveSelection() {
-    // priority per spec: index > titleRegex > urlRegex > latest > first (default first)
     if (entryIndex != null) {
       try {
         return FeedEntrySelection.index(entryIndex);

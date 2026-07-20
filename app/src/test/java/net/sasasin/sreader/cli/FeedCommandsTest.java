@@ -14,8 +14,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import net.sasasin.sreader.domain.FullTextMethod;
-import net.sasasin.sreader.domain.ProbeResult;
 import net.sasasin.sreader.scheduler.FeedReaderScheduler;
 import net.sasasin.sreader.service.FeedDiscoveryService;
 import net.sasasin.sreader.service.FeedDiscoveryService.DiscoveryResult;
@@ -23,6 +23,8 @@ import net.sasasin.sreader.service.FeedTomlService;
 import net.sasasin.sreader.service.FeedTomlService.ImportOptions;
 import net.sasasin.sreader.service.FeedTomlService.ImportResult;
 import net.sasasin.sreader.service.FullTextProbeService;
+import net.sasasin.sreader.service.ProbeDocument;
+import net.sasasin.sreader.service.ProbeOutcome;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
@@ -190,12 +192,13 @@ class FeedCommandsTest {
   @Test
   void probeArticleCallsServiceAndReturnsZero() {
     FullTextProbeService probeService = mock(FullTextProbeService.class);
-    ProbeResult result =
-        new ProbeResult(
-            java.net.URI.create("https://example.com/a"),
-            java.net.URI.create("https://example.com/a"),
-            "T",
-            FullTextMethod.HTTP,
+    ProbeOutcome result =
+        new ProbeOutcome.Succeeded(
+            new ProbeDocument(
+                java.net.URI.create("https://example.com/a"),
+                java.net.URI.create("https://example.com/a"),
+                Optional.of("T"),
+                FullTextMethod.HTTP),
             "body text here");
     when(probeService.probeArticle(any(java.net.URI.class), eq(FullTextMethod.HTTP), any()))
         .thenReturn(result);
@@ -236,12 +239,13 @@ class FeedCommandsTest {
   @Test
   void probeFeedCallsService() {
     FullTextProbeService probeService = mock(FullTextProbeService.class);
-    ProbeResult result =
-        new ProbeResult(
-            java.net.URI.create("https://example.com/f.xml"),
-            java.net.URI.create("https://example.com/a"),
-            "T",
-            FullTextMethod.HTTP,
+    ProbeOutcome result =
+        new ProbeOutcome.Succeeded(
+            new ProbeDocument(
+                java.net.URI.create("https://example.com/f.xml"),
+                java.net.URI.create("https://example.com/a"),
+                Optional.of("T"),
+                FullTextMethod.HTTP),
             "body");
     when(probeService.probeFeed(any(java.net.URI.class), eq(FullTextMethod.HTTP), any(), any()))
         .thenReturn(result);

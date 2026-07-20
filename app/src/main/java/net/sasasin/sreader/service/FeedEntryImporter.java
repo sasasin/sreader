@@ -10,6 +10,7 @@ import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FeedUrl;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.repository.ContentHeaderRepository;
+import org.springframework.dao.DataAccessException;
 
 /** Maps and persists one parsed feed entry. */
 final class FeedEntryImporter {
@@ -32,17 +33,51 @@ final class FeedEntryImporter {
     this.fullTextWriter = fullTextWriter;
   }
 
-  boolean importEntry(FeedUrl feedUrl, SyndEntry entry) throws Exception {
+  FeedEntryImportOutcome importEntry(FeedUrl feedUrl, SyndEntry entry) {
     if (entry.getLink() == null || entry.getLink().isBlank()) {
-      return false;
+      return new FeedEntryImportOutcome.MissingLink();
     }
-    URI source = URI.create(entry.getLink());
-    URI fetch = httpFetchService.resolveRedirect(source);
+
+    final URI source;
+    try {
+      source = URI.create(entry.getLink());
+    } catch (IllegalArgumentException e) {
+      return new FeedEntryImportOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.RESOLVE_REDIRECT,
+              FailureKind.INVALID_INPUT,
+              entry.getLink(),
+              "Invalid entry link: " + entry.getLink(),
+              e));
+    }
+
+    RedirectResolution redirect = httpFetchService.resolveRedirect(source);
+    if (redirect instanceof RedirectResolution.Fallback fallback
+        && fallback.failure().interrupted()) {
+      return new FeedEntryImportOutcome.Failed(fallback.failure());
+    }
+
+    URI fetch = redirect.effectiveUri();
     URI canonical = canonicalizer.canonicalize(fetch);
-    Optional<String> feedText =
-        feedUrl.fullTextMethod() == FullTextMethod.FEED
-            ? feedTextExtractor.extract(entry)
-            : Optional.empty();
+
+    String feedTextValue = null;
+    if (feedUrl.fullTextMethod() == FullTextMethod.FEED) {
+      TextExtractionOutcome feedTextOutcome = feedTextExtractor.extract(entry);
+      switch (feedTextOutcome) {
+        case TextExtractionOutcome.Extracted extracted -> feedTextValue = extracted.text();
+        case TextExtractionOutcome.NoContent ignored -> {
+          // The header is still importable; the explicit NO_CONTENT write outcome is recorded
+          // below.
+        }
+        case TextExtractionOutcome.Skipped skipped ->
+            throw new IllegalStateException(
+                "Feed entry extraction must not be skipped: " + skipped.reason());
+        case TextExtractionOutcome.Failed failed -> {
+          return new FeedEntryImportOutcome.Failed(failed.failure());
+        }
+      }
+    }
+
     ContentHeader header =
         new ContentHeader(
             HashIds.md5(canonical.toString()),
@@ -52,14 +87,40 @@ final class FeedEntryImporter {
             canonical.toString(),
             entry.getTitle(),
             toOffsetDateTime(entry.getPublishedDate()),
-            feedText.orElse(null));
-    if (!headers.insertOrRefreshFetchUrl(header)) {
-      return false;
+            feedTextValue);
+
+    final ContentHeaderUpsertOutcome upsert;
+    try {
+      upsert = headers.insertOrRefreshFetchUrl(header);
+    } catch (DataAccessException e) {
+      return new FeedEntryImportOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.PERSIST_HEADER,
+              FailureKind.PERSISTENCE,
+              header.canonicalUrl(),
+              "Failed to persist content header: " + e.getMessage(),
+              e));
     }
+
+    if (upsert == ContentHeaderUpsertOutcome.EXISTING_REFRESHED) {
+      return new FeedEntryImportOutcome.AlreadyPresent(redirect);
+    }
+
+    Optional<ContentFullTextWriteOutcome> feedTextWrite = Optional.empty();
     if (feedUrl.fullTextMethod() == FullTextMethod.FEED) {
-      feedText.ifPresent(text -> fullTextWriter.saveIfAbsent(header, text));
+      try {
+        feedTextWrite = Optional.of(fullTextWriter.saveIfAbsent(header, feedTextValue));
+      } catch (DataAccessException e) {
+        return new FeedEntryImportOutcome.Failed(
+            OperationFailure.of(
+                FailureStage.PERSIST_FULL_TEXT,
+                FailureKind.PERSISTENCE,
+                header.canonicalUrl(),
+                "Failed to persist feed full text: " + e.getMessage(),
+                e));
+      }
     }
-    return true;
+    return new FeedEntryImportOutcome.Inserted(redirect, feedTextWrite);
   }
 
   private OffsetDateTime toOffsetDateTime(Date date) {

@@ -1,5 +1,6 @@
 package net.sasasin.sreader.service;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import net.dankito.readability4j.Article;
@@ -20,6 +21,25 @@ public class HtmlTextExtractor {
     Article parse(String url, String html);
   }
 
+  sealed interface XpathExtractionAttempt
+      permits XpathExtractionAttempt.Matched,
+          XpathExtractionAttempt.NoMatch,
+          XpathExtractionAttempt.Invalid {
+    record Matched(String text) implements XpathExtractionAttempt {
+      public Matched {
+        Objects.requireNonNull(text, "text must not be null");
+      }
+    }
+
+    record NoMatch() implements XpathExtractionAttempt {}
+
+    record Invalid(RuntimeException cause) implements XpathExtractionAttempt {
+      public Invalid {
+        Objects.requireNonNull(cause, "cause must not be null");
+      }
+    }
+  }
+
   private final ExtractRuleService extractRuleService;
   private final ReadabilityParser readabilityParser;
 
@@ -38,22 +58,19 @@ public class HtmlTextExtractor {
     this.readabilityParser = readabilityParser;
   }
 
-  public String extract(String url, String html, ExtractionPlan.ExtractorKind extractorKind) {
+  public TextExtractionOutcome extract(
+      String url, String html, ExtractionPlan.ExtractorKind extractorKind) {
     return extract(url, html, extractorKind, Optional.empty());
   }
 
-  public String extract(
+  public TextExtractionOutcome extract(
       String url,
       String html,
       ExtractionPlan.ExtractorKind extractorKind,
       Optional<String> xpathOverride) {
-    if (xpathOverride != null && xpathOverride.isPresent()) {
-      String xp = xpathOverride.get();
-      if (xp == null || xp.isBlank()) {
-        return "";
-      }
-      Document document = Jsoup.parse(html, url);
-      return extractByXpath(document, xp).orElse("");
+    Objects.requireNonNull(xpathOverride, "xpathOverride must not be null");
+    if (xpathOverride.isPresent()) {
+      return extractWithExplicitXpath(url, html, xpathOverride.get());
     }
     return switch (extractorKind) {
       case XPATH_OR_BODY_TEXT -> extractByXpathOrBody(url, html);
@@ -61,42 +78,101 @@ public class HtmlTextExtractor {
     };
   }
 
-  String extractByXpathOrBody(String url, String html) {
+  private TextExtractionOutcome extractWithExplicitXpath(String url, String html, String xpath) {
+    if (xpath == null || xpath.isBlank()) {
+      return new TextExtractionOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.EXTRACT_TEXT,
+              FailureKind.INVALID_INPUT,
+              url,
+              "Explicit XPath override is blank"));
+    }
+    Document document = Jsoup.parse(html, url);
+    return switch (extractByXpath(document, xpath)) {
+      case XpathExtractionAttempt.Matched matched when !matched.text().isBlank() ->
+          new TextExtractionOutcome.Extracted(
+              matched.text(), ExtractionDecision.of(ExtractionSource.XPATH_OVERRIDE));
+      case XpathExtractionAttempt.Matched ignored ->
+          new TextExtractionOutcome.NoContent(
+              NoContentReason.XPATH_MATCHED_EMPTY,
+              ExtractionDecision.of(ExtractionSource.XPATH_OVERRIDE));
+      case XpathExtractionAttempt.NoMatch ignored ->
+          new TextExtractionOutcome.NoContent(
+              NoContentReason.XPATH_NO_MATCH,
+              ExtractionDecision.of(ExtractionSource.XPATH_OVERRIDE));
+      case XpathExtractionAttempt.Invalid invalid ->
+          new TextExtractionOutcome.Failed(
+              OperationFailure.of(
+                  FailureStage.EXTRACT_TEXT,
+                  FailureKind.INVALID_INPUT,
+                  url,
+                  "Invalid explicit XPath: " + xpath,
+                  invalid.cause()));
+    };
+  }
+
+  TextExtractionOutcome extractByXpathOrBody(String url, String html) {
     Document document = Jsoup.parse(html, url);
     return extractRuleService
         .findBestRule(url)
-        .flatMap(rule -> extractByXpath(document, rule.extractRule()))
-        .filter(text -> !text.isBlank())
-        .orElseGet(() -> bodyText(document));
+        .map(rule -> applyConfiguredXpath(document, rule.extractRule()))
+        .orElseGet(() -> bodyOutcome(document, Optional.empty()));
   }
 
-  Optional<String> extractByXpath(Document document, String xpath) {
+  private TextExtractionOutcome applyConfiguredXpath(Document document, String xpath) {
+    return switch (extractByXpath(document, xpath)) {
+      case XpathExtractionAttempt.Matched matched when !matched.text().isBlank() ->
+          new TextExtractionOutcome.Extracted(
+              matched.text(), ExtractionDecision.of(ExtractionSource.CONFIGURED_XPATH));
+      case XpathExtractionAttempt.Matched ignored ->
+          bodyOutcome(document, Optional.of(ExtractionFallbackReason.CONFIGURED_XPATH_EMPTY));
+      case XpathExtractionAttempt.NoMatch ignored ->
+          bodyOutcome(document, Optional.of(ExtractionFallbackReason.CONFIGURED_XPATH_NO_MATCH));
+      case XpathExtractionAttempt.Invalid ignored ->
+          bodyOutcome(document, Optional.of(ExtractionFallbackReason.CONFIGURED_XPATH_INVALID));
+    };
+  }
+
+  XpathExtractionAttempt extractByXpath(Document document, String xpath) {
     try {
       Elements elements = document.selectXpath(xpath);
       if (elements.isEmpty()) {
-        return Optional.empty();
+        return new XpathExtractionAttempt.NoMatch();
       }
       String text =
           elements.eachText().stream()
               .filter(value -> !value.isBlank())
               .collect(Collectors.joining("\n\n"));
-      return Optional.of(text);
+      return new XpathExtractionAttempt.Matched(text);
     } catch (RuntimeException e) {
-      return Optional.empty();
+      return new XpathExtractionAttempt.Invalid(e);
     }
   }
 
-  String extractByReadability(String url, String html) {
+  TextExtractionOutcome extractByReadability(String url, String html) {
+    Document document = Jsoup.parse(html, url);
     try {
       Article article = readabilityParser.parse(url, html);
       String text = article.getTextContent();
       if (text != null && !text.isBlank()) {
-        return text;
+        return new TextExtractionOutcome.Extracted(
+            text, ExtractionDecision.of(ExtractionSource.READABILITY));
       }
+      return bodyOutcome(document, Optional.of(ExtractionFallbackReason.READABILITY_EMPTY));
     } catch (RuntimeException e) {
-      // Fallback below keeps extraction resilient for pages Readability cannot parse.
+      return bodyOutcome(document, Optional.of(ExtractionFallbackReason.READABILITY_FAILED));
     }
-    return bodyText(Jsoup.parse(html, url));
+  }
+
+  private TextExtractionOutcome bodyOutcome(
+      Document document, Optional<ExtractionFallbackReason> fallbackReason) {
+    String text = bodyText(document);
+    ExtractionDecision decision =
+        new ExtractionDecision(ExtractionSource.BODY_TEXT, fallbackReason);
+    if (text == null || text.isBlank()) {
+      return new TextExtractionOutcome.NoContent(NoContentReason.BODY_TEXT_EMPTY, decision);
+    }
+    return new TextExtractionOutcome.Extracted(text, decision);
   }
 
   private String bodyText(Document document) {

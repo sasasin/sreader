@@ -9,6 +9,7 @@ import java.util.List;
 import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.domain.PendingFullTextTarget;
+import net.sasasin.sreader.service.ContentHeaderUpsertOutcome;
 import org.jooq.DSLContext;
 import org.jooq.Record;
 import org.springframework.stereotype.Repository;
@@ -22,7 +23,7 @@ public class ContentHeaderRepository {
     this.dsl = dsl;
   }
 
-  public boolean insertOrRefreshFetchUrl(ContentHeader header) {
+  public ContentHeaderUpsertOutcome insertOrRefreshFetchUrl(ContentHeader header) {
     OffsetDateTime now = OffsetDateTime.now();
     boolean inserted =
         dsl.insertInto(CONTENT_HEADER)
@@ -46,8 +47,9 @@ public class ContentHeaderRepository {
           .set(CONTENT_HEADER.UPDATED_AT, now)
           .where(CONTENT_HEADER.CANONICAL_URL.eq(header.canonicalUrl()))
           .execute();
+      return ContentHeaderUpsertOutcome.EXISTING_REFRESHED;
     }
-    return inserted;
+    return ContentHeaderUpsertOutcome.INSERTED;
   }
 
   public List<ContentHeader> findWithoutFullText(int limit) {

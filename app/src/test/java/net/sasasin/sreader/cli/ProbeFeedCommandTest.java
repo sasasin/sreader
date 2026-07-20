@@ -17,8 +17,14 @@ import java.nio.file.Path;
 import java.util.Optional;
 import net.sasasin.sreader.domain.FeedEntrySelection;
 import net.sasasin.sreader.domain.FullTextMethod;
-import net.sasasin.sreader.domain.ProbeResult;
+import net.sasasin.sreader.service.FailureKind;
+import net.sasasin.sreader.service.FailureStage;
 import net.sasasin.sreader.service.FullTextProbeService;
+import net.sasasin.sreader.service.NoContentReason;
+import net.sasasin.sreader.service.OperationFailure;
+import net.sasasin.sreader.service.ProbeDocument;
+import net.sasasin.sreader.service.ProbeOutcome;
+import net.sasasin.sreader.service.ProbeSkipReason;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
@@ -30,7 +36,7 @@ class ProbeFeedCommandTest {
 
   @Test
   void passesDefaultFirstSelectionAndXpathToService() {
-    FullTextProbeService service = serviceReturning("body");
+    FullTextProbeService service = serviceReturning(succeeded("body"));
     Harness harness = harness(service);
 
     assertThat(harness.execute("--xpath", "//article")).isZero();
@@ -82,7 +88,7 @@ class ProbeFeedCommandTest {
 
   @Test
   void blankRegexesFallThroughAndBlankXpathIsIgnored() {
-    FullTextProbeService service = serviceReturning("body");
+    FullTextProbeService service = serviceReturning(succeeded("body"));
     Harness harness = harness(service);
 
     assertThat(
@@ -144,57 +150,67 @@ class ProbeFeedCommandTest {
   void mapsServiceOutcomesToDocumentedExitCodes() {
     FullTextProbeService noMatch = mock(FullTextProbeService.class);
     when(noMatch.probeFeed(any(), any(), any(), any()))
-        .thenThrow(new FullTextProbeService.NoMatchingEntryException("details"));
+        .thenReturn(new ProbeOutcome.NoMatchingEntry("details"));
     Harness noMatchHarness = harness(noMatch);
     assertThat(noMatchHarness.execute()).isEqualTo(3);
     assertThat(noMatchHarness.stderr()).contains("No matching feed entry: details");
 
     FullTextProbeService disabled = mock(FullTextProbeService.class);
     when(disabled.probeFeed(any(), any(), any(), any()))
-        .thenThrow(new FullTextProbeService.PlaywrightDisabledException("disabled"));
+        .thenReturn(new ProbeOutcome.Skipped(ProbeSkipReason.PLAYWRIGHT_DISABLED, "disabled"));
     Harness disabledHarness = harness(disabled);
     assertThat(disabledHarness.execute()).isEqualTo(5);
     assertThat(disabledHarness.stderr()).contains("disabled").doesNotContain("Error:");
 
     FullTextProbeService failing = mock(FullTextProbeService.class);
-    when(failing.probeFeed(any(), any(), any(), any())).thenThrow(new RuntimeException("boom"));
+    when(failing.probeFeed(any(), any(), any(), any()))
+        .thenReturn(
+            new ProbeOutcome.Failed(
+                OperationFailure.of(
+                    FailureStage.FETCH_ARTICLE, FailureKind.IO, "https://x", "boom")));
     Harness failingHarness = harness(failing);
     assertThat(failingHarness.execute()).isEqualTo(1);
     assertThat(failingHarness.stderr()).contains("Error: boom");
   }
 
   @Test
-  void returnsFourForNullOrBlankResultsAndWritesVerboseDiagnostics() {
-    Harness nullResult = harness(serviceReturning(null));
-    assertThat(nullResult.execute()).isEqualTo(4);
-    assertThat(nullResult.stdout()).isEmpty();
+  void returnsFourForNoContentAndWritesVerboseDiagnostics() {
+    Harness noContent =
+        harness(
+            serviceReturning(
+                new ProbeOutcome.NoContent(document(), NoContentReason.BODY_TEXT_EMPTY)));
+    assertThat(noContent.execute()).isEqualTo(4);
+    assertThat(noContent.stdout()).isEmpty();
 
-    Harness blankResult = harness(serviceReturning(" \n\t"));
-    assertThat(blankResult.execute("--verbose")).isEqualTo(4);
-    assertThat(blankResult.stdout()).isEmpty();
-    assertThat(blankResult.stderr())
-        .contains("inputUrl=", "finalUrl=", "method=http", "title=Title", "textLength=3");
+    Harness verbose =
+        harness(
+            serviceReturning(
+                new ProbeOutcome.NoContent(document(), NoContentReason.BODY_TEXT_EMPTY)));
+    assertThat(verbose.execute("--verbose")).isEqualTo(4);
+    assertThat(verbose.stdout()).isEmpty();
+    assertThat(verbose.stderr())
+        .contains("inputUrl=", "finalUrl=", "method=http", "title=Title", "textLength=0");
   }
 
   @Test
   void truncatesOutputWritesUtf8FileAndMapsWriteFailure() throws Exception {
-    Harness truncated = harness(serviceReturning("abcdefgh"));
+    Harness truncated = harness(serviceReturning(succeeded("abcdefgh")));
     assertThat(truncated.execute("--max-chars", "4")).isZero();
     assertThat(truncated.stdout()).isEqualTo("abcd");
 
     Path output = tempDir.resolve("output.txt");
-    Harness file = harness(serviceReturning("こんにちは"));
+    Harness file = harness(serviceReturning(succeeded("こんにちは")));
     assertThat(file.execute("--output", output.toString())).isZero();
     assertThat(Files.readString(output, StandardCharsets.UTF_8)).isEqualTo("こんにちは");
     assertThat(file.stdout()).contains("Wrote probe output to " + output).doesNotContain("こんにちは");
 
-    Harness failure = harness(serviceReturning("body"));
+    Harness failure = harness(serviceReturning(succeeded("body")));
     assertThat(failure.execute("--output", tempDir.toString())).isEqualTo(1);
     assertThat(failure.stderr()).contains("Failed to write --output file", tempDir.toString());
   }
 
   private void assertSelection(FeedEntrySelection expected, String... args) {
-    FullTextProbeService service = serviceReturning("body");
+    FullTextProbeService service = serviceReturning(succeeded("body"));
     Harness harness = harness(service);
     assertThat(harness.execute(args)).isZero();
     verify(service)
@@ -205,19 +221,22 @@ class ProbeFeedCommandTest {
             Optional.empty());
   }
 
-  private FullTextProbeService serviceReturning(String text) {
+  private FullTextProbeService serviceReturning(ProbeOutcome outcome) {
     FullTextProbeService service = mock(FullTextProbeService.class);
-    when(service.probeFeed(any(), any(), any(), any())).thenReturn(result(text));
+    when(service.probeFeed(any(), any(), any(), any())).thenReturn(outcome);
     return service;
   }
 
-  private ProbeResult result(String text) {
-    return new ProbeResult(
+  private ProbeOutcome.Succeeded succeeded(String text) {
+    return new ProbeOutcome.Succeeded(document(), text);
+  }
+
+  private ProbeDocument document() {
+    return new ProbeDocument(
         URI.create("https://example.com/feed.xml"),
         URI.create("https://example.com/article"),
-        "Title",
-        FullTextMethod.HTTP,
-        text);
+        Optional.of("Title"),
+        FullTextMethod.HTTP);
   }
 
   private Harness harness(FullTextProbeService service) {
