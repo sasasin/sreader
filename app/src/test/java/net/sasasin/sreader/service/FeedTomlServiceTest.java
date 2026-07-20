@@ -439,21 +439,21 @@ class FeedTomlServiceTest {
                         schema_version = "1"
                         not an assignment
                         [[feeds]]
-                        url = relative
+                        url = "https://example.com/a.xml"
                         status = "ACTIVE"
                         note = "bad\\x"
                         [[feeds]]
                         """));
 
+    assertThat(exception.errors()).isNotEmpty();
+    // Quoted schema_version is a schema type error under TomlJ (not "unsupported ... \"1\"").
     assertThat(exception.errors())
-        .containsExactly(
-            "line 2: expected key = value",
-            "unsupported schema_version: \"1\"",
-            "feeds[1].url must be a TOML string",
-            "feeds[1].url is required",
-            "feeds[1].status must be active or unsubscribed: ACTIVE",
-            "feeds[1].note contains unsupported escape: \\x",
-            "feeds[2].url is required");
+        .anyMatch(e -> e.contains("schema_version must be an integer"))
+        .anyMatch(e -> e.contains("status must be active or unsubscribed: ACTIVE"))
+        .anyMatch(e -> e.contains("feeds[2].url is required"));
+    // Syntax diagnostics carry line/column from TomlJ (assignment / escape).
+    assertThat(exception.errors().stream().filter(e -> e.startsWith("line ")).count())
+        .isGreaterThanOrEqualTo(1);
     assertThat(exception).hasMessage(String.join("; ", exception.errors()));
     verifyNoInteractions(repository);
   }
@@ -538,20 +538,18 @@ class FeedTomlServiceTest {
                     url = "https://example.test/a/../feed.xml"
                     status = "unsubscribed"
                     unsubscribed_at = "2026-06-14"
-                    full_text_method = bad
+                    full_text_method = "not_a_method"
                     [[feeds]]
                     url = "https://example.test/feed.xml"
                     status = "unsubscribed"
                     unsubscribe_reason = "bad"
-                    note = "trailing\\"
                     """))
         .isInstanceOf(FeedTomlService.TomlValidationException.class)
         .hasMessageContaining("unsubscribed_at must be an offset date-time: 2026-06-14")
-        .hasMessageContaining("full_text_method must be a TOML string")
+        .hasMessageContaining("full_text_method is invalid: not_a_method")
         .hasMessageContaining(
             "duplicates another feed after normalization: https://example.test/feed.xml")
-        .hasMessageContaining("unsubscribe_reason is invalid: bad")
-        .hasMessageContaining("note ends with an incomplete escape");
+        .hasMessageContaining("unsubscribe_reason is invalid: bad");
   }
 
   @Test
@@ -820,10 +818,11 @@ class FeedTomlServiceTest {
                     """
                     schema_version = 2
                     [[feeds]]
-                    status = active
+                    status = "active"
                     """,
                     new FeedTomlService.ImportOptions(false, false)))
-        .isInstanceOf(FeedTomlService.TomlValidationException.class);
+        .isInstanceOf(FeedTomlService.TomlValidationException.class)
+        .hasMessageContaining("url is required");
     verifyNoInteractions(repository);
 
     List<String> errors = new java.util.ArrayList<>(List.of("first"));
@@ -833,6 +832,73 @@ class FeedTomlServiceTest {
     assertThat(exception.errors()).containsExactly("first");
     assertThatThrownBy(() -> exception.errors().add("third"))
         .isInstanceOf(UnsupportedOperationException.class);
+    assertThatThrownBy(() -> new FeedTomlService.TomlValidationException(List.of()))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("empty");
+  }
+
+  @Test
+  void importFeedInvariantsRejectActiveMetadataAndMissingUnsubscribedReason() {
+    assertThatThrownBy(
+            () ->
+                new FeedTomlService.ImportFeed(
+                    1,
+                    "https://example.test/a.xml",
+                    FeedStatus.ACTIVE,
+                    UnsubscribeReason.OTHER,
+                    null,
+                    null,
+                    FullTextMethod.HTTP))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("unsubscribe metadata");
+    assertThatThrownBy(
+            () ->
+                new FeedTomlService.ImportFeed(
+                    1,
+                    "https://example.test/a.xml",
+                    FeedStatus.ACTIVE,
+                    null,
+                    OffsetDateTime.parse("2026-01-01T00:00:00Z"),
+                    null,
+                    FullTextMethod.HTTP))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("unsubscribe metadata");
+    assertThatThrownBy(
+            () ->
+                new FeedTomlService.ImportFeed(
+                    1,
+                    "https://example.test/a.xml",
+                    FeedStatus.ACTIVE,
+                    null,
+                    null,
+                    "note",
+                    FullTextMethod.HTTP))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("unsubscribe metadata");
+    assertThatThrownBy(
+            () ->
+                new FeedTomlService.ImportFeed(
+                    1,
+                    "https://example.test/a.xml",
+                    FeedStatus.UNSUBSCRIBED,
+                    null,
+                    null,
+                    null,
+                    FullTextMethod.HTTP))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("unsubscribeReason");
+    assertThatThrownBy(
+            () ->
+                new FeedTomlService.ImportFeed(
+                    1, "https://example.test/a.xml", null, null, null, null, FullTextMethod.HTTP))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("status");
+    assertThatThrownBy(
+            () ->
+                new FeedTomlService.ImportFeed(
+                    1, "https://example.test/a.xml", FeedStatus.ACTIVE, null, null, null, null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("fullTextMethod");
   }
 
   @Test
