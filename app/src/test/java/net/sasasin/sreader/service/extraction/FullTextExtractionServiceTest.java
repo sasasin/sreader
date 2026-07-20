@@ -20,6 +20,8 @@ import net.sasasin.sreader.domain.ExtractionPlan;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.domain.PendingFullTextTarget;
 import net.sasasin.sreader.repository.ContentHeaderRepository;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightRenderMode;
 import net.sasasin.sreader.service.http.HttpFetchService;
 import net.sasasin.sreader.service.outcome.BatchStopReason;
 import net.sasasin.sreader.service.outcome.FailureKind;
@@ -69,7 +71,7 @@ class FullTextExtractionServiceTest {
     HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
     PlaywrightHtmlSource playwright = mock(PlaywrightHtmlSource.class);
     ContentHeader header = header("https://source.test/article", "https://fetch.test/article");
-    when(playwright.render(header.fetchUrl(), false))
+    when(playwright.render(URI.create(header.fetchUrl()), PlaywrightRenderMode.STANDARD))
         .thenReturn("<html><body><main>Rendered body</main></body></html>");
     when(rules.findBestRule(header.fetchUrl())).thenReturn(Optional.empty());
     FullTextExtractionService service = service(http, extractor, playwright);
@@ -77,9 +79,11 @@ class FullTextExtractionServiceTest {
     TextExtractionOutcome.Extracted extracted =
         (TextExtractionOutcome.Extracted) service.extract(header, FullTextMethod.PLAYWRIGHT);
     assertThat(extracted.text()).isEqualTo("Rendered body");
-    verify(playwright).render(header.fetchUrl(), false);
-    verify(playwright, never()).render(header.sourceUrl(), false);
-    verify(playwright, never()).render(header.canonicalUrl(), false);
+    verify(playwright).render(URI.create(header.fetchUrl()), PlaywrightRenderMode.STANDARD);
+    verify(playwright, never())
+        .render(URI.create(header.sourceUrl()), PlaywrightRenderMode.STANDARD);
+    verify(playwright, never())
+        .render(URI.create(header.canonicalUrl()), PlaywrightRenderMode.STANDARD);
     verify(http, never()).get(any());
   }
 
@@ -168,7 +172,7 @@ class FullTextExtractionServiceTest {
   void playwrightRenderFailureIsFailed() {
     PlaywrightHtmlSource playwright = mock(PlaywrightHtmlSource.class);
     ContentHeader header = header("https://source.test/article", "https://fetch.test/article");
-    when(playwright.render(header.fetchUrl(), false))
+    when(playwright.render(URI.create(header.fetchUrl()), PlaywrightRenderMode.STANDARD))
         .thenThrow(new RuntimeException("render boom"));
 
     TextExtractionOutcome.Failed failed =
