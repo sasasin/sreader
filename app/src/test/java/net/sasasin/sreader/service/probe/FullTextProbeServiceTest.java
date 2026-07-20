@@ -578,12 +578,11 @@ class FullTextProbeServiceTest {
     private FullTextProbeService service(boolean playwrightEnabled) {
       return new FullTextProbeService(
           http,
-          playwright,
+          new ProbeDocumentFetcher(http, playwright, properties(playwrightEnabled)),
           extractor,
           documents,
           picker,
-          feedExtractor,
-          properties(playwrightEnabled));
+          feedExtractor);
     }
   }
 }
