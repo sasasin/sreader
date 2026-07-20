@@ -4,8 +4,8 @@ import java.net.URI;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import net.sasasin.sreader.domain.FullTextMethod;
-import net.sasasin.sreader.domain.ProbeResult;
 import net.sasasin.sreader.service.FullTextProbeService;
+import net.sasasin.sreader.service.ProbeOutcome;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
@@ -80,7 +80,6 @@ public class ProbeArticleCommand implements Callable<Integer> {
       URI uri = UrlValidator.validateHttpUrl(url, "--url", spec);
 
       if (method == FullTextMethod.FEED) {
-        // usage error via picocli style
         throw new picocli.CommandLine.ParameterException(
             spec.commandLine(), "--method feed is not valid for 'probe article'");
       }
@@ -88,26 +87,46 @@ public class ProbeArticleCommand implements Callable<Integer> {
       Optional<String> xp =
           (xpath != null && !xpath.isBlank()) ? Optional.of(xpath) : Optional.empty();
 
-      ProbeResult result = fullTextProbeService.probeArticle(uri, method, xp);
-
-      ProbeOutputWriter writer = new ProbeOutputWriter(spec);
-      if (result.text() == null || result.text().isBlank()) {
-        if (verbose) {
-          // still emit diagnostics
-          writer.writeResult(result, true, output, maxChars);
-        }
-        return CliExitCodes.EMPTY_RESULT;
-      }
-
-      return writer.writeResult(result, verbose, output, maxChars);
+      ProbeOutcome outcome = fullTextProbeService.probeArticle(uri, method, xp);
+      return mapOutcome(outcome);
     } catch (picocli.CommandLine.ParameterException pe) {
-      throw pe; // let picocli handle as usage 2
-    } catch (FullTextProbeService.PlaywrightDisabledException e) {
-      spec.commandLine().getErr().println(e.getMessage());
-      return CliExitCodes.PLAYWRIGHT_DISABLED;
-    } catch (Exception e) {
+      throw pe;
+    } catch (RuntimeException e) {
       spec.commandLine().getErr().println("Error: " + e.getMessage());
       return CliExitCodes.EXECUTION_ERROR;
     }
+  }
+
+  private int mapOutcome(ProbeOutcome outcome) {
+    ProbeOutputWriter writer = new ProbeOutputWriter(spec);
+    return switch (outcome) {
+      case ProbeOutcome.Succeeded succeeded ->
+          writer.writeSucceeded(succeeded.document(), succeeded.text(), verbose, output, maxChars);
+      case ProbeOutcome.NoContent noContent -> {
+        if (verbose) {
+          writer.writeNoContentDiagnostics(noContent.document());
+        }
+        yield CliExitCodes.EMPTY_RESULT;
+      }
+      case ProbeOutcome.NoMatchingEntry noMatch -> {
+        spec.commandLine().getErr().println("No matching feed entry: " + noMatch.message());
+        yield CliExitCodes.NO_MATCHING_ENTRY;
+      }
+      case ProbeOutcome.Skipped skipped -> {
+        spec.commandLine().getErr().println(skipped.message());
+        yield CliExitCodes.PLAYWRIGHT_DISABLED;
+      }
+      case ProbeOutcome.InvalidRequest invalid -> {
+        spec.commandLine().getErr().println(invalid.message());
+        yield CliExitCodes.USAGE_ERROR;
+      }
+      case ProbeOutcome.Failed failed -> {
+        if (failed.failure().interrupted()) {
+          Thread.currentThread().interrupt();
+        }
+        spec.commandLine().getErr().println("Error: " + failed.failure().message());
+        yield CliExitCodes.EXECUTION_ERROR;
+      }
+    };
   }
 }

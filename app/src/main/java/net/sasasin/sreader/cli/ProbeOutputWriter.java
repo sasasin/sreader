@@ -5,7 +5,7 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import net.sasasin.sreader.domain.ProbeResult;
+import net.sasasin.sreader.service.ProbeDocument;
 import picocli.CommandLine.Model.CommandSpec;
 
 public class ProbeOutputWriter {
@@ -16,43 +16,40 @@ public class ProbeOutputWriter {
     this.spec = spec;
   }
 
-  public int writeResult(ProbeResult result, boolean verbose, String outputPath, Integer maxChars) {
-    String text = result.text() != null ? result.text() : "";
-
-    if (maxChars != null && maxChars > 0 && text.length() > maxChars) {
-      text = text.substring(0, maxChars);
+  public int writeSucceeded(
+      ProbeDocument document, String text, boolean verbose, String outputPath, Integer maxChars) {
+    String outputText = text;
+    if (maxChars != null && maxChars > 0 && outputText.length() > maxChars) {
+      outputText = outputText.substring(0, maxChars);
     }
 
     if (verbose) {
-      PrintWriter err = spec.commandLine().getErr();
-      err.printf("inputUrl=%s%n", result.inputUrl());
-      err.printf("finalUrl=%s%n", result.finalUrl());
-      err.printf("method=%s%n", result.method().value());
-      if (result.title() != null) {
-        err.printf("title=%s%n", result.title());
-      }
-      err.printf("textLength=%d%n", (result.text() != null ? result.text().length() : 0));
+      writeDiagnostics(document, text.length());
     }
 
     if (outputPath != null) {
       try {
-        Files.writeString(Path.of(outputPath), text, StandardCharsets.UTF_8);
+        Files.writeString(Path.of(outputPath), outputText, StandardCharsets.UTF_8);
         spec.commandLine().getOut().println("Wrote probe output to " + outputPath);
       } catch (IOException e) {
         throw new RuntimeException("Failed to write --output file: " + outputPath, e);
       }
       return CliExitCodes.SUCCESS;
-    } else {
-      // default: body to STDOUT, no extra
-      if (!text.isBlank()) {
-        spec.commandLine().getOut().print(text);
-      }
-      return CliExitCodes.SUCCESS;
     }
+    spec.commandLine().getOut().print(outputText);
+    return CliExitCodes.SUCCESS;
   }
 
-  public int writeEmptyOrError(int codeForEmpty) {
-    // for cases where we decide before result
-    return codeForEmpty;
+  public void writeNoContentDiagnostics(ProbeDocument document) {
+    writeDiagnostics(document, 0);
+  }
+
+  private void writeDiagnostics(ProbeDocument document, int textLength) {
+    PrintWriter err = spec.commandLine().getErr();
+    err.printf("inputUrl=%s%n", document.inputUrl());
+    err.printf("finalUrl=%s%n", document.finalUrl());
+    err.printf("method=%s%n", document.method().value());
+    document.title().ifPresent(title -> err.printf("title=%s%n", title));
+    err.printf("textLength=%d%n", textLength);
   }
 }
