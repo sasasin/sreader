@@ -68,7 +68,7 @@ class FullTextExtractionServiceTest {
   void fetchesAndExtractsRenderedHtmlUsingFetchUrl() throws Exception {
     HttpFetchService http = mock(HttpFetchService.class);
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
     PlaywrightHtmlSource playwright = mock(PlaywrightHtmlSource.class);
     ContentHeader header = header("https://source.test/article", "https://fetch.test/article");
     when(playwright.render(URI.create(header.fetchUrl()), PlaywrightRenderMode.STANDARD))
