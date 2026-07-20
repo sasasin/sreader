@@ -1,11 +1,8 @@
 package net.sasasin.sreader.service.extraction.browser;
 
-import com.microsoft.playwright.Playwright;
 import java.net.URI;
 import java.util.Objects;
-import java.util.function.Supplier;
 import net.sasasin.sreader.config.FeedReaderProperties;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.stereotype.Service;
 
@@ -23,54 +20,16 @@ public class PlaywrightHtmlSource implements SmartLifecycle {
   private final StandardPlaywrightPageRenderer standardRenderer;
   private final InfyScrollPageRenderer infyRenderer;
 
-  @Autowired
-  public PlaywrightHtmlSource(FeedReaderProperties properties) {
-    this(properties.playwright(), Playwright::create);
-  }
-
   PlaywrightHtmlSource(
-      FeedReaderProperties.Playwright settings, Supplier<Playwright> playwrightFactory) {
-    this(
-        settings,
-        buildCollaborators(
-            Objects.requireNonNull(settings, "settings must not be null"),
-            Objects.requireNonNull(playwrightFactory, "playwrightFactory must not be null")));
-  }
-
-  /** Test constructor that injects collaborators without rebuilding the resource graph. */
-  PlaywrightHtmlSource(
-      FeedReaderProperties.Playwright settings,
+      FeedReaderProperties properties,
       PlaywrightResourceLifecycle lifecycle,
       StandardPlaywrightPageRenderer standardRenderer,
       InfyScrollPageRenderer infyRenderer) {
-    this.settings = Objects.requireNonNull(settings, "settings must not be null");
+    this.settings = Objects.requireNonNull(properties, "properties must not be null").playwright();
     this.lifecycle = Objects.requireNonNull(lifecycle, "lifecycle must not be null");
     this.standardRenderer =
         Objects.requireNonNull(standardRenderer, "standardRenderer must not be null");
     this.infyRenderer = Objects.requireNonNull(infyRenderer, "infyRenderer must not be null");
-  }
-
-  private PlaywrightHtmlSource(
-      FeedReaderProperties.Playwright settings, Collaborators collaborators) {
-    this(
-        settings,
-        collaborators.lifecycle(),
-        collaborators.standardRenderer(),
-        collaborators.infyRenderer());
-  }
-
-  private static Collaborators buildCollaborators(
-      FeedReaderProperties.Playwright settings, Supplier<Playwright> playwrightFactory) {
-    PlaywrightRuntime runtime = new PlaywrightRuntime(settings, playwrightFactory);
-    PlaywrightPageNavigator navigator = new PlaywrightPageNavigator(settings);
-    InfyScrollDriver driver = new InfyScrollDriver(settings, navigator);
-    InfyScrollPageRenderer infyRenderer =
-        new InfyScrollPageRenderer(settings, runtime, navigator, driver);
-    StandardPlaywrightPageRenderer standardRenderer =
-        new StandardPlaywrightPageRenderer(settings, runtime, navigator);
-    PlaywrightResourceLifecycle lifecycle =
-        new PlaywrightResourceLifecycle(settings, runtime, infyRenderer);
-    return new Collaborators(lifecycle, standardRenderer, infyRenderer);
   }
 
   public synchronized String render(URI uri, PlaywrightRenderMode mode) {
@@ -108,9 +67,4 @@ public class PlaywrightHtmlSource implements SmartLifecycle {
   public boolean isAutoStartup() {
     return false;
   }
-
-  private record Collaborators(
-      PlaywrightResourceLifecycle lifecycle,
-      StandardPlaywrightPageRenderer standardRenderer,
-      InfyScrollPageRenderer infyRenderer) {}
 }

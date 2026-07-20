@@ -6,7 +6,6 @@ import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Playwright;
 import java.nio.file.Path;
 import java.util.Objects;
-import java.util.function.Supplier;
 import net.sasasin.sreader.config.FeedReaderProperties;
 
 /**
@@ -18,14 +17,13 @@ import net.sasasin.sreader.config.FeedReaderProperties;
 final class PlaywrightRuntime {
 
   private final FeedReaderProperties.Playwright settings;
-  private final Supplier<Playwright> playwrightFactory;
+  private final PlaywrightFactory playwrightFactory;
 
   private Playwright playwright;
   private Browser browser;
   private volatile boolean running;
 
-  PlaywrightRuntime(
-      FeedReaderProperties.Playwright settings, Supplier<Playwright> playwrightFactory) {
+  PlaywrightRuntime(FeedReaderProperties.Playwright settings, PlaywrightFactory playwrightFactory) {
     this.settings = Objects.requireNonNull(settings, "settings must not be null");
     this.playwrightFactory =
         Objects.requireNonNull(playwrightFactory, "playwrightFactory must not be null");
@@ -37,7 +35,7 @@ final class PlaywrightRuntime {
     }
     Playwright created = null;
     try {
-      created = playwrightFactory.get();
+      created = playwrightFactory.create();
       Browser launched =
           created
               .chromium()

@@ -15,7 +15,6 @@ import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Playwright;
 import java.time.Duration;
-import java.util.function.Supplier;
 import net.sasasin.sreader.config.FeedReaderProperties;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -32,7 +31,7 @@ class PlaywrightRuntimeTest {
     runtime.start();
 
     assertThat(runtime.isRunning()).isTrue();
-    verify(f.factory()).get();
+    verify(f.factory()).create();
     ArgumentCaptor<BrowserType.LaunchOptions> options =
         ArgumentCaptor.forClass(BrowserType.LaunchOptions.class);
     verify(f.chromium()).launch(options.capture());
@@ -47,7 +46,7 @@ class PlaywrightRuntimeTest {
 
     assertThat(runtime.browser()).isSameAs(f.browser());
     assertThat(runtime.chromium()).isSameAs(f.chromium());
-    verify(f.factory()).get();
+    verify(f.factory()).create();
   }
 
   @Test
@@ -65,15 +64,14 @@ class PlaywrightRuntimeTest {
     order.verify(f.playwright()).close();
 
     runtime.start();
-    verify(f.factory(), times(2)).get();
+    verify(f.factory(), times(2)).create();
     assertThat(runtime.isRunning()).isTrue();
   }
 
   @Test
   void factoryFailureLeavesCleanState() {
-    @SuppressWarnings("unchecked")
-    Supplier<Playwright> factory = mock();
-    when(factory.get()).thenThrow(new RuntimeException("create failed"));
+    PlaywrightFactory factory = mock();
+    when(factory.create()).thenThrow(new RuntimeException("create failed"));
     PlaywrightRuntime runtime = new PlaywrightRuntime(settings(true), factory);
 
     assertThatThrownBy(runtime::start).hasMessage("create failed");
@@ -110,11 +108,10 @@ class PlaywrightRuntimeTest {
 
   @Test
   void stopWhenNeverStartedIsNoOp() {
-    @SuppressWarnings("unchecked")
-    Supplier<Playwright> factory = mock();
+    PlaywrightFactory factory = mock();
     PlaywrightRuntime runtime = new PlaywrightRuntime(settings(true), factory);
     runtime.stop();
-    verify(factory, never()).get();
+    verify(factory, never()).create();
   }
 
   @Test
@@ -146,13 +143,12 @@ class PlaywrightRuntimeTest {
         Duration.ofMillis(10));
   }
 
-  @SuppressWarnings("unchecked")
   private Fixture fixture() {
-    Supplier<Playwright> factory = mock();
+    PlaywrightFactory factory = mock();
     Playwright playwright = mock(Playwright.class);
     BrowserType chromium = mock(BrowserType.class);
     Browser browser = mock(Browser.class);
-    when(factory.get()).thenReturn(playwright);
+    when(factory.create()).thenReturn(playwright);
     when(playwright.chromium()).thenReturn(chromium);
     when(chromium.launch(any())).thenReturn(browser);
     return new Fixture(
@@ -161,7 +157,7 @@ class PlaywrightRuntimeTest {
 
   private record Fixture(
       PlaywrightRuntime runtime,
-      Supplier<Playwright> factory,
+      PlaywrightFactory factory,
       Playwright playwright,
       BrowserType chromium,
       Browser browser) {}

@@ -29,7 +29,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 import net.sasasin.sreader.config.FeedReaderProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -45,7 +44,7 @@ class PlaywrightHtmlSourceTest {
     StandardPlaywrightPageRenderer standard = mock(StandardPlaywrightPageRenderer.class);
     InfyScrollPageRenderer infy = mock(InfyScrollPageRenderer.class);
     PlaywrightHtmlSource service =
-        new PlaywrightHtmlSource(settings(false), lifecycle, standard, infy);
+        new PlaywrightHtmlSource(properties(false), lifecycle, standard, infy);
 
     service.start();
     verify(lifecycle).start();
@@ -68,7 +67,7 @@ class PlaywrightHtmlSourceTest {
     when(standard.render(uri)).thenReturn(new RenderedPage(uri, "<standard>"));
     when(infy.render(uri)).thenReturn(new RenderedPage(uri, "<infy>"));
     PlaywrightHtmlSource service =
-        new PlaywrightHtmlSource(settings(true), lifecycle, standard, infy);
+        new PlaywrightHtmlSource(properties(true), lifecycle, standard, infy);
 
     assertThat(service.render(uri, PlaywrightRenderMode.STANDARD)).isEqualTo("<standard>");
     assertThat(service.renderPage(uri, PlaywrightRenderMode.INFY_SCROLL).html())
@@ -81,7 +80,7 @@ class PlaywrightHtmlSourceTest {
   void rejectsNullUriAndMode() {
     PlaywrightHtmlSource service =
         new PlaywrightHtmlSource(
-            settings(true),
+            properties(true),
             mock(PlaywrightResourceLifecycle.class),
             mock(StandardPlaywrightPageRenderer.class),
             mock(InfyScrollPageRenderer.class));
@@ -97,7 +96,7 @@ class PlaywrightHtmlSourceTest {
     when(lifecycle.isRunning()).thenReturn(true);
     PlaywrightHtmlSource service =
         new PlaywrightHtmlSource(
-            settings(true),
+            properties(true),
             lifecycle,
             mock(StandardPlaywrightPageRenderer.class),
             mock(InfyScrollPageRenderer.class));
@@ -115,7 +114,7 @@ class PlaywrightHtmlSourceTest {
     when(standard.render(any())).thenThrow(new RuntimeException("boom"));
     PlaywrightHtmlSource service =
         new PlaywrightHtmlSource(
-            settings(true),
+            properties(true),
             mock(PlaywrightResourceLifecycle.class),
             standard,
             mock(InfyScrollPageRenderer.class));
@@ -154,7 +153,7 @@ class PlaywrightHtmlSourceTest {
             });
     PlaywrightHtmlSource service =
         new PlaywrightHtmlSource(
-            settings(true),
+            properties(true),
             mock(PlaywrightResourceLifecycle.class),
             standard,
             mock(InfyScrollPageRenderer.class));
@@ -221,7 +220,7 @@ class PlaywrightHtmlSourceTest {
 
     PlaywrightHtmlSource service =
         new PlaywrightHtmlSource(
-            settings(true), lifecycle, standard, mock(InfyScrollPageRenderer.class));
+            properties(true), lifecycle, standard, mock(InfyScrollPageRenderer.class));
 
     ExecutorService executor = Executors.newFixedThreadPool(2);
     try {
@@ -252,12 +251,12 @@ class PlaywrightHtmlSourceTest {
     when(started.context().newPage()).thenReturn(page);
     when(page.url()).thenReturn("https://example.test/final");
     when(page.content()).thenReturn("<main>ok</main>");
-    PlaywrightHtmlSource service = new PlaywrightHtmlSource(settings(true), started.factory());
+    PlaywrightHtmlSource service = source(settings(true), started.factory());
 
     assertThat(
             service.render(URI.create("https://example.test/start"), PlaywrightRenderMode.STANDARD))
         .isEqualTo("<main>ok</main>");
-    verify(started.factory()).get();
+    verify(started.factory()).create();
     verify(started.context()).close();
   }
 
@@ -284,21 +283,20 @@ class PlaywrightHtmlSourceTest {
         .when(rendered)
         .evaluate(any(String.class));
 
-    PlaywrightHtmlSource service =
-        new PlaywrightHtmlSource(
-            new FeedReaderProperties.Playwright(
-                true,
-                true,
-                800,
-                600,
-                Duration.ofSeconds(3),
-                Duration.ofSeconds(2),
-                extension,
-                temporaryDirectory,
-                1,
-                1,
-                Duration.ofMillis(10)),
-            started.factory());
+    FeedReaderProperties.Playwright playwrightSettings =
+        new FeedReaderProperties.Playwright(
+            true,
+            true,
+            800,
+            600,
+            Duration.ofSeconds(3),
+            Duration.ofSeconds(2),
+            extension,
+            temporaryDirectory,
+            1,
+            1,
+            Duration.ofMillis(10));
+    PlaywrightHtmlSource service = source(playwrightSettings, started.factory());
 
     service.renderPage(URI.create("https://example.test/"), PlaywrightRenderMode.INFY_SCROLL);
     service.stop();
@@ -307,6 +305,10 @@ class PlaywrightHtmlSourceTest {
     order.verify(started.infyContext()).close();
     order.verify(started.browser()).close();
     order.verify(started.playwright()).close();
+  }
+
+  private static FeedReaderProperties properties(boolean enabled) {
+    return new FeedReaderProperties(null, null, null, settings(enabled), null, List.of());
   }
 
   private static FeedReaderProperties.Playwright settings(boolean enabled) {
@@ -324,15 +326,31 @@ class PlaywrightHtmlSourceTest {
         Duration.ofMillis(10));
   }
 
-  @SuppressWarnings("unchecked")
+  private static PlaywrightHtmlSource source(
+      FeedReaderProperties.Playwright settings, PlaywrightFactory factory) {
+    PlaywrightRuntime runtime = new PlaywrightRuntime(settings, factory);
+    PlaywrightPageNavigator navigator = new PlaywrightPageNavigator(settings);
+    InfyScrollDriver driver = new InfyScrollDriver(settings, navigator);
+    InfyScrollPageRenderer infy = new InfyScrollPageRenderer(settings, runtime, navigator, driver);
+    StandardPlaywrightPageRenderer standard =
+        new StandardPlaywrightPageRenderer(settings, runtime, navigator);
+    PlaywrightResourceLifecycle lifecycle =
+        new PlaywrightResourceLifecycle(settings, runtime, infy);
+    return new PlaywrightHtmlSource(
+        new FeedReaderProperties(null, null, null, settings, null, List.of()),
+        lifecycle,
+        standard,
+        infy);
+  }
+
   private Started started() {
-    Supplier<Playwright> factory = mock();
+    PlaywrightFactory factory = mock(PlaywrightFactory.class);
     Playwright playwright = mock(Playwright.class);
     BrowserType chromium = mock(BrowserType.class);
     Browser browser = mock(Browser.class);
     BrowserContext context = mock(BrowserContext.class);
     BrowserContext infyContext = mock(BrowserContext.class);
-    when(factory.get()).thenReturn(playwright);
+    when(factory.create()).thenReturn(playwright);
     when(playwright.chromium()).thenReturn(chromium);
     when(chromium.launch(any())).thenReturn(browser);
     when(browser.newContext(any())).thenReturn(context);
@@ -341,7 +359,7 @@ class PlaywrightHtmlSourceTest {
   }
 
   private record Started(
-      Supplier<Playwright> factory,
+      PlaywrightFactory factory,
       Playwright playwright,
       BrowserType chromium,
       Browser browser,
