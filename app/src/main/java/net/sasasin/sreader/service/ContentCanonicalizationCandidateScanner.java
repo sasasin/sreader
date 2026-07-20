@@ -4,8 +4,8 @@ import java.net.URI;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import net.sasasin.sreader.domain.ContentCanonicalizationCandidate;
 import net.sasasin.sreader.domain.ContentCanonicalizationGroup;
-import net.sasasin.sreader.domain.ContentCanonicalizationMember;
 import net.sasasin.sreader.repository.ContentCanonicalizationMaintenanceRepository;
 
 /** Paginates canonicalization candidates and emits each normalized URL group once. */
@@ -57,7 +57,7 @@ final class ContentCanonicalizationCandidateScanner {
         return null;
       }
       ContentCanonicalizationGroup loaded = repository.loadGroup(normalized);
-      List<ContentCanonicalizationMember> matchingMembers =
+      List<ContentCanonicalizationCandidate> matchingMembers =
           loaded.members().stream()
               .filter(
                   member ->

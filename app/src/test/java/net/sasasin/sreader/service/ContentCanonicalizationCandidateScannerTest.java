@@ -7,8 +7,10 @@ import static org.mockito.Mockito.when;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
+import net.sasasin.sreader.domain.ContentCanonicalizationCandidate;
 import net.sasasin.sreader.domain.ContentCanonicalizationGroup;
-import net.sasasin.sreader.domain.ContentCanonicalizationMember;
+import net.sasasin.sreader.domain.ContentCanonicalizationHeader;
 import net.sasasin.sreader.repository.ContentCanonicalizationMaintenanceRepository;
 import org.junit.jupiter.api.Test;
 
@@ -43,10 +45,11 @@ class ContentCanonicalizationCandidateScannerTest {
     verify(repository).findCandidateCanonicalUrls("example.test", canonical + "?gs=two", 2);
   }
 
-  private ContentCanonicalizationMember member(String canonical) {
+  private ContentCanonicalizationCandidate member(String canonical) {
     OffsetDateTime now = OffsetDateTime.parse("2026-01-01T00:00:00Z");
-    return new ContentCanonicalizationMember(
-        "id", "feed", canonical, canonical, canonical, "title", now, "text", now, now, null, null,
-        null, null);
+    return new ContentCanonicalizationCandidate(
+        new ContentCanonicalizationHeader(
+            "id", "feed", canonical, canonical, canonical, "title", now, "text", now, now),
+        Optional.empty());
   }
 }
