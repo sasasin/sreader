@@ -18,7 +18,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.sasasin.sreader.config.FeedReaderProperties;
-import net.sasasin.sreader.service.FeedReaderService;
+import net.sasasin.sreader.service.job.FeedReaderService;
 import org.junit.jupiter.api.Test;
 
 class FeedReaderSchedulerTest {

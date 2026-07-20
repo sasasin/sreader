@@ -124,9 +124,11 @@ class RepositoryIntegrationTest {
             null);
 
     assertThat(contentHeaderRepository.insertOrRefreshFetchUrl(header))
-        .isEqualTo(net.sasasin.sreader.service.ContentHeaderUpsertOutcome.INSERTED);
+        .isEqualTo(net.sasasin.sreader.service.feed.ingestion.ContentHeaderUpsertOutcome.INSERTED);
     assertThat(contentHeaderRepository.insertOrRefreshFetchUrl(header))
-        .isEqualTo(net.sasasin.sreader.service.ContentHeaderUpsertOutcome.EXISTING_REFRESHED);
+        .isEqualTo(
+            net.sasasin.sreader.service.feed.ingestion.ContentHeaderUpsertOutcome
+                .EXISTING_REFRESHED);
     assertThat(contentHeaderRepository.findWithoutFullText(10)).hasSize(1);
 
     ContentFullText fullText =
