@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.stream.Stream;
 import net.sasasin.sreader.domain.FeedEntrySelection;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.service.extraction.NoContentReason;
@@ -27,6 +28,9 @@ import net.sasasin.sreader.service.probe.ProbeOutcome;
 import net.sasasin.sreader.service.probe.ProbeSkipReason;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import picocli.CommandLine;
 
@@ -56,51 +60,106 @@ class ProbeFeedCommandTest {
   }
 
   @Test
-  void resolvesEachSelectorAndItsPriority() {
+  void resolvesEachIndividualSelector() {
     assertSelection(FeedEntrySelection.first(), "--entry", " FiRsT ");
     assertSelection(FeedEntrySelection.latest(), "--entry", " LaTeSt ");
+    assertSelection(FeedEntrySelection.index(0), "--entry-index", "0");
     assertSelection(FeedEntrySelection.index(2), "--entry-index", "2");
     assertSelection(
         FeedEntrySelection.titleRegex("Release .*"), "--entry-title-regex", "Release .*");
     assertSelection(
         FeedEntrySelection.urlRegex("/posts/[0-9]+"), "--entry-url-regex", "/posts/[0-9]+");
-    assertSelection(
-        FeedEntrySelection.index(3),
-        "--entry-index",
-        "3",
-        "--entry-title-regex",
-        "title",
-        "--entry-url-regex",
-        "url",
-        "--entry",
-        "latest");
-    assertSelection(
-        FeedEntrySelection.titleRegex("title"),
-        "--entry-title-regex",
-        "title",
-        "--entry-url-regex",
-        "url",
-        "--entry",
-        "latest");
-    assertSelection(
-        FeedEntrySelection.urlRegex("url"), "--entry-url-regex", "url", "--entry", "latest");
+  }
+
+  @ParameterizedTest
+  @MethodSource("conflictingEntrySelectors")
+  void rejectsConflictingSelectorsWithoutCallingService(
+      String optionA, String valueA, String optionB, String valueB) {
+    FullTextProbeService service = mock(FullTextProbeService.class);
+    Harness harness = harness(service);
+
+    assertThat(harness.execute(optionA, valueA, optionB, valueB)).isEqualTo(2);
+    assertThat(harness.stderr())
+        .containsIgnoringCase("mutually exclusive")
+        .contains(optionA)
+        .contains(optionB);
+    verifyNoInteractions(service);
+  }
+
+  static Stream<Arguments> conflictingEntrySelectors() {
+    return Stream.of(
+        Arguments.of("--entry", "first", "--entry-index", "0"),
+        Arguments.of("--entry", "latest", "--entry-title-regex", "title"),
+        Arguments.of("--entry", "first", "--entry-url-regex", "url"),
+        Arguments.of("--entry-index", "1", "--entry-title-regex", "title"),
+        Arguments.of("--entry-index", "1", "--entry-url-regex", "url"),
+        Arguments.of("--entry-title-regex", "title", "--entry-url-regex", "url"));
   }
 
   @Test
-  void blankRegexesFallThroughAndBlankXpathIsIgnored() {
+  void rejectsThreeAndFourSelectorsWithoutCallingService() {
+    FullTextProbeService service = mock(FullTextProbeService.class);
+
+    Harness three = harness(service);
+    assertThat(
+            three.execute("--entry", "first", "--entry-index", "0", "--entry-title-regex", "title"))
+        .isEqualTo(2);
+    assertThat(three.stderr()).containsIgnoringCase("mutually exclusive");
+    verifyNoInteractions(service);
+
+    Harness four = harness(service);
+    assertThat(
+            four.execute(
+                "--entry",
+                "first",
+                "--entry-index",
+                "0",
+                "--entry-title-regex",
+                "title",
+                "--entry-url-regex",
+                "url"))
+        .isEqualTo(2);
+    assertThat(four.stderr()).containsIgnoringCase("mutually exclusive");
+    verifyNoInteractions(service);
+  }
+
+  @Test
+  void blankXpathIsIgnored() {
     FullTextProbeService service = serviceReturning(succeeded("body"));
     Harness harness = harness(service);
 
-    assertThat(
-            harness.execute(
-                "--entry-title-regex", "  ", "--entry-url-regex", "url", "--xpath", " \t "))
-        .isZero();
+    assertThat(harness.execute("--xpath", " \t ")).isZero();
     verify(service)
         .probeFeed(
             URI.create("https://example.com/feed.xml"),
             FullTextMethod.HTTP,
-            FeedEntrySelection.urlRegex("url"),
+            FeedEntrySelection.first(),
             Optional.empty());
+  }
+
+  @Test
+  void blankSelectorsAreUsageErrorsWithoutCallingService() {
+    FullTextProbeService service = mock(FullTextProbeService.class);
+
+    Harness blankEntry = harness(service);
+    assertThat(blankEntry.execute("--entry", "")).isEqualTo(2);
+    assertThat(blankEntry.stderr()).contains("--entry");
+    verifyNoInteractions(service);
+
+    Harness blankIndex = harness(service);
+    assertThat(blankIndex.execute("--entry-index", "")).isEqualTo(2);
+    assertThat(blankIndex.stderr()).contains("--entry-index");
+    verifyNoInteractions(service);
+
+    Harness blankTitle = harness(service);
+    assertThat(blankTitle.execute("--entry-title-regex", "  ")).isEqualTo(2);
+    assertThat(blankTitle.stderr()).contains("--entry-title-regex");
+    verifyNoInteractions(service);
+
+    Harness blankUrl = harness(service);
+    assertThat(blankUrl.execute("--entry-url-regex", "   ")).isEqualTo(2);
+    assertThat(blankUrl.stderr()).contains("--entry-url-regex");
+    verifyNoInteractions(service);
   }
 
   @Test
@@ -127,12 +186,22 @@ class ProbeFeedCommandTest {
   }
 
   @Test
-  void rejectsNegativeIndexAndInvalidRegexAsUsageErrorsWithoutCallingService() {
+  void rejectsNegativeIndexOverflowAndInvalidRegexAsUsageErrorsWithoutCallingService() {
     FullTextProbeService service = mock(FullTextProbeService.class);
 
     Harness negativeIndex = harness(service);
     assertThat(negativeIndex.execute("--entry-index", "-1")).isEqualTo(2);
     assertThat(negativeIndex.stderr()).contains("--entry-index");
+    verifyNoInteractions(service);
+
+    Harness nonInteger = harness(service);
+    assertThat(nonInteger.execute("--entry-index", "1.5")).isEqualTo(2);
+    assertThat(nonInteger.stderr()).contains("--entry-index");
+    verifyNoInteractions(service);
+
+    Harness overflow = harness(service);
+    assertThat(overflow.execute("--entry-index", "99999999999999999999")).isEqualTo(2);
+    assertThat(overflow.stderr()).contains("--entry-index");
     verifyNoInteractions(service);
 
     Harness invalidTitle = harness(service);
@@ -144,6 +213,37 @@ class ProbeFeedCommandTest {
     assertThat(invalidUrl.execute("--entry-url-regex", "*")).isEqualTo(2);
     assertThat(invalidUrl.stderr()).contains("--entry-url-regex");
     verifyNoInteractions(service);
+  }
+
+  @Test
+  void entrySelectionOptionsDefensiveInvariantRequiresExactlyOneMember() {
+    ProbeFeedCommand.EntrySelectionOptions empty = new ProbeFeedCommand.EntrySelectionOptions();
+    org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, empty::selection);
+
+    ProbeFeedCommand.EntrySelectionOptions multi = new ProbeFeedCommand.EntrySelectionOptions();
+    multi.position = FeedEntrySelection.first();
+    multi.index = FeedEntrySelection.index(0);
+    org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, multi::selection);
+  }
+
+  @Test
+  void helpShowsEntrySelectionGroupWithoutPriorityWording() {
+    FullTextProbeService service = mock(FullTextProbeService.class);
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    CommandLine cli = new CommandLine(new ProbeFeedCommand(service));
+    cli.setOut(new PrintWriter(out, true, StandardCharsets.UTF_8));
+
+    assertThat(cli.execute("--help")).isZero();
+    String help = out.toString(StandardCharsets.UTF_8);
+    assertThat(help).contains("Entry selection");
+    assertThat(help).contains("choose at most one");
+    assertThat(help).contains("default: first");
+    assertThat(help).contains("--entry");
+    assertThat(help).contains("--entry-index");
+    assertThat(help).contains("--entry-title-regex");
+    assertThat(help).contains("--entry-url-regex");
+    assertThat(help.toLowerCase()).doesNotContain("selection priority");
+    assertThat(help.toLowerCase()).doesNotContain("priority:");
   }
 
   @Test
