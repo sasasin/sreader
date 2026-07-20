@@ -8,3 +8,4 @@ target/
 /var/sreader/content-text/
 # Generated only by scripts/k8s/render.sh.
 /var/kubernetes-manifests/
+docs/it/
