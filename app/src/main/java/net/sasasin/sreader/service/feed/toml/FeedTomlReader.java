@@ -14,10 +14,6 @@ final class FeedTomlReader {
   private final FeedTomlSchemaValidator validator;
   private final FeedTomlImportMapper mapper;
 
-  FeedTomlReader() {
-    this(new FeedTomlParser(), new FeedTomlSchemaValidator(), new FeedTomlImportMapper());
-  }
-
   FeedTomlReader(
       FeedTomlParser parser, FeedTomlSchemaValidator validator, FeedTomlImportMapper mapper) {
     this.parser = Objects.requireNonNull(parser, "parser");

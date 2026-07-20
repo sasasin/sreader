@@ -27,7 +27,7 @@ class FeedTomlServiceTest {
 
   private final FeedUrlRepository repository = mock(FeedUrlRepository.class);
   private final FeedTomlService service =
-      new FeedTomlService(
+      service(
           repository, Clock.fixed(Instant.parse("2026-06-14T03:00:00Z"), ZoneId.of("Asia/Tokyo")));
 
   @Test
@@ -622,7 +622,7 @@ class FeedTomlServiceTest {
 
     FeedUrlRepository dryRepository = mock(FeedUrlRepository.class);
     when(dryRepository.findByUrl("https://example.test/dry.xml")).thenReturn(Optional.empty());
-    FeedTomlService dryService = new FeedTomlService(dryRepository, Clock.systemUTC());
+    FeedTomlService dryService = service(dryRepository, Clock.systemUTC());
     FeedTomlService.ImportResult dryResult =
         dryService.importToml(
             """
@@ -686,7 +686,7 @@ class FeedTomlServiceTest {
 
     FeedUrlRepository dryRepository = mock(FeedUrlRepository.class);
     when(dryRepository.findByUrl(stopped.url())).thenReturn(Optional.of(stopped));
-    FeedTomlService dryService = new FeedTomlService(dryRepository, Clock.systemUTC());
+    FeedTomlService dryService = service(dryRepository, Clock.systemUTC());
     FeedTomlService.ImportResult dry =
         dryService.importToml(
             """
@@ -745,8 +745,7 @@ class FeedTomlServiceTest {
 
     FeedUrlRepository resubscribeRepository = mock(FeedUrlRepository.class);
     when(resubscribeRepository.findByUrl(first.url())).thenReturn(Optional.of(first));
-    FeedTomlService resubscribeService =
-        new FeedTomlService(resubscribeRepository, Clock.systemUTC());
+    FeedTomlService resubscribeService = service(resubscribeRepository, Clock.systemUTC());
     FeedTomlService.ImportResult resubscribed =
         resubscribeService.importToml(
             """
@@ -796,7 +795,7 @@ class FeedTomlServiceTest {
     FeedUrlRepository writeRepository = mock(FeedUrlRepository.class);
     when(writeRepository.findByUrl(active.url())).thenReturn(Optional.of(active));
     doThrow(failure).when(writeRepository).updateFullTextMethod(active.url(), FullTextMethod.FEED);
-    FeedTomlService writeService = new FeedTomlService(writeRepository, Clock.systemUTC());
+    FeedTomlService writeService = service(writeRepository, Clock.systemUTC());
     assertThatThrownBy(
             () ->
                 writeService.importToml(
@@ -966,5 +965,16 @@ class FeedTomlServiceTest {
       String note,
       FullTextMethod method) {
     return new FeedUrl("id-" + url, url, status, reason, unsubscribedAt, note, method);
+  }
+
+  private static FeedTomlService service(FeedUrlRepository repository, Clock clock) {
+    return new FeedTomlService(
+        repository,
+        clock,
+        new FeedTomlReader(
+            new FeedTomlParser(), new FeedTomlSchemaValidator(), new FeedTomlImportMapper()),
+        new FeedTomlWriter(),
+        new FeedImportPlanner(),
+        new FeedImportExecutor(repository));
   }
 }

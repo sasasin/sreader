@@ -10,7 +10,9 @@ import org.junit.jupiter.api.Test;
 
 class FeedTomlReaderTest {
 
-  private final FeedTomlReader reader = new FeedTomlReader();
+  private final FeedTomlReader reader =
+      new FeedTomlReader(
+          new FeedTomlParser(), new FeedTomlSchemaValidator(), new FeedTomlImportMapper());
 
   @Test
   void readsValidDocumentEndToEnd() {

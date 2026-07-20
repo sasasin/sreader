@@ -11,7 +11,6 @@ import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.domain.UnsubscribeReason;
 import net.sasasin.sreader.repository.FeedUrlRepository;
 import net.sasasin.sreader.service.article.HashIds;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,32 +27,19 @@ public class FeedTomlService {
   private final FeedImportPlanner planner;
   private final FeedImportExecutor executor;
 
-  @Autowired
-  public FeedTomlService(FeedUrlRepository feedUrlRepository) {
-    this(
-        feedUrlRepository,
-        Clock.systemDefaultZone(),
-        new FeedTomlReader(),
-        new FeedTomlWriter(),
-        new FeedImportPlanner());
-  }
-
-  FeedTomlService(FeedUrlRepository repository, Clock clock) {
-    this(repository, clock, new FeedTomlReader(), new FeedTomlWriter(), new FeedImportPlanner());
-  }
-
-  private FeedTomlService(
+  FeedTomlService(
       FeedUrlRepository repository,
       Clock clock,
       FeedTomlReader reader,
       FeedTomlWriter writer,
-      FeedImportPlanner planner) {
+      FeedImportPlanner planner,
+      FeedImportExecutor executor) {
     this.feedUrlRepository = repository;
     this.clock = clock;
     this.reader = reader;
     this.writer = writer;
     this.planner = planner;
-    this.executor = new FeedImportExecutor(repository);
+    this.executor = executor;
   }
 
   public String exportToml(boolean activeOnly) {
