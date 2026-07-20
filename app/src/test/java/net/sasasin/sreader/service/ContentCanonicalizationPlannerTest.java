@@ -275,6 +275,35 @@ class ContentCanonicalizationPlannerTest {
     assertThat(plan.selectedFullText().orElseThrow().id()).isEqualTo("ft-d");
   }
 
+  @Test
+  void fullTextSelectionUsesLargestIdWhenAllEarlierTieBreakersAreEqual() {
+    String canonical = "https://example.test/article";
+    ContentCanonicalizationCandidate smallerId =
+        withFullText(
+            "a",
+            canonical,
+            "same length",
+            "ft-a",
+            "2026-01-01T00:00Z",
+            "2026-01-01T00:00Z",
+            "2026-01-02T00:00Z",
+            "2026-01-03T00:00Z");
+    ContentCanonicalizationCandidate largerId =
+        withFullText(
+            "b",
+            canonical,
+            "same length",
+            "ft-z",
+            "2026-01-04T00:00Z",
+            "2026-01-04T00:00Z",
+            "2026-01-02T00:00Z",
+            "2026-01-03T00:00Z");
+
+    assertThat(planner.plan(group(canonical, smallerId, largerId)).selectedFullText())
+        .map(ContentCanonicalizationFullText::id)
+        .contains("ft-z");
+  }
+
   private ContentCanonicalizationGroup group(
       String canonical, ContentCanonicalizationCandidate... members) {
     return new ContentCanonicalizationGroup(canonical, List.of(members), 0);
