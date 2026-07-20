@@ -2,7 +2,7 @@ package net.sasasin.sreader.scheduler;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.sasasin.sreader.config.FeedReaderProperties;
-import net.sasasin.sreader.service.FeedReaderService;
+import net.sasasin.sreader.service.job.FeedReaderService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;

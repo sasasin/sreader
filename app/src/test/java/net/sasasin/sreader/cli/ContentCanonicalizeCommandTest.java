@@ -14,7 +14,7 @@ import net.sasasin.sreader.domain.ContentCanonicalizationResult.DatabaseSummary;
 import net.sasasin.sreader.domain.ContentCanonicalizationResult.FileSummary;
 import net.sasasin.sreader.domain.ContentCanonicalizationResult.GroupSummary;
 import net.sasasin.sreader.domain.ContentCanonicalizationResult.ScanSummary;
-import net.sasasin.sreader.service.ContentCanonicalizationMaintenanceService;
+import net.sasasin.sreader.service.canonicalization.ContentCanonicalizationMaintenanceService;
 import org.junit.jupiter.api.Test;
 import picocli.CommandLine;
 

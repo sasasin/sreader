@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import net.sasasin.sreader.service.FeedTomlService;
+import net.sasasin.sreader.service.feed.toml.FeedTomlService;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;

@@ -5,7 +5,7 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import net.sasasin.sreader.service.ProbeDocument;
+import net.sasasin.sreader.service.probe.ProbeDocument;
 import picocli.CommandLine.Model.CommandSpec;
 
 public class ProbeOutputWriter {

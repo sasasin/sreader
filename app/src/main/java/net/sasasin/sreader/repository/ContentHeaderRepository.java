@@ -9,7 +9,7 @@ import java.util.List;
 import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.domain.PendingFullTextTarget;
-import net.sasasin.sreader.service.ContentHeaderUpsertOutcome;
+import net.sasasin.sreader.service.feed.ingestion.ContentHeaderUpsertOutcome;
 import org.jooq.DSLContext;
 import org.jooq.Record;
 import org.springframework.stereotype.Repository;

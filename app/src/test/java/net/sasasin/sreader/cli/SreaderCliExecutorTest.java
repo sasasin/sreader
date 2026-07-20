@@ -6,9 +6,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import net.sasasin.sreader.scheduler.FeedReaderScheduler;
-import net.sasasin.sreader.service.FeedDiscoveryService;
-import net.sasasin.sreader.service.FeedTomlService;
-import net.sasasin.sreader.service.FullTextProbeService;
+import net.sasasin.sreader.service.feed.FeedDiscoveryService;
+import net.sasasin.sreader.service.feed.toml.FeedTomlService;
+import net.sasasin.sreader.service.probe.FullTextProbeService;
 import org.junit.jupiter.api.Test;
 
 class SreaderCliExecutorTest {

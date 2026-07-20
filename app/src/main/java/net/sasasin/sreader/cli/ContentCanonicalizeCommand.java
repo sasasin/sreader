@@ -1,7 +1,7 @@
 package net.sasasin.sreader.cli;
 
 import net.sasasin.sreader.domain.ContentCanonicalizationResult;
-import net.sasasin.sreader.service.ContentCanonicalizationMaintenanceService;
+import net.sasasin.sreader.service.canonicalization.ContentCanonicalizationMaintenanceService;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
