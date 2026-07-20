@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class FeedEntryFullTextExtractor {
 
-  public Optional<String> extract(SyndEntry entry) {
+  public TextExtractionOutcome extract(SyndEntry entry) {
     List<String> candidates = new ArrayList<>();
     for (SyndContent content : entry.getContents()) {
       normalize(content).ifPresent(candidates::add);
@@ -23,7 +23,16 @@ public class FeedEntryFullTextExtractor {
     return candidates.stream()
         .map(String::trim)
         .filter(text -> !text.isBlank())
-        .max(Comparator.comparingInt(String::length));
+        .max(Comparator.comparingInt(String::length))
+        .<TextExtractionOutcome>map(
+            text ->
+                new TextExtractionOutcome.Extracted(
+                    text, ExtractionDecision.of(ExtractionSource.FEED)))
+        .orElseGet(
+            () ->
+                new TextExtractionOutcome.NoContent(
+                    NoContentReason.FEED_CONTENT_MISSING,
+                    ExtractionDecision.of(ExtractionSource.FEED)));
   }
 
   private Optional<String> normalize(SyndContent content) {

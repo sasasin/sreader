@@ -1,6 +1,7 @@
 package net.sasasin.sreader.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -23,12 +24,14 @@ class HtmlTextExtractorTest {
     String url = "https://example.test/article";
     when(rules.findBestRule(url)).thenReturn(Optional.of(new ExtractRule("id", url, "//p")));
 
-    assertThat(
+    TextExtractionOutcome.Extracted extracted =
+        (TextExtractionOutcome.Extracted)
             extractor.extract(
                 url,
                 "<html><body><p>First</p><p>Second</p><aside>Skip</aside></body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT))
-        .isEqualTo("First\n\nSecond");
+                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT);
+    assertThat(extracted.text()).isEqualTo("First\n\nSecond");
+    assertThat(extracted.decision().source()).isEqualTo(ExtractionSource.CONFIGURED_XPATH);
   }
 
   @Test
@@ -38,12 +41,16 @@ class HtmlTextExtractorTest {
     String url = "https://example.test/article";
     when(rules.findBestRule(url)).thenReturn(Optional.of(new ExtractRule("id", url, "//article")));
 
-    assertThat(
+    TextExtractionOutcome.Extracted extracted =
+        (TextExtractionOutcome.Extracted)
             extractor.extract(
                 url,
                 "<html><body><main>Fallback body</main></body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT))
-        .isEqualTo("Fallback body");
+                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT);
+    assertThat(extracted.text()).isEqualTo("Fallback body");
+    assertThat(extracted.decision().source()).isEqualTo(ExtractionSource.BODY_TEXT);
+    assertThat(extracted.decision().fallbackReason())
+        .contains(ExtractionFallbackReason.CONFIGURED_XPATH_NO_MATCH);
   }
 
   @Test
@@ -51,7 +58,8 @@ class HtmlTextExtractorTest {
     ExtractRuleService rules = mock(ExtractRuleService.class);
     HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
 
-    assertThat(
+    TextExtractionOutcome.Extracted extracted =
+        (TextExtractionOutcome.Extracted)
             extractor.extract(
                 "https://example.test/article",
                 """
@@ -62,8 +70,9 @@ class HtmlTextExtractorTest {
                 </article>
                 </body></html>
                 """,
-                ExtractionPlan.ExtractorKind.READABILITY))
-        .contains("main article text");
+                ExtractionPlan.ExtractorKind.READABILITY);
+    assertThat(extracted.text()).contains("main article text");
+    assertThat(extracted.decision().source()).isEqualTo(ExtractionSource.READABILITY);
   }
 
   @Test
@@ -71,39 +80,65 @@ class HtmlTextExtractorTest {
     ExtractRuleService rules = mock(ExtractRuleService.class);
     HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
     String url = "https://example.test/a";
-    // even if rule exists, override should win
     when(rules.findBestRule(url)).thenReturn(Optional.of(new ExtractRule("r", url, "//article")));
 
-    String out =
-        extractor.extract(
-            url,
-            "<html><body><h1>Skip</h1><p class=\"c\">Hit</p><p class=\"c\">Two</p></body></html>",
-            ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
-            Optional.of("//p[@class='c']"));
-    assertThat(out).isEqualTo("Hit\n\nTwo");
+    TextExtractionOutcome.Extracted extracted =
+        (TextExtractionOutcome.Extracted)
+            extractor.extract(
+                url,
+                "<html><body><h1>Skip</h1><p class=\"c\">Hit</p><p"
+                    + " class=\"c\">Two</p></body></html>",
+                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
+                Optional.of("//p[@class='c']"));
+    assertThat(extracted.text()).isEqualTo("Hit\n\nTwo");
+    assertThat(extracted.decision().source()).isEqualTo(ExtractionSource.XPATH_OVERRIDE);
     verify(rules, never()).findBestRule(url);
   }
 
   @Test
-  void xpathOverrideReturnsEmptyOnNoMatchOrBadXpath() {
+  void xpathOverrideNoMatchIsNoContent() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
     HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
 
-    String out1 =
-        extractor.extract(
-            "u",
-            "<html><body><div>no</div></body></html>",
-            ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
-            Optional.of("//p"));
-    assertThat(out1).isEqualTo("");
+    TextExtractionOutcome.NoContent noContent =
+        (TextExtractionOutcome.NoContent)
+            extractor.extract(
+                "u",
+                "<html><body><div>no</div></body></html>",
+                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
+                Optional.of("//p"));
+    assertThat(noContent.reason()).isEqualTo(NoContentReason.XPATH_NO_MATCH);
+  }
 
-    String out2 =
-        extractor.extract(
-            "u",
-            "<html><body><div>no</div></body></html>",
-            ExtractionPlan.ExtractorKind.READABILITY,
-            Optional.of("///bad["));
-    assertThat(out2).isEqualTo("");
+  @Test
+  void xpathOverrideMatchedBlankIsNoContent() {
+    ExtractRuleService rules = mock(ExtractRuleService.class);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+
+    TextExtractionOutcome.NoContent noContent =
+        (TextExtractionOutcome.NoContent)
+            extractor.extract(
+                "u",
+                "<html><body><p>   </p></body></html>",
+                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
+                Optional.of("//p"));
+    assertThat(noContent.reason()).isEqualTo(NoContentReason.XPATH_MATCHED_EMPTY);
+  }
+
+  @Test
+  void xpathOverrideInvalidIsFailedInvalidInput() {
+    ExtractRuleService rules = mock(ExtractRuleService.class);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+
+    TextExtractionOutcome.Failed failed =
+        (TextExtractionOutcome.Failed)
+            extractor.extract(
+                "u",
+                "<html><body><div>no</div></body></html>",
+                ExtractionPlan.ExtractorKind.READABILITY,
+                Optional.of("///bad["));
+    assertThat(failed.failure().kind()).isEqualTo(FailureKind.INVALID_INPUT);
+    assertThat(failed.failure().stage()).isEqualTo(FailureStage.EXTRACT_TEXT);
   }
 
   @Test
@@ -111,30 +146,30 @@ class HtmlTextExtractorTest {
     ExtractRuleService rules = mock(ExtractRuleService.class);
     HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
 
-    String out =
-        extractor.extract(
-            "u",
-            "<html><body><article>Main</article></body></html>",
-            ExtractionPlan.ExtractorKind.READABILITY,
-            Optional.of("//article"));
-    assertThat(out).isEqualTo("Main");
+    TextExtractionOutcome.Extracted extracted =
+        (TextExtractionOutcome.Extracted)
+            extractor.extract(
+                "u",
+                "<html><body><article>Main</article></body></html>",
+                ExtractionPlan.ExtractorKind.READABILITY,
+                Optional.of("//article"));
+    assertThat(extracted.text()).isEqualTo("Main");
   }
 
   @Test
-  void nullXpathOverrideUsesNormalExtractorPath() {
+  void nullXpathOverrideIsRejected() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
     HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
-    String url = "https://example.test/article";
-    when(rules.findBestRule(url)).thenReturn(Optional.empty());
 
-    assertThat(
-            extractor.extract(
-                url,
-                "<html><body><p>Body only</p></body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
-                null))
-        .isEqualTo("Body only");
-    verify(rules).findBestRule(url);
+    assertThatThrownBy(
+            () ->
+                extractor.extract(
+                    "https://example.test/article",
+                    "<html><body><p>Body only</p></body></html>",
+                    ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
+                    null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessageContaining("xpathOverride");
   }
 
   @Test
@@ -144,57 +179,32 @@ class HtmlTextExtractorTest {
     String url = "https://example.test/article";
     when(rules.findBestRule(url)).thenReturn(Optional.empty());
 
-    assertThat(
+    TextExtractionOutcome.Extracted extracted =
+        (TextExtractionOutcome.Extracted)
             extractor.extract(
                 url,
                 "<html><body><p>Via empty override</p></body></html>",
                 ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
-                Optional.empty()))
-        .isEqualTo("Via empty override");
+                Optional.empty());
+    assertThat(extracted.text()).isEqualTo("Via empty override");
     verify(rules).findBestRule(url);
   }
 
   @Test
-  void blankXpathOverrideReturnsEmptyWithoutDbLookup() {
+  void blankXpathOverrideIsFailedInvalidInput() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
     HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
     String url = "https://example.test/article";
 
-    assertThat(
+    TextExtractionOutcome.Failed failed =
+        (TextExtractionOutcome.Failed)
             extractor.extract(
                 url,
                 "<html><body><p>ignored</p></body></html>",
                 ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
-                Optional.of("")))
-        .isEmpty();
-    assertThat(
-            extractor.extract(
-                url,
-                "<html><body><p>ignored</p></body></html>",
-                ExtractionPlan.ExtractorKind.READABILITY,
-                Optional.of("  \t  ")))
-        .isEmpty();
+                Optional.of(""));
+    assertThat(failed.failure().kind()).isEqualTo(FailureKind.INVALID_INPUT);
     verify(rules, never()).findBestRule(url);
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  void presentXpathOverrideWithNullValueReturnsEmptyWithoutDbLookup() {
-    // Optional cannot legally contain null; mock present+null to cover the defensive branch.
-    ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
-    Optional<String> xpathOverride = mock(Optional.class);
-    when(xpathOverride.isPresent()).thenReturn(true);
-    when(xpathOverride.get()).thenReturn(null);
-
-    assertThat(
-            extractor.extract(
-                "https://example.test/article",
-                "<html><body><p>ignored</p></body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT,
-                xpathOverride))
-        .isEmpty();
-    verify(rules, never()).findBestRule("https://example.test/article");
   }
 
   @Test
@@ -204,12 +214,13 @@ class HtmlTextExtractorTest {
     String url = "https://example.test/article";
     when(rules.findBestRule(url)).thenReturn(Optional.empty());
 
-    assertThat(
+    TextExtractionOutcome.Extracted extracted =
+        (TextExtractionOutcome.Extracted)
             extractor.extract(
                 url,
                 "<html><body>Three-arg body</body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT))
-        .isEqualTo("Three-arg body");
+                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT);
+    assertThat(extracted.text()).isEqualTo("Three-arg body");
   }
 
   @Test
@@ -219,10 +230,11 @@ class HtmlTextExtractorTest {
     String url = "https://example.test/article";
     when(rules.findBestRule(url)).thenReturn(Optional.empty());
 
-    assertThat(
+    TextExtractionOutcome.Extracted extracted =
+        (TextExtractionOutcome.Extracted)
             extractor.extractByXpathOrBody(
-                url, "<html><body><div>No rule body</div></body></html>"))
-        .isEqualTo("No rule body");
+                url, "<html><body><div>No rule body</div></body></html>");
+    assertThat(extracted.text()).isEqualTo("No rule body");
   }
 
   @Test
@@ -232,12 +244,15 @@ class HtmlTextExtractorTest {
     String url = "https://example.test/article";
     when(rules.findBestRule(url)).thenReturn(Optional.of(new ExtractRule("id", url, "//p")));
 
-    assertThat(
+    TextExtractionOutcome.Extracted extracted =
+        (TextExtractionOutcome.Extracted)
             extractor.extract(
                 url,
                 "<html><body><p>   </p><div>Real body</div></body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT))
-        .isEqualTo("Real body");
+                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT);
+    assertThat(extracted.text()).isEqualTo("Real body");
+    assertThat(extracted.decision().fallbackReason())
+        .contains(ExtractionFallbackReason.CONFIGURED_XPATH_EMPTY);
   }
 
   @Test
@@ -248,12 +263,15 @@ class HtmlTextExtractorTest {
     when(rules.findBestRule(url))
         .thenReturn(Optional.of(new ExtractRule("id", url, "///invalid[")));
 
-    assertThat(
+    TextExtractionOutcome.Extracted extracted =
+        (TextExtractionOutcome.Extracted)
             extractor.extract(
                 url,
                 "<html><body><main>Safe body</main></body></html>",
-                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT))
-        .isEqualTo("Safe body");
+                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT);
+    assertThat(extracted.text()).isEqualTo("Safe body");
+    assertThat(extracted.decision().fallbackReason())
+        .contains(ExtractionFallbackReason.CONFIGURED_XPATH_INVALID);
   }
 
   @Test
@@ -273,12 +291,16 @@ class HtmlTextExtractorTest {
             </body></html>
             """);
 
-    assertThat(extractor.extractByXpath(document, "//div")).isEmpty();
-    assertThat(extractor.extractByXpath(document, "//p[1]")).contains("One");
-    assertThat(extractor.extractByXpath(document, "//p")).contains("One\n\nTwo");
-    // blank elements are filtered; all-blank match still yields Optional.of("")
-    assertThat(extractor.extractByXpath(document, "//span")).contains("");
-    assertThat(extractor.extractByXpath(document, "///bad[")).isEmpty();
+    assertThat(extractor.extractByXpath(document, "//div"))
+        .isInstanceOf(HtmlTextExtractor.XpathExtractionAttempt.NoMatch.class);
+    assertThat(extractor.extractByXpath(document, "//p[1]"))
+        .isEqualTo(new HtmlTextExtractor.XpathExtractionAttempt.Matched("One"));
+    assertThat(extractor.extractByXpath(document, "//p"))
+        .isEqualTo(new HtmlTextExtractor.XpathExtractionAttempt.Matched("One\n\nTwo"));
+    assertThat(extractor.extractByXpath(document, "//span"))
+        .isEqualTo(new HtmlTextExtractor.XpathExtractionAttempt.Matched(""));
+    assertThat(extractor.extractByXpath(document, "///bad["))
+        .isInstanceOf(HtmlTextExtractor.XpathExtractionAttempt.Invalid.class);
   }
 
   @Test
@@ -288,23 +310,27 @@ class HtmlTextExtractorTest {
     when(blankArticle.getTextContent()).thenReturn("   ");
     HtmlTextExtractor blankExtractor = new HtmlTextExtractor(rules, (url, html) -> blankArticle);
 
-    assertThat(
+    TextExtractionOutcome.Extracted blank =
+        (TextExtractionOutcome.Extracted)
             blankExtractor.extract(
                 "https://example.test/a",
                 "<html><body><p>Blank readability body</p></body></html>",
-                ExtractionPlan.ExtractorKind.READABILITY))
-        .isEqualTo("Blank readability body");
+                ExtractionPlan.ExtractorKind.READABILITY);
+    assertThat(blank.text()).isEqualTo("Blank readability body");
+    assertThat(blank.decision().fallbackReason())
+        .contains(ExtractionFallbackReason.READABILITY_EMPTY);
 
     Article nullArticle = mock(Article.class);
     when(nullArticle.getTextContent()).thenReturn(null);
     HtmlTextExtractor nullExtractor = new HtmlTextExtractor(rules, (url, html) -> nullArticle);
 
-    assertThat(
+    TextExtractionOutcome.Extracted nullText =
+        (TextExtractionOutcome.Extracted)
             nullExtractor.extract(
                 "https://example.test/a",
                 "<html><body><p>Null readability body</p></body></html>",
-                ExtractionPlan.ExtractorKind.READABILITY))
-        .isEqualTo("Null readability body");
+                ExtractionPlan.ExtractorKind.READABILITY);
+    assertThat(nullText.text()).isEqualTo("Null readability body");
   }
 
   @Test
@@ -317,12 +343,15 @@ class HtmlTextExtractorTest {
               throw new RuntimeException("readability failed");
             });
 
-    assertThat(
+    TextExtractionOutcome.Extracted extracted =
+        (TextExtractionOutcome.Extracted)
             extractor.extract(
                 "https://example.test/a",
                 "<html><body><p>Exception fallback body</p></body></html>",
-                ExtractionPlan.ExtractorKind.READABILITY))
-        .isEqualTo("Exception fallback body");
+                ExtractionPlan.ExtractorKind.READABILITY);
+    assertThat(extracted.text()).isEqualTo("Exception fallback body");
+    assertThat(extracted.decision().fallbackReason())
+        .contains(ExtractionFallbackReason.READABILITY_FAILED);
   }
 
   @Test
@@ -332,11 +361,28 @@ class HtmlTextExtractorTest {
     when(article.getTextContent()).thenReturn("Injected article text");
     HtmlTextExtractor extractor = new HtmlTextExtractor(rules, (url, html) -> article);
 
-    assertThat(
+    TextExtractionOutcome.Extracted extracted =
+        (TextExtractionOutcome.Extracted)
             extractor.extract(
                 "https://example.test/a",
                 "<html><body><p>ignored body</p></body></html>",
-                ExtractionPlan.ExtractorKind.READABILITY))
-        .isEqualTo("Injected article text");
+                ExtractionPlan.ExtractorKind.READABILITY);
+    assertThat(extracted.text()).isEqualTo("Injected article text");
+  }
+
+  @Test
+  void bodyBlankIsNoContent() {
+    ExtractRuleService rules = mock(ExtractRuleService.class);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    String url = "https://example.test/article";
+    when(rules.findBestRule(url)).thenReturn(Optional.empty());
+
+    TextExtractionOutcome.NoContent noContent =
+        (TextExtractionOutcome.NoContent)
+            extractor.extract(
+                url,
+                "<html><body>   </body></html>",
+                ExtractionPlan.ExtractorKind.XPATH_OR_BODY_TEXT);
+    assertThat(noContent.reason()).isEqualTo(NoContentReason.BODY_TEXT_EMPTY);
   }
 }
