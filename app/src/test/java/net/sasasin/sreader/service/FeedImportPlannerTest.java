@@ -6,6 +6,7 @@ import java.time.OffsetDateTime;
 import net.sasasin.sreader.domain.FeedStatus;
 import net.sasasin.sreader.domain.FeedUrl;
 import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.domain.UnsubscribeReason;
 import org.junit.jupiter.api.Test;
 
 class FeedImportPlannerTest {
@@ -14,18 +15,29 @@ class FeedImportPlannerTest {
 
   @Test
   void plansAllStateTransitionsWithoutRepositoryAccess() {
-    assertThat(planner.plan(null, desired(FeedStatus.ACTIVE.value(), "http"), false))
+    assertThat(planner.plan(null, desired(FeedStatus.ACTIVE, FullTextMethod.HTTP), false))
         .isInstanceOf(FeedImportPlanner.FeedImportDecision.Insert.class);
-    assertThat(planner.plan(active("http"), desired(FeedStatus.ACTIVE.value(), "http"), false))
+    assertThat(
+            planner.plan(
+                active(FullTextMethod.HTTP),
+                desired(FeedStatus.ACTIVE, FullTextMethod.HTTP),
+                false))
         .isInstanceOf(FeedImportPlanner.FeedImportDecision.Unchanged.class);
-    assertThat(planner.plan(active("http"), desired(FeedStatus.ACTIVE.value(), "feed"), false))
+    assertThat(
+            planner.plan(
+                active(FullTextMethod.HTTP),
+                desired(FeedStatus.ACTIVE, FullTextMethod.FEED),
+                false))
         .isInstanceOf(FeedImportPlanner.FeedImportDecision.UpdateMethod.class);
     assertThat(
-            planner.plan(active("http"), desired(FeedStatus.UNSUBSCRIBED.value(), "feed"), false))
+            planner.plan(
+                active(FullTextMethod.HTTP),
+                desired(FeedStatus.UNSUBSCRIBED, FullTextMethod.FEED),
+                false))
         .isInstanceOf(FeedImportPlanner.FeedImportDecision.Unsubscribe.class);
-    assertThat(planner.plan(unsubscribed(), desired(FeedStatus.ACTIVE.value(), "http"), false))
+    assertThat(planner.plan(unsubscribed(), desired(FeedStatus.ACTIVE, FullTextMethod.HTTP), false))
         .isInstanceOf(FeedImportPlanner.FeedImportDecision.Conflict.class);
-    assertThat(planner.plan(unsubscribed(), desired(FeedStatus.ACTIVE.value(), "http"), true))
+    assertThat(planner.plan(unsubscribed(), desired(FeedStatus.ACTIVE, FullTextMethod.HTTP), true))
         .isInstanceOf(FeedImportPlanner.FeedImportDecision.Resubscribe.class);
   }
 
@@ -35,37 +47,32 @@ class FeedImportPlannerTest {
         new FeedTomlService.ImportFeed(
             1,
             "https://example.test/feed.xml",
-            FeedStatus.UNSUBSCRIBED.value(),
-            "site_closed",
+            FeedStatus.UNSUBSCRIBED,
+            UnsubscribeReason.SITE_CLOSED,
             OffsetDateTime.parse("2026-01-01T00:00Z"),
             "note",
-            "http");
+            FullTextMethod.HTTP);
     assertThat(planner.plan(unsubscribed(), desired, false))
         .isInstanceOf(FeedImportPlanner.FeedImportDecision.UpdateUnsubscribedMetadata.class);
   }
 
-  private FeedTomlService.ImportFeed desired(String status, String method) {
+  private FeedTomlService.ImportFeed desired(FeedStatus status, FullTextMethod method) {
+    UnsubscribeReason reason = status == FeedStatus.UNSUBSCRIBED ? UnsubscribeReason.OTHER : null;
     return new FeedTomlService.ImportFeed(
-        1, "https://example.test/feed.xml", status, "other", null, null, method);
+        1, "https://example.test/feed.xml", status, reason, null, null, method);
   }
 
-  private FeedUrl active(String method) {
+  private FeedUrl active(FullTextMethod method) {
     return new FeedUrl(
-        "id",
-        "https://example.test/feed.xml",
-        FeedStatus.ACTIVE.value(),
-        null,
-        null,
-        null,
-        FullTextMethod.fromValue(method));
+        "id", "https://example.test/feed.xml", FeedStatus.ACTIVE, null, null, null, method);
   }
 
   private FeedUrl unsubscribed() {
     return new FeedUrl(
         "id",
         "https://example.test/feed.xml",
-        FeedStatus.UNSUBSCRIBED.value(),
-        "other",
+        FeedStatus.UNSUBSCRIBED,
+        UnsubscribeReason.OTHER,
         null,
         null,
         FullTextMethod.HTTP);

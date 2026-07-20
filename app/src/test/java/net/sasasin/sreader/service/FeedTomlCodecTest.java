@@ -11,6 +11,7 @@ import java.util.List;
 import net.sasasin.sreader.domain.FeedStatus;
 import net.sasasin.sreader.domain.FeedUrl;
 import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.domain.UnsubscribeReason;
 import org.junit.jupiter.api.Test;
 
 class FeedTomlCodecTest {
@@ -37,7 +38,7 @@ class FeedTomlCodecTest {
             FeedTomlService.ImportFeed::url,
             FeedTomlService.ImportFeed::note,
             FeedTomlService.ImportFeed::fullTextMethod)
-        .containsExactly("https://example.test/feed.xml", "line\n# kept", "feed");
+        .containsExactly("https://example.test/feed.xml", "line\n# kept", FullTextMethod.FEED);
   }
 
   @Test
@@ -70,16 +71,16 @@ class FeedTomlCodecTest {
                 new FeedUrl(
                     "active",
                     "https://example.test/a.xml",
-                    FeedStatus.ACTIVE.value(),
-                    "other",
-                    OffsetDateTime.now(),
-                    "ignored",
-                    null),
+                    FeedStatus.ACTIVE,
+                    null,
+                    null,
+                    null,
+                    FullTextMethod.HTTP),
                 new FeedUrl(
                     "old",
                     "https://example.test/b.xml",
-                    FeedStatus.UNSUBSCRIBED.value(),
-                    "other",
+                    FeedStatus.UNSUBSCRIBED,
+                    UnsubscribeReason.OTHER,
                     OffsetDateTime.parse("2026-01-02T03:04:05Z"),
                     "quote \"",
                     FullTextMethod.FEED)),

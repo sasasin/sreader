@@ -142,7 +142,7 @@ class FeedTomlServiceTest {
     assertThat(feeds)
         .singleElement()
         .extracting(FeedTomlService.ImportFeed::unsubscribeReason)
-        .isEqualTo("other");
+        .isEqualTo(UnsubscribeReason.OTHER);
   }
 
   @Test
@@ -153,16 +153,16 @@ class FeedTomlServiceTest {
                 new FeedUrl(
                     "1",
                     "https://a.example/feed.xml",
-                    FeedStatus.ACTIVE.value(),
-                    "site_closed",
+                    FeedStatus.ACTIVE,
                     null,
-                    "ignored",
+                    null,
+                    null,
                     FullTextMethod.HTTP_READABILITY),
                 new FeedUrl(
                     "2",
                     "https://z.example/feed.xml",
-                    FeedStatus.UNSUBSCRIBED.value(),
-                    "site_closed",
+                    FeedStatus.UNSUBSCRIBED,
+                    UnsubscribeReason.SITE_CLOSED,
                     OffsetDateTime.parse("2026-06-14T12:00:00+09:00"),
                     "サイト閉鎖",
                     FullTextMethod.HTTP)));
@@ -221,7 +221,7 @@ class FeedTomlServiceTest {
                 new FeedUrl(
                     "1",
                     "https://example.test/active.xml",
-                    FeedStatus.ACTIVE.value(),
+                    FeedStatus.ACTIVE,
                     null,
                     null,
                     null,
@@ -232,7 +232,7 @@ class FeedTomlServiceTest {
                 new FeedUrl(
                     "2",
                     "https://example.test/stop.xml",
-                    FeedStatus.ACTIVE.value(),
+                    FeedStatus.ACTIVE,
                     null,
                     null,
                     null,
@@ -243,8 +243,8 @@ class FeedTomlServiceTest {
                 new FeedUrl(
                     "3",
                     "https://example.test/meta.xml",
-                    FeedStatus.UNSUBSCRIBED.value(),
-                    "other",
+                    FeedStatus.UNSUBSCRIBED,
+                    UnsubscribeReason.OTHER,
                     null,
                     null,
                     FullTextMethod.HTTP)));
@@ -254,8 +254,8 @@ class FeedTomlServiceTest {
                 new FeedUrl(
                     "4",
                     "https://example.test/conflict.xml",
-                    FeedStatus.UNSUBSCRIBED.value(),
-                    "other",
+                    FeedStatus.UNSUBSCRIBED,
+                    UnsubscribeReason.OTHER,
                     null,
                     null,
                     FullTextMethod.HTTP)));
@@ -285,10 +285,12 @@ class FeedTomlServiceTest {
     assertThat(result.updated()).isEqualTo(2);
     assertThat(result.unsubscribed()).isEqualTo(1);
     assertThat(result.conflicts()).isEqualTo(1);
-    verify(repository).unsubscribe("https://example.test/stop.xml", "not_interested", null, null);
     verify(repository)
-        .updateUnsubscribedMetadata("https://example.test/meta.xml", "site_closed", null, null);
-    verify(repository).updateFullTextMethod("https://example.test/stop.xml", "http");
+        .unsubscribe("https://example.test/stop.xml", UnsubscribeReason.NOT_INTERESTED, null, null);
+    verify(repository)
+        .updateUnsubscribedMetadata(
+            "https://example.test/meta.xml", UnsubscribeReason.SITE_CLOSED, null, null);
+    verify(repository).updateFullTextMethod("https://example.test/stop.xml", FullTextMethod.HTTP);
   }
 
   @Test
@@ -299,8 +301,8 @@ class FeedTomlServiceTest {
                 new FeedUrl(
                     "4",
                     "https://example.test/conflict.xml",
-                    FeedStatus.UNSUBSCRIBED.value(),
-                    "other",
+                    FeedStatus.UNSUBSCRIBED,
+                    UnsubscribeReason.OTHER,
                     null,
                     null,
                     FullTextMethod.HTTP)));
@@ -317,7 +319,8 @@ class FeedTomlServiceTest {
 
     assertThat(result.resubscribed()).isEqualTo(1);
     verify(repository).resubscribe("https://example.test/conflict.xml");
-    verify(repository).updateFullTextMethod("https://example.test/conflict.xml", "http");
+    verify(repository)
+        .updateFullTextMethod("https://example.test/conflict.xml", FullTextMethod.HTTP);
   }
 
   @Test
@@ -401,7 +404,7 @@ class FeedTomlServiceTest {
                 new FeedUrl(
                     "id",
                     "https://example.test/js.xml",
-                    FeedStatus.ACTIVE.value(),
+                    FeedStatus.ACTIVE,
                     null,
                     null,
                     null,
@@ -420,7 +423,8 @@ class FeedTomlServiceTest {
 
     assertThat(result.updated()).isEqualTo(1);
     assertThat(result.unchanged()).isEqualTo(0);
-    verify(repository).updateFullTextMethod("https://example.test/js.xml", "http_readability");
+    verify(repository)
+        .updateFullTextMethod("https://example.test/js.xml", FullTextMethod.HTTP_READABILITY);
   }
 
   @Test
@@ -480,7 +484,12 @@ class FeedTomlServiceTest {
             FeedTomlService.ImportFeed::note,
             FeedTomlService.ImportFeed::fullTextMethod)
         .containsExactly(
-            "HTTPS://Example.TEST/feed.xml?x=1#inside", "active", null, null, null, "feed");
+            "HTTPS://Example.TEST/feed.xml?x=1#inside",
+            FeedStatus.ACTIVE,
+            null,
+            null,
+            null,
+            FullTextMethod.FEED);
   }
 
   @Test
@@ -512,10 +521,7 @@ class FeedTomlServiceTest {
                   FeedTomlService.ImportFeed::unsubscribeReason,
                   FeedTomlService.ImportFeed::unsubscribedAt,
                   FeedTomlService.ImportFeed::fullTextMethod)
-              .containsExactly(
-                  reason.value(),
-                  OffsetDateTime.parse("2026-06-14T03:00:00-05:00"),
-                  method.value());
+              .containsExactly(reason, OffsetDateTime.parse("2026-06-14T03:00:00-05:00"), method);
         }
       }
     }
@@ -557,17 +563,17 @@ class FeedTomlServiceTest {
         new FeedUrl(
             "id",
             "https://example.test/feed.xml",
-            FeedStatus.UNSUBSCRIBED.value(),
-            null,
+            FeedStatus.UNSUBSCRIBED,
+            UnsubscribeReason.OTHER,
             null,
             "quote \" slash \\ LF\nCR\rTAB\t#日本語",
-            null);
+            FullTextMethod.HTTP);
     when(repository.findAllForExport(false)).thenReturn(List.of(unsubscribed));
     String exported = service.exportToml(false);
 
     assertThat(exported)
         .contains("full_text_method = \"http\"")
-        .doesNotContain("unsubscribe_reason")
+        .contains("unsubscribe_reason = \"other\"")
         .doesNotContain("unsubscribed_at")
         .contains("note = \"quote \\\" slash \\\\ LF\\nCR\\rTAB\\t#日本語\"");
     assertThat(service.parse(exported))
@@ -577,7 +583,9 @@ class FeedTomlServiceTest {
             FeedTomlService.ImportFeed::note,
             FeedTomlService.ImportFeed::fullTextMethod)
         .containsExactly(
-            "https://example.test/feed.xml", "quote \" slash \\ LF\nCR\rTAB\t#日本語", "http");
+            "https://example.test/feed.xml",
+            "quote \" slash \\ LF\nCR\rTAB\t#日本語",
+            FullTextMethod.HTTP);
   }
 
   @Test
@@ -609,7 +617,10 @@ class FeedTomlServiceTest {
         .extracting(
             FeedUrl::url, FeedUrl::status, FeedUrl::unsubscribeReason, FeedUrl::fullTextMethod)
         .containsExactly(
-            "https://example.test/new.xml", "unsubscribed", "moved", FullTextMethod.FEED);
+            "https://example.test/new.xml",
+            FeedStatus.UNSUBSCRIBED,
+            UnsubscribeReason.MOVED,
+            FullTextMethod.FEED);
 
     FeedUrlRepository dryRepository = mock(FeedUrlRepository.class);
     when(dryRepository.findByUrl("https://example.test/dry.xml")).thenReturn(Optional.empty());
@@ -634,12 +645,18 @@ class FeedTomlServiceTest {
   @Test
   void importUpdatesEachExistingStatusPathAndLeavesDryRunReadOnly() {
     FeedUrl active =
-        feed("https://example.test/active.xml", "active", null, null, null, FullTextMethod.HTTP);
+        feed(
+            "https://example.test/active.xml",
+            FeedStatus.ACTIVE,
+            null,
+            null,
+            null,
+            FullTextMethod.HTTP);
     FeedUrl stopped =
         feed(
             "https://example.test/stopped.xml",
-            "unsubscribed",
-            "other",
+            FeedStatus.UNSUBSCRIBED,
+            UnsubscribeReason.OTHER,
             null,
             "old",
             FullTextMethod.HTTP);
@@ -664,9 +681,10 @@ class FeedTomlServiceTest {
     assertThat(result)
         .extracting(FeedTomlService.ImportResult::updated, FeedTomlService.ImportResult::unchanged)
         .containsExactly(2, 0);
-    verify(repository).updateFullTextMethod(active.url(), "http_readability");
-    verify(repository).updateUnsubscribedMetadata(stopped.url(), "other", null, "new");
-    verify(repository).updateFullTextMethod(stopped.url(), "feed");
+    verify(repository).updateFullTextMethod(active.url(), FullTextMethod.HTTP_READABILITY);
+    verify(repository)
+        .updateUnsubscribedMetadata(stopped.url(), UnsubscribeReason.OTHER, null, "new");
+    verify(repository).updateFullTextMethod(stopped.url(), FullTextMethod.FEED);
 
     FeedUrlRepository dryRepository = mock(FeedUrlRepository.class);
     when(dryRepository.findByUrl(stopped.url())).thenReturn(Optional.of(stopped));
@@ -694,16 +712,16 @@ class FeedTomlServiceTest {
     FeedUrl first =
         feed(
             "https://example.test/one.xml",
-            "unsubscribed",
-            "other",
+            FeedStatus.UNSUBSCRIBED,
+            UnsubscribeReason.OTHER,
             null,
             null,
             FullTextMethod.HTTP);
     FeedUrl second =
         feed(
             "https://example.test/two.xml",
-            "unsubscribed",
-            "other",
+            FeedStatus.UNSUBSCRIBED,
+            UnsubscribeReason.OTHER,
             null,
             null,
             FullTextMethod.HTTP);
@@ -747,7 +765,7 @@ class FeedTomlServiceTest {
             FeedTomlService.ImportResult::conflicts)
         .containsExactly(1, 1, 0);
     verify(resubscribeRepository).resubscribe(first.url());
-    verify(resubscribeRepository).updateFullTextMethod(first.url(), "feed");
+    verify(resubscribeRepository).updateFullTextMethod(first.url(), FullTextMethod.FEED);
   }
 
   @Test
@@ -770,10 +788,16 @@ class FeedTomlServiceTest {
     verifyNoMoreInteractions(repository);
 
     FeedUrl active =
-        feed("https://example.test/write.xml", "active", null, null, null, FullTextMethod.HTTP);
+        feed(
+            "https://example.test/write.xml",
+            FeedStatus.ACTIVE,
+            null,
+            null,
+            null,
+            FullTextMethod.HTTP);
     FeedUrlRepository writeRepository = mock(FeedUrlRepository.class);
     when(writeRepository.findByUrl(active.url())).thenReturn(Optional.of(active));
-    doThrow(failure).when(writeRepository).updateFullTextMethod(active.url(), "feed");
+    doThrow(failure).when(writeRepository).updateFullTextMethod(active.url(), FullTextMethod.FEED);
     FeedTomlService writeService = new FeedTomlService(writeRepository, Clock.systemUTC());
     assertThatThrownBy(
             () ->
@@ -812,14 +836,32 @@ class FeedTomlServiceTest {
   }
 
   @Test
-  void importTreatsNullCurrentMethodAsHttpAndCountsDryRunStatusChangesWithoutWriting() {
-    FeedUrl nullMethodActive =
-        feed("https://example.test/null-method.xml", "active", null, null, null, null);
+  void importCountsDryRunStatusChangesWithoutWritingAndTreatsMatchingHttpAsUnchanged() {
+    FeedUrl httpActive =
+        feed(
+            "https://example.test/http-active.xml",
+            FeedStatus.ACTIVE,
+            null,
+            null,
+            null,
+            FullTextMethod.HTTP);
     FeedUrl active =
-        feed("https://example.test/dry-stop.xml", "active", null, null, null, FullTextMethod.HTTP);
+        feed(
+            "https://example.test/dry-stop.xml",
+            FeedStatus.ACTIVE,
+            null,
+            null,
+            null,
+            FullTextMethod.HTTP);
     FeedUrl unchanged =
-        feed("https://example.test/unchanged.xml", "unsubscribed", "other", null, null, null);
-    when(repository.findByUrl(nullMethodActive.url())).thenReturn(Optional.of(nullMethodActive));
+        feed(
+            "https://example.test/unchanged.xml",
+            FeedStatus.UNSUBSCRIBED,
+            UnsubscribeReason.OTHER,
+            null,
+            null,
+            FullTextMethod.HTTP);
+    when(repository.findByUrl(httpActive.url())).thenReturn(Optional.of(httpActive));
     when(repository.findByUrl(active.url())).thenReturn(Optional.of(active));
     when(repository.findByUrl(unchanged.url())).thenReturn(Optional.of(unchanged));
 
@@ -828,7 +870,7 @@ class FeedTomlServiceTest {
             """
             schema_version = 2
             [[feeds]]
-            url = "https://example.test/null-method.xml"
+            url = "https://example.test/http-active.xml"
             [[feeds]]
             url = "https://example.test/dry-stop.xml"
             status = "unsubscribed"
@@ -844,7 +886,7 @@ class FeedTomlServiceTest {
             FeedTomlService.ImportResult::unchanged,
             FeedTomlService.ImportResult::unsubscribed)
         .containsExactly(1, 2, 1);
-    verify(repository).findByUrl(nullMethodActive.url());
+    verify(repository).findByUrl(httpActive.url());
     verify(repository).findByUrl(active.url());
     verify(repository).findByUrl(unchanged.url());
     verifyNoMoreInteractions(repository);
@@ -852,8 +894,8 @@ class FeedTomlServiceTest {
 
   private FeedUrl feed(
       String url,
-      String status,
-      String reason,
+      FeedStatus status,
+      UnsubscribeReason reason,
       OffsetDateTime unsubscribedAt,
       String note,
       FullTextMethod method) {

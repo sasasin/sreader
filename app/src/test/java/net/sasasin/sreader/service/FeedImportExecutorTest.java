@@ -6,6 +6,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.util.ArrayList;
 import net.sasasin.sreader.domain.FeedStatus;
+import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.domain.UnsubscribeReason;
 import net.sasasin.sreader.repository.FeedUrlRepository;
 import org.junit.jupiter.api.Test;
 
@@ -22,11 +24,11 @@ class FeedImportExecutorTest {
             new FeedTomlService.ImportFeed(
                 1,
                 "https://example.test/feed.xml",
-                FeedStatus.UNSUBSCRIBED.value(),
-                "other",
+                FeedStatus.UNSUBSCRIBED,
+                UnsubscribeReason.OTHER,
                 null,
                 null,
-                "http")),
+                FullTextMethod.HTTP)),
         true,
         counters,
         new ArrayList<>());
@@ -45,11 +47,11 @@ class FeedImportExecutorTest {
             new FeedTomlService.ImportFeed(
                 2,
                 "https://example.test/feed.xml",
-                FeedStatus.ACTIVE.value(),
+                FeedStatus.ACTIVE,
                 null,
                 null,
                 null,
-                "http")),
+                FullTextMethod.HTTP)),
         false,
         counters,
         conflicts);

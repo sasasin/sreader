@@ -74,7 +74,14 @@ class FeedEntryImportServiceTest {
     when(extractor.extract(any())).thenReturn(Optional.of("Feed body"));
 
     FeedUrl feedUrl =
-        new FeedUrl("feed", feed.toString(), "active", null, null, null, FullTextMethod.FEED);
+        new FeedUrl(
+            "feed",
+            feed.toString(),
+            net.sasasin.sreader.domain.FeedStatus.ACTIVE,
+            null,
+            null,
+            null,
+            FullTextMethod.FEED);
     assertThat(service.importEntries(feedUrl)).isEqualTo(1);
     assertThat(service.importEntries(feedUrl)).isZero();
     verify(writer)

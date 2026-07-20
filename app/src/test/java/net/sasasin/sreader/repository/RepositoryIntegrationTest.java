@@ -15,6 +15,7 @@ import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FeedStatus;
 import net.sasasin.sreader.domain.FeedUrl;
 import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.domain.UnsubscribeReason;
 import org.jooq.DSLContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,7 +65,7 @@ class RepositoryIntegrationTest {
         new FeedUrl(
             "feed0000000000000000000000000003",
             "https://example.test/active.xml",
-            FeedStatus.ACTIVE.value(),
+            FeedStatus.ACTIVE,
             null,
             null,
             null,
@@ -73,8 +74,8 @@ class RepositoryIntegrationTest {
         new FeedUrl(
             "feed0000000000000000000000000004",
             "https://example.test/old.xml",
-            FeedStatus.UNSUBSCRIBED.value(),
-            "site_closed",
+            FeedStatus.UNSUBSCRIBED,
+            UnsubscribeReason.SITE_CLOSED,
             null,
             "closed",
             FullTextMethod.HTTP));
@@ -138,7 +139,7 @@ class RepositoryIntegrationTest {
         new FeedUrl(
             "feed0000000000000000000000000010",
             "https://example.test/http.xml",
-            FeedStatus.ACTIVE.value(),
+            FeedStatus.ACTIVE,
             null,
             null,
             null,
@@ -147,7 +148,7 @@ class RepositoryIntegrationTest {
         new FeedUrl(
             "feed0000000000000000000000000011",
             "https://example.test/feed.xml",
-            FeedStatus.ACTIVE.value(),
+            FeedStatus.ACTIVE,
             null,
             null,
             null,
@@ -156,7 +157,7 @@ class RepositoryIntegrationTest {
         new FeedUrl(
             "feed0000000000000000000000000012",
             "https://example.test/playwright.xml",
-            FeedStatus.ACTIVE.value(),
+            FeedStatus.ACTIVE,
             null,
             null,
             null,

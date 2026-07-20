@@ -3,7 +3,6 @@ package net.sasasin.sreader.service;
 import java.util.Objects;
 import net.sasasin.sreader.domain.FeedStatus;
 import net.sasasin.sreader.domain.FeedUrl;
-import net.sasasin.sreader.domain.FullTextMethod;
 
 /** Pure state-transition policy for a single imported feed. */
 final class FeedImportPlanner {
@@ -12,21 +11,16 @@ final class FeedImportPlanner {
     if (current == null) {
       return new FeedImportDecision.Insert(desired);
     }
-    String currentMethod =
-        current.fullTextMethod() == null
-            ? FullTextMethod.HTTP.value()
-            : current.fullTextMethod().value();
-    boolean methodChanged = !currentMethod.equals(desired.fullTextMethod());
-    if (FeedStatus.ACTIVE.value().equals(current.status())
-        && FeedStatus.ACTIVE.value().equals(desired.status())) {
+    boolean methodChanged = current.fullTextMethod() != desired.fullTextMethod();
+    if (current.status() == FeedStatus.ACTIVE && desired.status() == FeedStatus.ACTIVE) {
       return methodChanged
           ? new FeedImportDecision.UpdateMethod(desired)
           : new FeedImportDecision.Unchanged();
     }
-    if (FeedStatus.ACTIVE.value().equals(current.status())) {
+    if (current.status() == FeedStatus.ACTIVE) {
       return new FeedImportDecision.Unsubscribe(desired);
     }
-    if (FeedStatus.UNSUBSCRIBED.value().equals(desired.status())) {
+    if (desired.status() == FeedStatus.UNSUBSCRIBED) {
       boolean metadataChanged =
           !Objects.equals(current.unsubscribeReason(), desired.unsubscribeReason())
               || !Objects.equals(current.unsubscribedAt(), desired.unsubscribedAt())
