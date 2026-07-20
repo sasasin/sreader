@@ -2,6 +2,8 @@ package net.sasasin.sreader.service.extraction.browser;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -58,13 +60,17 @@ class PlaywrightBrowserDependencyWiringTest {
 
   @Test
   void onlyFacadeIsSmartLifecycleAmongBrowserBeans() {
-    assertThat(facade).isInstanceOf(SmartLifecycle.class);
-    assertThat(lifecycle).isNotInstanceOf(SmartLifecycle.class);
-    assertThat(runtime).isNotInstanceOf(SmartLifecycle.class);
-    long playwrightSmartLifecycleCount =
-        context.getBeansOfType(SmartLifecycle.class).values().stream()
-            .filter(bean -> bean instanceof PlaywrightHtmlSource)
-            .count();
-    assertThat(playwrightSmartLifecycleCount).isEqualTo(1);
+    List<SmartLifecycle> browserLifecycles =
+        context.getBeansOfType(SmartLifecycle.class).entrySet().stream()
+            .filter(
+                entry ->
+                    context
+                        .getType(entry.getKey())
+                        .getPackageName()
+                        .equals(PlaywrightHtmlSource.class.getPackageName()))
+            .map(Map.Entry::getValue)
+            .toList();
+
+    assertThat(browserLifecycles).containsExactly(facade);
   }
 }
