@@ -4,9 +4,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Objects;
 import net.sasasin.sreader.config.FeedReaderProperties;
-import net.sasasin.sreader.domain.ExtractionPlan;
+import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.domain.FullTextMethod.Definition;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
-import net.sasasin.sreader.service.extraction.browser.PlaywrightRenderMode;
 import net.sasasin.sreader.service.extraction.browser.RenderedPage;
 import net.sasasin.sreader.service.http.HttpFetchService;
 import net.sasasin.sreader.service.outcome.FailureKind;
@@ -51,17 +51,18 @@ final class ProbeDocumentFetcher {
     }
   }
 
-  FetchOutcome fetch(URI requestedUri, ExtractionPlan plan, String failureSubject) {
-    return switch (plan.sourceKind()) {
-      case HTTP -> fetchHttp(requestedUri, failureSubject);
-      case PLAYWRIGHT -> fetchPlaywright(requestedUri, plan, failureSubject);
-      default ->
+  FetchOutcome fetch(URI requestedUri, FullTextMethod method, String failureSubject) {
+    return switch (method.definition()) {
+      case Definition.HttpArticle ignored -> fetchHttp(requestedUri, failureSubject);
+      case Definition.PlaywrightArticle playwright ->
+          fetchPlaywright(requestedUri, playwright, failureSubject);
+      case Definition.FeedEntry ignored ->
           new FetchOutcome.Failed(
               OperationFailure.of(
                   FailureStage.FETCH_ARTICLE,
                   FailureKind.INVALID_INPUT,
                   failureSubject,
-                  "Unexpected source for probe: " + plan.sourceKind()));
+                  "Unexpected source for probe: feed entry content"));
     };
   }
 
@@ -94,16 +95,15 @@ final class ProbeDocumentFetcher {
     }
   }
 
-  private FetchOutcome fetchPlaywright(URI uri, ExtractionPlan plan, String subject) {
+  private FetchOutcome fetchPlaywright(
+      URI uri, Definition.PlaywrightArticle definition, String subject) {
     if (!properties.playwright().enabled()) {
       return new FetchOutcome.Skipped(
           ProbeSkipReason.PLAYWRIGHT_DISABLED,
           "Playwright is required for method but is disabled or misconfigured");
     }
     try {
-      PlaywrightRenderMode mode =
-          plan.useInfyScroll() ? PlaywrightRenderMode.INFY_SCROLL : PlaywrightRenderMode.STANDARD;
-      RenderedPage page = playwrightHtmlSource.renderPage(uri, mode);
+      RenderedPage page = playwrightHtmlSource.renderPage(uri, definition.mode());
       return new FetchOutcome.Fetched(new FetchedProbeDocument(uri, page.finalUri(), page.html()));
     } catch (RuntimeException e) {
       return new FetchOutcome.Failed(
