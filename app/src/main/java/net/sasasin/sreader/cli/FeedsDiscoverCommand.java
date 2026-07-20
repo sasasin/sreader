@@ -46,10 +46,9 @@ public class FeedsDiscoverCommand implements Callable<Integer> {
       names = "--method",
       paramLabel = "<METHOD>",
       description = "full_text_method value to embed when --format toml",
-      defaultValue = "http",
       converter = FullTextMethodConverter.class,
       completionCandidates = FullTextMethodCandidates.class)
-  private FullTextMethod method;
+  private FullTextMethod method = FullTextMethod.defaultMethod();
 
   @Option(names = "--verbose", description = "Print discovery diagnostics to STDERR")
   private boolean verbose;
@@ -79,7 +78,7 @@ public class FeedsDiscoverCommand implements Callable<Integer> {
       }
 
       if ("toml".equals(fmt)) {
-        String m = method != null ? method.value() : "http";
+        String m = method.value();
         for (URI u : discovered) {
           spec.commandLine().getOut().println("[[feeds]]");
           spec.commandLine().getOut().println("url = \"" + escape(u.toString()) + "\"");

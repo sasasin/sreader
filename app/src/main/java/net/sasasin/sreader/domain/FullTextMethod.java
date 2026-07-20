@@ -62,8 +62,10 @@ public enum FullTextMethod {
   private final Definition definition;
 
   FullTextMethod(String value, Definition definition) {
-    // Enum constants always supply non-blank wire values; Map uniqueness enforces duplicates.
     this.value = Objects.requireNonNull(value, "wire value must not be null");
+    if (this.value.isBlank()) {
+      throw new IllegalArgumentException("wire value must not be blank");
+    }
     this.definition = Objects.requireNonNull(definition, "definition must not be null");
   }
 

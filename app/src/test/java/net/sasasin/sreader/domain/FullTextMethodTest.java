@@ -131,6 +131,7 @@ class FullTextMethodTest {
     List<String> values = FullTextMethod.wireValues();
     assertThat(values).hasSize(FullTextMethod.values().length);
     assertThat(values).doesNotHaveDuplicates();
+    assertThat(values).allMatch(value -> !value.isBlank());
     assertThat(Arrays.stream(FullTextMethod.values()).map(FullTextMethod::value).toList())
         .isEqualTo(values);
   }
