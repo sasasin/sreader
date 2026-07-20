@@ -47,7 +47,8 @@ public class FeedsDiscoverCommand implements Callable<Integer> {
       paramLabel = "<METHOD>",
       description = "full_text_method value to embed when --format toml",
       defaultValue = "http",
-      converter = FullTextMethodConverter.class)
+      converter = FullTextMethodConverter.class,
+      completionCandidates = FullTextMethodCandidates.class)
   private FullTextMethod method;
 
   @Option(names = "--verbose", description = "Print discovery diagnostics to STDERR")

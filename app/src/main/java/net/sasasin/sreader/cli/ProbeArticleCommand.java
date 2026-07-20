@@ -40,11 +40,10 @@ public class ProbeArticleCommand implements Callable<Integer> {
   @Option(
       names = "--method",
       paramLabel = "<METHOD>",
-      description =
-          "Full text method: feed|http|http_readability|playwright|playwright_readability"
-              + "|playwright_infy_scroll|playwright_infy_scroll_readability",
+      description = "Full text extraction method. Invalid input reports all valid values.",
       required = true,
-      converter = FullTextMethodConverter.class)
+      converter = FullTextMethodConverter.class,
+      completionCandidates = FullTextMethodCandidates.class)
   private FullTextMethod method;
 
   @Option(
@@ -79,7 +78,7 @@ public class ProbeArticleCommand implements Callable<Integer> {
     try {
       URI uri = UrlValidator.validateHttpUrl(url, "--url", spec);
 
-      if (method == FullTextMethod.FEED) {
+      if (!method.supportsArticleProbe()) {
         throw new picocli.CommandLine.ParameterException(
             spec.commandLine(), "--method feed is not valid for 'probe article'");
       }
