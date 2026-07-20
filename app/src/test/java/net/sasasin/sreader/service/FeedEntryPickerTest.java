@@ -1,6 +1,7 @@
 package net.sasasin.sreader.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -20,6 +21,13 @@ class FeedEntryPickerTest {
   @Test
   void returnsEmptyForNullFeed() {
     assertThat(picker.pick(null, FeedEntrySelection.first())).isEmpty();
+  }
+
+  @Test
+  void rejectsNullSelection() {
+    assertThatThrownBy(() -> picker.pick(feed(), null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessageContaining("selection");
   }
 
   @Test
@@ -86,9 +94,8 @@ class FeedEntryPickerTest {
   }
 
   @Test
-  void indexRejectsNegativeAndOutOfRangeValues() {
+  void indexRejectsOutOfRangeValues() {
     SyndFeed feed = feed(entry("https://zero", "zero"));
-    assertThat(picker.pick(feed, FeedEntrySelection.index(-1))).isEmpty();
     assertThat(picker.pick(feed, FeedEntrySelection.index(1))).isEmpty();
     assertThat(picker.pick(feed, FeedEntrySelection.index(2))).isEmpty();
   }
@@ -103,11 +110,10 @@ class FeedEntryPickerTest {
   }
 
   @Test
-  void indexDefaultsNullIndexToZeroAndCanReturnLinklessEntry() {
+  void indexZeroCanReturnLinklessEntryWhenNotRequired() {
     SyndEntry linkless = entry(null, "linkless");
-    FeedEntrySelection selection =
-        new FeedEntrySelection(FeedEntrySelection.Kind.INDEX, null, null, null);
-    assertThat(picker.pick(feed(linkless), selection, false)).containsSame(linkless);
+    assertThat(picker.pick(feed(linkless), FeedEntrySelection.index(0), false))
+        .containsSame(linkless);
   }
 
   @Test
@@ -128,15 +134,9 @@ class FeedEntryPickerTest {
   }
 
   @Test
-  void titleRegexRejectsMissingBlankInvalidAndNoMatchPatterns() {
+  void titleRegexReturnsEmptyWhenNoMatch() {
     SyndFeed feed = feed(entry("https://one", "title"));
-    assertThat(picker.pick(feed, FeedEntrySelection.titleRegex(null))).isEmpty();
-    assertThat(picker.pick(feed, FeedEntrySelection.titleRegex(" "))).isEmpty();
-    assertThat(picker.pick(feed, FeedEntrySelection.titleRegex("["))).isEmpty();
     assertThat(picker.pick(feed, FeedEntrySelection.titleRegex("absent"))).isEmpty();
-    FeedEntrySelection nullRegex =
-        new FeedEntrySelection(FeedEntrySelection.Kind.TITLE_REGEX, null, null, null);
-    assertThat(picker.pick(feed, nullRegex)).isEmpty();
   }
 
   @Test
@@ -151,15 +151,9 @@ class FeedEntryPickerTest {
   }
 
   @Test
-  void urlRegexRejectsMissingBlankInvalidAndNoMatchPatterns() {
+  void urlRegexReturnsEmptyWhenNoMatch() {
     SyndFeed feed = feed(entry("https://one", "title"));
-    assertThat(picker.pick(feed, FeedEntrySelection.urlRegex(null))).isEmpty();
-    assertThat(picker.pick(feed, FeedEntrySelection.urlRegex(" "))).isEmpty();
-    assertThat(picker.pick(feed, FeedEntrySelection.urlRegex("["))).isEmpty();
     assertThat(picker.pick(feed, FeedEntrySelection.urlRegex("absent"))).isEmpty();
-    FeedEntrySelection nullRegex =
-        new FeedEntrySelection(FeedEntrySelection.Kind.URL_REGEX, null, null, null);
-    assertThat(picker.pick(feed, nullRegex)).isEmpty();
   }
 
   private SyndEntry dated(String link, String title, Integer published, Integer updated) {

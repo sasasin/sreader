@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.Spec;
 
 @Command(
@@ -100,7 +101,7 @@ public class ProbeFeedCommand implements Callable<Integer> {
       URI uri = UrlValidator.validateHttpUrl(feedUrl, "--feed-url", spec);
 
       if (xpath != null && !xpath.isBlank() && method == FullTextMethod.FEED) {
-        throw new picocli.CommandLine.ParameterException(
+        throw new ParameterException(
             spec.commandLine(), "--xpath cannot be used with --method feed");
       }
 
@@ -126,7 +127,7 @@ public class ProbeFeedCommand implements Callable<Integer> {
 
       return new ProbeOutputWriter(spec).writeResult(result, verbose, output, maxChars);
 
-    } catch (picocli.CommandLine.ParameterException pe) {
+    } catch (ParameterException pe) {
       throw pe;
     } catch (FullTextProbeService.PlaywrightDisabledException e) {
       spec.commandLine().getErr().println(e.getMessage());
@@ -140,13 +141,28 @@ public class ProbeFeedCommand implements Callable<Integer> {
   private FeedEntrySelection resolveSelection() {
     // priority per spec: index > titleRegex > urlRegex > latest > first (default first)
     if (entryIndex != null) {
-      return FeedEntrySelection.index(entryIndex);
+      try {
+        return FeedEntrySelection.index(entryIndex);
+      } catch (IllegalArgumentException e) {
+        throw new ParameterException(
+            spec.commandLine(), "Invalid --entry-index value: " + e.getMessage());
+      }
     }
     if (entryTitleRegex != null && !entryTitleRegex.isBlank()) {
-      return FeedEntrySelection.titleRegex(entryTitleRegex);
+      try {
+        return FeedEntrySelection.titleRegex(entryTitleRegex);
+      } catch (IllegalArgumentException e) {
+        throw new ParameterException(
+            spec.commandLine(), "Invalid --entry-title-regex value: " + e.getMessage());
+      }
     }
     if (entryUrlRegex != null && !entryUrlRegex.isBlank()) {
-      return FeedEntrySelection.urlRegex(entryUrlRegex);
+      try {
+        return FeedEntrySelection.urlRegex(entryUrlRegex);
+      } catch (IllegalArgumentException e) {
+        throw new ParameterException(
+            spec.commandLine(), "Invalid --entry-url-regex value: " + e.getMessage());
+      }
     }
     if (entry != null) {
       String e = entry.trim().toLowerCase();
@@ -156,7 +172,7 @@ public class ProbeFeedCommand implements Callable<Integer> {
       if ("first".equals(e)) {
         return FeedEntrySelection.first();
       }
-      throw new picocli.CommandLine.ParameterException(
+      throw new ParameterException(
           spec.commandLine(), "Invalid --entry value, must be first or latest: " + entry);
     }
     return FeedEntrySelection.first();

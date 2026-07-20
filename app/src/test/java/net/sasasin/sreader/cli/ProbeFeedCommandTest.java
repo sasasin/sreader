@@ -121,6 +121,26 @@ class ProbeFeedCommandTest {
   }
 
   @Test
+  void rejectsNegativeIndexAndInvalidRegexAsUsageErrorsWithoutCallingService() {
+    FullTextProbeService service = mock(FullTextProbeService.class);
+
+    Harness negativeIndex = harness(service);
+    assertThat(negativeIndex.execute("--entry-index", "-1")).isEqualTo(2);
+    assertThat(negativeIndex.stderr()).contains("--entry-index");
+    verifyNoInteractions(service);
+
+    Harness invalidTitle = harness(service);
+    assertThat(invalidTitle.execute("--entry-title-regex", "[")).isEqualTo(2);
+    assertThat(invalidTitle.stderr()).contains("--entry-title-regex");
+    verifyNoInteractions(service);
+
+    Harness invalidUrl = harness(service);
+    assertThat(invalidUrl.execute("--entry-url-regex", "*")).isEqualTo(2);
+    assertThat(invalidUrl.stderr()).contains("--entry-url-regex");
+    verifyNoInteractions(service);
+  }
+
+  @Test
   void mapsServiceOutcomesToDocumentedExitCodes() {
     FullTextProbeService noMatch = mock(FullTextProbeService.class);
     when(noMatch.probeFeed(any(), any(), any(), any()))

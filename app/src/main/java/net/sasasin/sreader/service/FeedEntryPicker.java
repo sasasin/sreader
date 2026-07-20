@@ -5,9 +5,9 @@ import com.rometools.rome.feed.synd.SyndFeed;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 import net.sasasin.sreader.domain.FeedEntrySelection;
 import org.springframework.stereotype.Service;
 
@@ -20,21 +20,19 @@ public class FeedEntryPicker {
 
   public Optional<SyndEntry> pick(
       SyndFeed feed, FeedEntrySelection selection, boolean requireLink) {
+    Objects.requireNonNull(selection, "selection must not be null");
     if (feed == null || feed.getEntries() == null || feed.getEntries().isEmpty()) {
       return Optional.empty();
     }
     List<SyndEntry> entries = feed.getEntries();
 
-    return switch (selection.kind()) {
-      case FIRST -> pickFirst(entries, requireLink);
-      case LATEST -> pickLatest(entries, requireLink);
-      case INDEX ->
-          pickByIndex(entries, selection.index() != null ? selection.index() : 0, requireLink);
-      case TITLE_REGEX ->
-          pickByTitleRegex(
-              entries, selection.titleRegex() != null ? selection.titleRegex() : "", requireLink);
-      case URL_REGEX ->
-          pickByUrlRegex(entries, selection.urlRegex() != null ? selection.urlRegex() : "");
+    return switch (selection) {
+      case FeedEntrySelection.First() -> pickFirst(entries, requireLink);
+      case FeedEntrySelection.Latest() -> pickLatest(entries, requireLink);
+      case FeedEntrySelection.ByIndex(int index) -> pickByIndex(entries, index, requireLink);
+      case FeedEntrySelection.ByTitleRegex(String regex) ->
+          pickByTitleRegex(entries, regex, requireLink);
+      case FeedEntrySelection.ByUrlRegex(String regex) -> pickByUrlRegex(entries, regex);
     };
   }
 
@@ -76,15 +74,7 @@ public class FeedEntryPicker {
       String regex,
       boolean requireLink,
       java.util.function.Function<SyndEntry, String> matchTarget) {
-    if (regex == null || regex.isBlank()) {
-      return Optional.empty();
-    }
-    Pattern pattern;
-    try {
-      pattern = Pattern.compile(regex);
-    } catch (PatternSyntaxException e) {
-      return Optional.empty();
-    }
+    Pattern pattern = Pattern.compile(regex);
     return entries.stream()
         .filter(e -> canPick(e, requireLink))
         .filter(
