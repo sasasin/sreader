@@ -22,7 +22,7 @@ class HtmlTextExtractorTest {
   @Test
   void extractsByXpathAndJoinsMultipleElementsWithBlankLine() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
     String url = "https://example.test/article";
     when(rules.findBestRule(url)).thenReturn(Optional.of(new ExtractRule("id", url, "//p")));
 
@@ -39,7 +39,7 @@ class HtmlTextExtractorTest {
   @Test
   void fallsBackToBodyTextWhenXpathMisses() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
     String url = "https://example.test/article";
     when(rules.findBestRule(url)).thenReturn(Optional.of(new ExtractRule("id", url, "//article")));
 
@@ -58,7 +58,7 @@ class HtmlTextExtractorTest {
   @Test
   void readabilityExtractsArticleText() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
 
     TextExtractionOutcome.Extracted extracted =
         (TextExtractionOutcome.Extracted)
@@ -80,7 +80,7 @@ class HtmlTextExtractorTest {
   @Test
   void xpathOverrideIgnoresDbRuleAndReturnsOnlyMatching() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
     String url = "https://example.test/a";
     when(rules.findBestRule(url)).thenReturn(Optional.of(new ExtractRule("r", url, "//article")));
 
@@ -100,7 +100,7 @@ class HtmlTextExtractorTest {
   @Test
   void xpathOverrideNoMatchIsNoContent() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
 
     TextExtractionOutcome.NoContent noContent =
         (TextExtractionOutcome.NoContent)
@@ -115,7 +115,7 @@ class HtmlTextExtractorTest {
   @Test
   void xpathOverrideMatchedBlankIsNoContent() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
 
     TextExtractionOutcome.NoContent noContent =
         (TextExtractionOutcome.NoContent)
@@ -130,7 +130,7 @@ class HtmlTextExtractorTest {
   @Test
   void xpathOverrideInvalidIsFailedInvalidInput() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
 
     TextExtractionOutcome.Failed failed =
         (TextExtractionOutcome.Failed)
@@ -146,7 +146,7 @@ class HtmlTextExtractorTest {
   @Test
   void xpathOverrideWithReadabilityKindStillUsesXpath() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
 
     TextExtractionOutcome.Extracted extracted =
         (TextExtractionOutcome.Extracted)
@@ -161,7 +161,7 @@ class HtmlTextExtractorTest {
   @Test
   void nullXpathOverrideIsRejected() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
 
     assertThatThrownBy(
             () ->
@@ -177,7 +177,7 @@ class HtmlTextExtractorTest {
   @Test
   void emptyXpathOverrideUsesNormalExtractorPath() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
     String url = "https://example.test/article";
     when(rules.findBestRule(url)).thenReturn(Optional.empty());
 
@@ -195,7 +195,7 @@ class HtmlTextExtractorTest {
   @Test
   void blankXpathOverrideIsFailedInvalidInput() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
     String url = "https://example.test/article";
 
     TextExtractionOutcome.Failed failed =
@@ -212,7 +212,7 @@ class HtmlTextExtractorTest {
   @Test
   void threeArgExtractDelegatesWithEmptyOverride() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
     String url = "https://example.test/article";
     when(rules.findBestRule(url)).thenReturn(Optional.empty());
 
@@ -228,7 +228,7 @@ class HtmlTextExtractorTest {
   @Test
   void noRuleFallsBackToBodyText() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
     String url = "https://example.test/article";
     when(rules.findBestRule(url)).thenReturn(Optional.empty());
 
@@ -242,7 +242,7 @@ class HtmlTextExtractorTest {
   @Test
   void ruleWithBlankXpathTextFallsBackToBody() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
     String url = "https://example.test/article";
     when(rules.findBestRule(url)).thenReturn(Optional.of(new ExtractRule("id", url, "//p")));
 
@@ -260,7 +260,7 @@ class HtmlTextExtractorTest {
   @Test
   void ruleWithInvalidXpathFallsBackToBodyWithoutThrowing() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
     String url = "https://example.test/article";
     when(rules.findBestRule(url))
         .thenReturn(Optional.of(new ExtractRule("id", url, "///invalid[")));
@@ -279,7 +279,7 @@ class HtmlTextExtractorTest {
   @Test
   void extractByXpathCoversEmptySingleMultipleBlankAndInvalid() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
     Document document =
         Jsoup.parse(
             """
@@ -375,7 +375,7 @@ class HtmlTextExtractorTest {
   @Test
   void bodyBlankIsNoContent() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
     String url = "https://example.test/article";
     when(rules.findBestRule(url)).thenReturn(Optional.empty());
 

@@ -3,14 +3,12 @@ package net.sasasin.sreader.service.probe;
 import com.rometools.rome.feed.synd.SyndEntry;
 import java.net.URI;
 import java.util.Optional;
-import net.sasasin.sreader.config.FeedReaderProperties;
 import net.sasasin.sreader.domain.ExtractionPlan;
 import net.sasasin.sreader.domain.FeedEntrySelection;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.service.extraction.FeedEntryFullTextExtractor;
 import net.sasasin.sreader.service.extraction.HtmlTextExtractor;
 import net.sasasin.sreader.service.extraction.TextExtractionOutcome;
-import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentOutcome;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentService;
 import net.sasasin.sreader.service.http.HttpFetchService;
@@ -32,17 +30,15 @@ public class FullTextProbeService {
   private final FeedEntryPicker feedEntryPicker;
   private final FeedEntryFullTextExtractor feedEntryFullTextExtractor;
 
-  public FullTextProbeService(
+  FullTextProbeService(
       HttpFetchService httpFetchService,
-      PlaywrightHtmlSource playwrightHtmlSource,
+      ProbeDocumentFetcher documentFetcher,
       HtmlTextExtractor htmlTextExtractor,
       FeedDocumentService feedDocumentService,
       FeedEntryPicker feedEntryPicker,
-      FeedEntryFullTextExtractor feedEntryFullTextExtractor,
-      FeedReaderProperties properties) {
+      FeedEntryFullTextExtractor feedEntryFullTextExtractor) {
     this.httpFetchService = httpFetchService;
-    this.documentFetcher =
-        new ProbeDocumentFetcher(httpFetchService, playwrightHtmlSource, properties);
+    this.documentFetcher = documentFetcher;
     this.htmlTextExtractor = htmlTextExtractor;
     this.feedDocumentService = feedDocumentService;
     this.feedEntryPicker = feedEntryPicker;

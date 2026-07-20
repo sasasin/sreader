@@ -17,7 +17,9 @@ import org.junit.jupiter.api.Test;
 class FeedTomlWriterTest {
 
   private final FeedTomlWriter writer = new FeedTomlWriter();
-  private final FeedTomlReader reader = new FeedTomlReader();
+  private final FeedTomlReader reader =
+      new FeedTomlReader(
+          new FeedTomlParser(), new FeedTomlSchemaValidator(), new FeedTomlImportMapper());
   private final Clock clock =
       Clock.fixed(Instant.parse("2026-06-14T03:00:00Z"), ZoneOffset.ofHours(9));
 

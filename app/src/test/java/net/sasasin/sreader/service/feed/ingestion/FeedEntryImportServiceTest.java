@@ -87,11 +87,13 @@ class FeedEntryImportServiceTest {
     ContentFullTextWriter writer = mock(ContentFullTextWriter.class);
     FeedEntryImportService service =
         new FeedEntryImportService(
-            http,
-            ArticleUrlCanonicalizerFixtures.configuredFor("example.test", "/n/"),
-            repository,
-            extractor,
-            writer);
+            new FeedDocumentService(http),
+            new FeedEntryImporter(
+                http,
+                ArticleUrlCanonicalizerFixtures.configuredFor("example.test", "/n/"),
+                repository,
+                extractor,
+                writer));
     URI feed = URI.create("https://example.test/rss.xml");
     URI article = URI.create("https://example.test/article");
     when(http.get(feed))
@@ -174,11 +176,13 @@ class FeedEntryImportServiceTest {
   private FeedEntryImportService service(
       HttpFetchService http, ContentHeaderRepository repository) {
     return new FeedEntryImportService(
-        http,
-        ArticleUrlCanonicalizerFixtures.configuredFor("publisher.example.test", "/articles/"),
-        repository,
-        mock(FeedEntryFullTextExtractor.class),
-        mock(ContentFullTextWriter.class));
+        new FeedDocumentService(http),
+        new FeedEntryImporter(
+            http,
+            ArticleUrlCanonicalizerFixtures.configuredFor("publisher.example.test", "/articles/"),
+            repository,
+            mock(FeedEntryFullTextExtractor.class),
+            mock(ContentFullTextWriter.class)));
   }
 
   private String rss(String link) {

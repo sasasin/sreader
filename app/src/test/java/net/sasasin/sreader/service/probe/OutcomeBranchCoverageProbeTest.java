@@ -98,7 +98,12 @@ class OutcomeBranchCoverageProbeTest {
     FeedEntryFullTextExtractor feedExtractor = mock(FeedEntryFullTextExtractor.class);
     FullTextProbeService service =
         new FullTextProbeService(
-            http, playwright, extractor, documents, picker, feedExtractor, properties(true));
+            http,
+            new ProbeDocumentFetcher(http, playwright, properties(true)),
+            extractor,
+            documents,
+            picker,
+            feedExtractor);
 
     when(documents.fetch(URI.create("https://feed")))
         .thenReturn(

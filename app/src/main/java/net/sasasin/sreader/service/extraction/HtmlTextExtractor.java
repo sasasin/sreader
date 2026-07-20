@@ -4,8 +4,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import net.dankito.readability4j.Article;
-import net.dankito.readability4j.Readability4J;
-import net.dankito.readability4j.extended.Readability4JExtended;
 import net.sasasin.sreader.domain.ExtractionPlan;
 import net.sasasin.sreader.service.outcome.FailureKind;
 import net.sasasin.sreader.service.outcome.FailureStage;
@@ -13,16 +11,10 @@ import net.sasasin.sreader.service.outcome.OperationFailure;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class HtmlTextExtractor {
-
-  @FunctionalInterface
-  interface ReadabilityParser {
-    Article parse(String url, String html);
-  }
 
   sealed interface XpathExtractionAttempt
       permits XpathExtractionAttempt.Matched,
@@ -45,16 +37,6 @@ public class HtmlTextExtractor {
 
   private final ExtractRuleService extractRuleService;
   private final ReadabilityParser readabilityParser;
-
-  @Autowired
-  public HtmlTextExtractor(ExtractRuleService extractRuleService) {
-    this(
-        extractRuleService,
-        (url, html) -> {
-          Readability4J readability = new Readability4JExtended(url, html);
-          return readability.parse();
-        });
-  }
 
   HtmlTextExtractor(ExtractRuleService extractRuleService, ReadabilityParser readabilityParser) {
     this.extractRuleService = extractRuleService;

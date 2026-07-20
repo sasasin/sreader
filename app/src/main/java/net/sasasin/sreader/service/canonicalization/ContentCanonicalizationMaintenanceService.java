@@ -3,8 +3,6 @@ package net.sasasin.sreader.service.canonicalization;
 import net.sasasin.sreader.domain.ContentCanonicalizationPlan;
 import net.sasasin.sreader.domain.ContentCanonicalizationResult;
 import net.sasasin.sreader.repository.ContentCanonicalizationMaintenanceRepository;
-import net.sasasin.sreader.service.article.ArticleUrlCanonicalizer;
-import net.sasasin.sreader.service.text.ContentTextFileStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -20,14 +18,15 @@ public class ContentCanonicalizationMaintenanceService {
   private final ContentCanonicalizationExecutor executor;
   private final ContentCanonicalizationFileCleaner fileCleaner;
 
-  public ContentCanonicalizationMaintenanceService(
-      ArticleUrlCanonicalizer canonicalizer,
-      ContentCanonicalizationMaintenanceRepository repository,
-      ContentTextFileStore fileStore) {
-    this.candidateScanner = new ContentCanonicalizationCandidateScanner(canonicalizer, repository);
-    this.planner = new ContentCanonicalizationPlanner();
-    this.executor = new ContentCanonicalizationExecutor(repository);
-    this.fileCleaner = new ContentCanonicalizationFileCleaner(fileStore);
+  ContentCanonicalizationMaintenanceService(
+      ContentCanonicalizationCandidateScanner candidateScanner,
+      ContentCanonicalizationPlanner planner,
+      ContentCanonicalizationExecutor executor,
+      ContentCanonicalizationFileCleaner fileCleaner) {
+    this.candidateScanner = candidateScanner;
+    this.planner = planner;
+    this.executor = executor;
+    this.fileCleaner = fileCleaner;
   }
 
   public ContentCanonicalizationResult canonicalize(Options options) {

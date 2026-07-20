@@ -16,7 +16,6 @@ import net.sasasin.sreader.config.FeedReaderProperties;
 import net.sasasin.sreader.service.outcome.FailureKind;
 import net.sasasin.sreader.service.outcome.FailureStage;
 import net.sasasin.sreader.service.outcome.OperationFailure;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -28,21 +27,9 @@ public class HttpFetchService {
   private final FeedReaderProperties properties;
   private final HttpClient client;
 
-  @Autowired
-  public HttpFetchService(FeedReaderProperties properties) {
-    this(properties, createClient(properties));
-  }
-
-  HttpFetchService(FeedReaderProperties properties, HttpClient client) {
+  public HttpFetchService(FeedReaderProperties properties, HttpClient client) {
     this.properties = properties;
     this.client = client;
-  }
-
-  private static HttpClient createClient(FeedReaderProperties properties) {
-    return HttpClient.newBuilder()
-        .connectTimeout(properties.http().connectTimeout())
-        .followRedirects(HttpClient.Redirect.NORMAL)
-        .build();
   }
 
   public FetchedResource get(URI uri) throws IOException, InterruptedException {

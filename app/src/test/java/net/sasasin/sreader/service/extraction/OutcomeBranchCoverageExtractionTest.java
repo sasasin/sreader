@@ -219,7 +219,7 @@ class OutcomeBranchCoverageExtractionTest {
   @Test
   void htmlExtractorConfiguredXpathBodyEmptyAfterFallback() {
     ExtractRuleService rules = mock(ExtractRuleService.class);
-    HtmlTextExtractor extractor = new HtmlTextExtractor(rules);
+    HtmlTextExtractor extractor = new HtmlTextExtractor(rules, new ReadabilityArticleParser());
     String url = "https://example.test/a";
     when(rules.findBestRule(url))
         .thenReturn(
