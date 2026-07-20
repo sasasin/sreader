@@ -33,6 +33,8 @@ class ProbeArticleCliRequestTest {
     assertThat(request.url()).isEqualTo(URI.create("https://example.com/a"));
     assertThat(request.method()).isEqualTo(method);
     assertThat(request.xpath()).isEmpty();
+    assertThat(request.output()).isEmpty();
+    assertThat(request.maxChars()).isEmpty();
   }
 
   @Test
@@ -63,8 +65,8 @@ class ProbeArticleCliRequestTest {
 
     assertThat(request.xpath()).isEmpty();
     assertThat(request.verbose()).isTrue();
-    assertThat(request.output()).isEqualTo("out.txt");
-    assertThat(request.maxChars()).isEqualTo(10);
+    assertThat(request.output()).contains("out.txt");
+    assertThat(request.maxChars()).contains(10);
   }
 
   @Test

@@ -39,6 +39,8 @@ class ProbeFeedCliRequestTest {
     assertThat(request.method()).isEqualTo(method);
     assertThat(request.selection()).isEqualTo(FeedEntrySelection.first());
     assertThat(request.xpath()).isEmpty();
+    assertThat(request.output()).isEmpty();
+    assertThat(request.maxChars()).isEmpty();
   }
 
   @Test
@@ -75,8 +77,8 @@ class ProbeFeedCliRequestTest {
     assertThat(request.xpath()).contains("//article");
     assertThat(request.selection()).isEqualTo(FeedEntrySelection.index(1));
     assertThat(request.verbose()).isTrue();
-    assertThat(request.output()).isEqualTo("out.txt");
-    assertThat(request.maxChars()).isEqualTo(20);
+    assertThat(request.output()).contains("out.txt");
+    assertThat(request.maxChars()).contains(20);
   }
 
   @Test

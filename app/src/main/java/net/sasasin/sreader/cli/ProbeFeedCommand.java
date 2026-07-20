@@ -110,8 +110,8 @@ public class ProbeFeedCommand implements Callable<Integer> {
               succeeded.document(),
               succeeded.text(),
               request.verbose(),
-              request.output(),
-              request.maxChars());
+              request.output().orElse(null),
+              request.maxChars().orElse(null));
       case ProbeOutcome.NoContent noContent -> {
         if (request.verbose()) {
           writer.writeNoContentDiagnostics(noContent.document());

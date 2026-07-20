@@ -19,8 +19,8 @@ final class ProbeFeedCliRequest {
   private final FeedEntrySelection selection;
   private final Optional<String> xpath;
   private final boolean verbose;
-  private final String output;
-  private final Integer maxChars;
+  private final Optional<String> output;
+  private final Optional<Integer> maxChars;
 
   private ProbeFeedCliRequest(
       URI feedUrl,
@@ -28,15 +28,15 @@ final class ProbeFeedCliRequest {
       FeedEntrySelection selection,
       Optional<String> xpath,
       boolean verbose,
-      String output,
-      Integer maxChars) {
+      Optional<String> output,
+      Optional<Integer> maxChars) {
     this.feedUrl = Objects.requireNonNull(feedUrl, "feedUrl");
     this.method = Objects.requireNonNull(method, "method");
     this.selection = Objects.requireNonNull(selection, "selection");
     this.xpath = Objects.requireNonNull(xpath, "xpath");
     this.verbose = verbose;
-    this.output = output;
-    this.maxChars = maxChars;
+    this.output = Objects.requireNonNull(output, "output");
+    this.maxChars = Objects.requireNonNull(maxChars, "maxChars");
   }
 
   static ProbeFeedCliRequest create(
@@ -61,7 +61,13 @@ final class ProbeFeedCliRequest {
       throw new ParameterException(spec.commandLine(), "--xpath cannot be used with --method feed");
     }
     return new ProbeFeedCliRequest(
-        validatedUrl, method, selection, normalizedXpath, verbose, output, maxChars);
+        validatedUrl,
+        method,
+        selection,
+        normalizedXpath,
+        verbose,
+        Optional.ofNullable(output),
+        Optional.ofNullable(maxChars));
   }
 
   URI feedUrl() {
@@ -84,11 +90,11 @@ final class ProbeFeedCliRequest {
     return verbose;
   }
 
-  String output() {
+  Optional<String> output() {
     return output;
   }
 
-  Integer maxChars() {
+  Optional<Integer> maxChars() {
     return maxChars;
   }
 

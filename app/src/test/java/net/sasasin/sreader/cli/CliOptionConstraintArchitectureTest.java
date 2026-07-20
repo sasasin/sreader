@@ -80,6 +80,12 @@ class CliOptionConstraintArchitectureTest {
   }
 
   @Test
+  void probeRequestsKeepOptionalOutputAndMaxCharsNonNull() throws IOException {
+    assertRequestUsesOptionalOutputAndMaxChars("cli/ProbeArticleCliRequest.java");
+    assertRequestUsesOptionalOutputAndMaxChars("cli/ProbeFeedCliRequest.java");
+  }
+
+  @Test
   void feedImportDoesNotExclusiveGroupDryRunAndResubscribe() throws IOException {
     String source = readMain("cli/FeedImportCommand.java");
     assertThat(source).doesNotContain("@ArgGroup");
@@ -106,6 +112,15 @@ class CliOptionConstraintArchitectureTest {
 
   private static String readMain(String relative) throws IOException {
     return Files.readString(mainJavaRoot().resolve(relative), StandardCharsets.UTF_8);
+  }
+
+  private static void assertRequestUsesOptionalOutputAndMaxChars(String relative)
+      throws IOException {
+    String source = readMain(relative);
+    assertThat(source).contains("private final Optional<String> output;");
+    assertThat(source).contains("private final Optional<Integer> maxChars;");
+    assertThat(source).contains("this.output = Objects.requireNonNull(output, \"output\");");
+    assertThat(source).contains("this.maxChars = Objects.requireNonNull(maxChars, \"maxChars\");");
   }
 
   private static Path mainJavaRoot() {

@@ -17,22 +17,22 @@ final class ProbeArticleCliRequest {
   private final FullTextMethod method;
   private final Optional<String> xpath;
   private final boolean verbose;
-  private final String output;
-  private final Integer maxChars;
+  private final Optional<String> output;
+  private final Optional<Integer> maxChars;
 
   private ProbeArticleCliRequest(
       URI url,
       FullTextMethod method,
       Optional<String> xpath,
       boolean verbose,
-      String output,
-      Integer maxChars) {
+      Optional<String> output,
+      Optional<Integer> maxChars) {
     this.url = Objects.requireNonNull(url, "url");
     this.method = Objects.requireNonNull(method, "method");
     this.xpath = Objects.requireNonNull(xpath, "xpath");
     this.verbose = verbose;
-    this.output = output;
-    this.maxChars = maxChars;
+    this.output = Objects.requireNonNull(output, "output");
+    this.maxChars = Objects.requireNonNull(maxChars, "maxChars");
   }
 
   static ProbeArticleCliRequest create(
@@ -58,7 +58,12 @@ final class ProbeArticleCliRequest {
           spec.commandLine(), "--xpath cannot be used with --method " + method.value());
     }
     return new ProbeArticleCliRequest(
-        validatedUrl, method, normalizedXpath, verbose, output, maxChars);
+        validatedUrl,
+        method,
+        normalizedXpath,
+        verbose,
+        Optional.ofNullable(output),
+        Optional.ofNullable(maxChars));
   }
 
   URI url() {
@@ -77,11 +82,11 @@ final class ProbeArticleCliRequest {
     return verbose;
   }
 
-  String output() {
+  Optional<String> output() {
     return output;
   }
 
-  Integer maxChars() {
+  Optional<Integer> maxChars() {
     return maxChars;
   }
 
