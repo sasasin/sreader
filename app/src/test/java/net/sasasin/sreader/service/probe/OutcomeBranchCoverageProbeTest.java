@@ -19,8 +19,9 @@ import net.sasasin.sreader.service.extraction.ExtractionDecision;
 import net.sasasin.sreader.service.extraction.ExtractionSource;
 import net.sasasin.sreader.service.extraction.FeedEntryFullTextExtractor;
 import net.sasasin.sreader.service.extraction.HtmlTextExtractor;
-import net.sasasin.sreader.service.extraction.PlaywrightHtmlSource;
 import net.sasasin.sreader.service.extraction.TextExtractionOutcome;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightRenderMode;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentOutcome;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentService;
 import net.sasasin.sreader.service.http.HttpFetchService;
@@ -68,7 +69,8 @@ class OutcomeBranchCoverageProbeTest {
                 "https://a");
     assertThat(status.failure().kind()).isEqualTo(FailureKind.HTTP_STATUS);
 
-    when(playwright.renderPage(any(), eq(false))).thenThrow(new RuntimeException("render"));
+    when(playwright.renderPage(any(), eq(PlaywrightRenderMode.STANDARD)))
+        .thenThrow(new RuntimeException("render"));
     ProbeDocumentFetcher.FetchOutcome.Failed render =
         (ProbeDocumentFetcher.FetchOutcome.Failed)
             fetcher.fetch(

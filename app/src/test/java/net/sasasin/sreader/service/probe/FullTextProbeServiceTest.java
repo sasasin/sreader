@@ -2,7 +2,6 @@ package net.sasasin.sreader.service.probe;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -25,9 +24,10 @@ import net.sasasin.sreader.service.extraction.ExtractionSource;
 import net.sasasin.sreader.service.extraction.FeedEntryFullTextExtractor;
 import net.sasasin.sreader.service.extraction.HtmlTextExtractor;
 import net.sasasin.sreader.service.extraction.NoContentReason;
-import net.sasasin.sreader.service.extraction.PlaywrightHtmlSource;
-import net.sasasin.sreader.service.extraction.RenderedPage;
 import net.sasasin.sreader.service.extraction.TextExtractionOutcome;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightRenderMode;
+import net.sasasin.sreader.service.extraction.browser.RenderedPage;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentOutcome;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentService;
 import net.sasasin.sreader.service.http.HttpFetchService;
@@ -57,7 +57,7 @@ class FullTextProbeServiceTest {
         d.service(true).probeArticle(ARTICLE_URL, FullTextMethod.FEED, Optional.empty());
     assertThat(outcome).isInstanceOf(ProbeOutcome.InvalidRequest.class);
     verify(d.http, never()).get(any());
-    verify(d.playwright, never()).renderPage(any(), anyBoolean());
+    verify(d.playwright, never()).renderPage(any(), any());
     verify(d.extractor, never()).extract(any(), any(), any(), any());
   }
 
@@ -85,7 +85,7 @@ class FullTextProbeServiceTest {
     assertThat(result.document().finalUrl()).isEqualTo(finalUrl);
     assertThat(result.document().title()).contains("Article Title");
     assertThat(result.text()).isEqualTo("text");
-    verify(d.playwright, never()).renderPage(any(), anyBoolean());
+    verify(d.playwright, never()).renderPage(any(), any());
   }
 
   @Test
@@ -162,7 +162,9 @@ class FullTextProbeServiceTest {
       FullTextMethod method, boolean infy, ExtractorKind kind) throws Exception {
     Dependencies d = dependencies();
     URI finalUrl = URI.create("https://final/rendered");
-    when(d.playwright.renderPage(ARTICLE_URL.toString(), infy))
+    when(d.playwright.renderPage(
+            eq(ARTICLE_URL),
+            eq(infy ? PlaywrightRenderMode.INFY_SCROLL : PlaywrightRenderMode.STANDARD)))
         .thenReturn(new RenderedPage(finalUrl, "<body>rendered</body>"));
     when(d.extractor.extract(finalUrl.toString(), "<body>rendered</body>", kind, Optional.empty()))
         .thenReturn(
@@ -180,8 +182,8 @@ class FullTextProbeServiceTest {
   @Test
   void articlePlaywrightUsesInputUrlWhenRendererHasNoFinalUrl() {
     Dependencies d = dependencies();
-    when(d.playwright.renderPage(ARTICLE_URL.toString(), false))
-        .thenReturn(new RenderedPage(null, "html"));
+    when(d.playwright.renderPage(ARTICLE_URL, PlaywrightRenderMode.STANDARD))
+        .thenReturn(new RenderedPage(ARTICLE_URL, "html"));
     when(d.extractor.extract(
             ARTICLE_URL.toString(), "html", ExtractorKind.XPATH_OR_BODY_TEXT, Optional.empty()))
         .thenReturn(
@@ -203,13 +205,13 @@ class FullTextProbeServiceTest {
                 .service(false)
                 .probeArticle(ARTICLE_URL, FullTextMethod.PLAYWRIGHT, Optional.empty());
     assertThat(skipped.reason()).isEqualTo(ProbeSkipReason.PLAYWRIGHT_DISABLED);
-    verify(disabled.playwright, never()).renderPage(any(), anyBoolean());
+    verify(disabled.playwright, never()).renderPage(any(), any());
   }
 
   @Test
   void playwrightRenderFailureIsFailedRender() {
     Dependencies bad = dependencies();
-    when(bad.playwright.renderPage(any(), anyBoolean()))
+    when(bad.playwright.renderPage(any(), any()))
         .thenThrow(new IllegalStateException("not configured"));
     ProbeOutcome.Failed failed =
         (ProbeOutcome.Failed)
@@ -233,7 +235,7 @@ class FullTextProbeServiceTest {
                     FEED_URL, FullTextMethod.HTTP, FeedEntrySelection.first(), Optional.empty());
     assertThat(noMatch.message()).contains(FEED_URL.toString());
     verify(d.http, never()).get(any());
-    verify(d.playwright, never()).renderPage(any(), anyBoolean());
+    verify(d.playwright, never()).renderPage(any(), any());
     verify(d.feedExtractor, never()).extract(any());
   }
 
@@ -448,7 +450,9 @@ class FullTextProbeServiceTest {
     when(d.documents.fetch(FEED_URL)).thenReturn(new FeedDocumentOutcome.Fetched(feed));
     when(d.picker.pick(feed, FeedEntrySelection.first(), true)).thenReturn(Optional.of(entry));
     when(d.http.resolveRedirect(link)).thenReturn(new RedirectResolution.Resolved(link, link));
-    when(d.playwright.renderPage(link.toString(), infy)).thenReturn(new RenderedPage(null, "html"));
+    when(d.playwright.renderPage(
+            eq(link), eq(infy ? PlaywrightRenderMode.INFY_SCROLL : PlaywrightRenderMode.STANDARD)))
+        .thenReturn(new RenderedPage(link, "html"));
     when(d.extractor.extract(link.toString(), "html", kind, Optional.empty()))
         .thenReturn(
             new TextExtractionOutcome.Extracted(
@@ -471,7 +475,7 @@ class FullTextProbeServiceTest {
     when(d.documents.fetch(FEED_URL)).thenReturn(new FeedDocumentOutcome.Fetched(feed));
     when(d.picker.pick(feed, FeedEntrySelection.first(), true)).thenReturn(Optional.of(entry));
     when(d.http.resolveRedirect(link)).thenReturn(new RedirectResolution.Resolved(link, link));
-    when(d.playwright.renderPage(link.toString(), false))
+    when(d.playwright.renderPage(link, PlaywrightRenderMode.STANDARD))
         .thenReturn(new RenderedPage(finalUrl, "html"));
     when(d.extractor.extract(
             finalUrl.toString(), "html", ExtractorKind.XPATH_OR_BODY_TEXT, Optional.empty()))

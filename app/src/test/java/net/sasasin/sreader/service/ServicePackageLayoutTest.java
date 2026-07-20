@@ -31,6 +31,8 @@ class ServicePackageLayoutTest {
 
   private static final List<String> EXPECTED_FEED_SUBDIRS = List.of("ingestion", "toml");
 
+  private static final List<String> EXPECTED_EXTRACTION_SUBDIRS = List.of("browser");
+
   @Test
   void productionTypesArePlacedInFeatureSubpackages() throws IOException {
     Path serviceRoot = serviceRoot();
@@ -53,6 +55,10 @@ class ServicePackageLayoutTest {
     Path feed = serviceRoot.resolve("feed");
     for (String dir : EXPECTED_FEED_SUBDIRS) {
       assertThat(feed.resolve(dir)).as("feed/" + dir).isDirectory();
+    }
+    Path extraction = serviceRoot.resolve("extraction");
+    for (String dir : EXPECTED_EXTRACTION_SUBDIRS) {
+      assertThat(extraction.resolve(dir)).as("extraction/" + dir).isDirectory();
     }
   }
 

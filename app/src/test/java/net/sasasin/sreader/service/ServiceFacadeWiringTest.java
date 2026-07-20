@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import net.sasasin.sreader.service.canonicalization.ContentCanonicalizationMaintenanceService;
 import net.sasasin.sreader.service.extraction.FullTextExtractionService;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
 import net.sasasin.sreader.service.feed.FeedDiscoveryService;
 import net.sasasin.sreader.service.feed.FeedRegistrationService;
 import net.sasasin.sreader.service.feed.toml.FeedTomlService;
@@ -28,6 +29,7 @@ class ServiceFacadeWiringTest {
     assertThat(context.getBean(FeedReaderService.class)).isNotNull();
     assertThat(context.getBean(FeedTomlService.class)).isNotNull();
     assertThat(context.getBean(FullTextExtractionService.class)).isNotNull();
+    assertThat(context.getBean(PlaywrightHtmlSource.class)).isNotNull();
     assertThat(context.getBean(FullTextProbeService.class)).isNotNull();
     assertThat(context.getBean(ContentCanonicalizationMaintenanceService.class)).isNotNull();
     assertThat(context.getBean(ContentTextFileExportService.class)).isNotNull();
