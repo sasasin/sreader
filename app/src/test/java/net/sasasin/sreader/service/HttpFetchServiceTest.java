@@ -171,40 +171,101 @@ class HttpFetchServiceTest {
   }
 
   @Test
-  void resolveRedirectUsesHeadAndHandlesResponseAndExceptionFallbacks() throws Exception {
+  void resolveRedirectResolvedWithoutRedirectKeepsRequestedUri() throws Exception {
     URI uri = URI.create("https://example.test/start");
     HttpClient client = mock(HttpClient.class);
-    stubVoidResponse(client, voidResponse(399, URI.create("https://example.test/final")));
+    stubVoidResponse(client, voidResponse(200, uri));
     HttpFetchService service = new HttpFetchService(properties(0, Duration.ofMillis(200)), client);
-    assertThat(service.resolveRedirect(uri)).isEqualTo(URI.create("https://example.test/final"));
+
+    assertThat(service.resolveRedirect(uri)).isEqualTo(new RedirectResolution.Resolved(uri, uri));
+  }
+
+  @Test
+  void resolveRedirectResolvedFollowsFinalUri() throws Exception {
+    URI uri = URI.create("https://example.test/start");
+    URI finalUri = URI.create("https://example.test/final");
+    HttpClient client = mock(HttpClient.class);
+    stubVoidResponse(client, voidResponse(399, finalUri));
+    HttpFetchService service = new HttpFetchService(properties(0, Duration.ofMillis(200)), client);
+
+    RedirectResolution resolution = service.resolveRedirect(uri);
+    assertThat(resolution).isInstanceOf(RedirectResolution.Resolved.class);
+    assertThat(resolution.effectiveUri()).isEqualTo(finalUri);
     ArgumentCaptor<HttpRequest> request = ArgumentCaptor.forClass(HttpRequest.class);
     verify(client).send(request.capture(), any());
     assertThat(request.getValue().method()).isEqualTo("HEAD");
     assertThat(request.getValue().timeout()).contains(Duration.ofSeconds(1));
+  }
 
+  @Test
+  void resolveRedirectNon2xxIsFallbackWithHttpStatus() throws Exception {
+    URI uri = URI.create("https://example.test/start");
+    HttpClient client = mock(HttpClient.class);
     stubVoidResponse(client, voidResponse(400, URI.create("https://example.test/final")));
-    assertThat(service.resolveRedirect(uri)).isEqualTo(uri);
+    HttpFetchService service = new HttpFetchService(properties(0, Duration.ofMillis(200)), client);
+
+    RedirectResolution resolution = service.resolveRedirect(uri);
+    assertThat(resolution).isInstanceOf(RedirectResolution.Fallback.class);
+    RedirectResolution.Fallback fallback = (RedirectResolution.Fallback) resolution;
+    assertThat(fallback.effectiveUri()).isEqualTo(uri);
+    assertThat(fallback.failure().kind()).isEqualTo(FailureKind.HTTP_STATUS);
+    assertThat(fallback.failure().stage()).isEqualTo(FailureStage.RESOLVE_REDIRECT);
+  }
+
+  @Test
+  void resolveRedirectIoFailureIsFallback() throws Exception {
+    URI uri = URI.create("https://example.test/start");
+    HttpClient client = mock(HttpClient.class);
     doAnswer(
             invocation -> {
               throw new IOException("down");
             })
         .when(client)
         .send(any(), any());
-    assertThat(service.resolveRedirect(uri)).isEqualTo(uri);
+    HttpFetchService service = new HttpFetchService(properties(0, Duration.ofMillis(200)), client);
+
+    RedirectResolution.Fallback fallback =
+        (RedirectResolution.Fallback) service.resolveRedirect(uri);
+    assertThat(fallback.effectiveUri()).isEqualTo(uri);
+    assertThat(fallback.failure().kind()).isEqualTo(FailureKind.IO);
+    assertThat(fallback.failure().cause()).isPresent();
+  }
+
+  @Test
+  void resolveRedirectInvalidInputIsFallback() throws Exception {
+    URI uri = URI.create("https://example.test/start");
+    HttpClient client = mock(HttpClient.class);
     doAnswer(
             invocation -> {
               throw new IllegalArgumentException("bad");
             })
         .when(client)
         .send(any(), any());
-    assertThat(service.resolveRedirect(uri)).isEqualTo(uri);
+    HttpFetchService service = new HttpFetchService(properties(0, Duration.ofMillis(200)), client);
+
+    RedirectResolution.Fallback fallback =
+        (RedirectResolution.Fallback) service.resolveRedirect(uri);
+    assertThat(fallback.failure().kind()).isEqualTo(FailureKind.INVALID_INPUT);
+    assertThat(fallback.effectiveUri()).isEqualTo(uri);
+  }
+
+  @Test
+  void resolveRedirectInterruptedIsFallbackAndSetsInterruptFlag() throws Exception {
+    URI uri = URI.create("https://example.test/start");
+    HttpClient client = mock(HttpClient.class);
     doAnswer(
             invocation -> {
               throw new InterruptedException("stop");
             })
         .when(client)
         .send(any(), any());
-    assertThat(service.resolveRedirect(uri)).isEqualTo(uri);
+    HttpFetchService service = new HttpFetchService(properties(0, Duration.ofMillis(200)), client);
+
+    RedirectResolution.Fallback fallback =
+        (RedirectResolution.Fallback) service.resolveRedirect(uri);
+    assertThat(fallback.failure().kind()).isEqualTo(FailureKind.INTERRUPTED);
+    assertThat(fallback.failure().interrupted()).isTrue();
+    assertThat(fallback.effectiveUri()).isEqualTo(uri);
     assertThat(Thread.currentThread().isInterrupted()).isTrue();
   }
 

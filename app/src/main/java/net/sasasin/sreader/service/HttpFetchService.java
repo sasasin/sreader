@@ -51,7 +51,7 @@ public class HttpFetchService {
     return new FetchedResource(response.uri(), decode(response));
   }
 
-  public URI resolveRedirect(URI uri) {
+  public RedirectResolution resolveRedirect(URI uri) {
     try {
       HttpRequest request =
           baseRequest(uri)
@@ -60,14 +60,44 @@ public class HttpFetchService {
               .build();
       HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
       if (response.statusCode() >= 200 && response.statusCode() < 400) {
-        return response.uri();
+        return new RedirectResolution.Resolved(uri, response.uri());
       }
-    } catch (IOException | InterruptedException | IllegalArgumentException e) {
-      if (e instanceof InterruptedException) {
-        Thread.currentThread().interrupt();
-      }
+      return new RedirectResolution.Fallback(
+          uri,
+          OperationFailure.of(
+              FailureStage.RESOLVE_REDIRECT,
+              FailureKind.HTTP_STATUS,
+              uri.toString(),
+              "HEAD " + uri + " returned HTTP " + response.statusCode()));
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return new RedirectResolution.Fallback(
+          uri,
+          OperationFailure.of(
+              FailureStage.RESOLVE_REDIRECT,
+              FailureKind.INTERRUPTED,
+              uri.toString(),
+              "Redirect resolution interrupted for " + uri,
+              e));
+    } catch (IOException e) {
+      return new RedirectResolution.Fallback(
+          uri,
+          OperationFailure.of(
+              FailureStage.RESOLVE_REDIRECT,
+              FailureKind.IO,
+              uri.toString(),
+              "Redirect resolution I/O failure for " + uri + ": " + e.getMessage(),
+              e));
+    } catch (IllegalArgumentException e) {
+      return new RedirectResolution.Fallback(
+          uri,
+          OperationFailure.of(
+              FailureStage.RESOLVE_REDIRECT,
+              FailureKind.INVALID_INPUT,
+              uri.toString(),
+              "Redirect resolution invalid input for " + uri + ": " + e.getMessage(),
+              e));
     }
-    return uri;
   }
 
   private HttpRequest.Builder baseRequest(URI uri) {
