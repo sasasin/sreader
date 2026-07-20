@@ -61,19 +61,23 @@ public class ContentCanonicalizeCommand implements java.util.concurrent.Callable
   }
 
   private void print(ContentCanonicalizationResult result, String mode) {
+    var scan = result.scan();
+    var groups = result.groups();
+    var database = result.database();
+    var files = result.files();
     System.out.printf("mode=%s%n", mode);
-    System.out.printf("scanned_rows=%d%n", result.scannedRows());
-    System.out.printf("unchanged_rows=%d%n", result.unchangedRows());
-    System.out.printf("rename_groups=%d%n", result.renameGroups());
-    System.out.printf("merge_groups=%d%n", result.mergeGroups());
-    System.out.printf("duplicate_rows_to_delete=%d%n", result.deletedContentHeaders());
-    System.out.printf("full_text_rows_to_delete=%d%n", result.deletedFullTexts());
-    System.out.printf("export_history_rows_to_delete=%d%n", result.deletedExportHistories());
-    System.out.printf("feed_conflict_groups=%d%n", result.feedConflictGroups());
-    System.out.printf("processed_groups=%d%n", result.processedGroups());
-    System.out.printf("deleted_files=%d%n", result.deletedFiles());
-    System.out.printf("missing_files=%d%n", result.missingFiles());
-    System.out.printf("failed_files=%d%n", result.failedFiles());
-    System.out.printf("failed_groups=%d%n", result.failedGroups());
+    System.out.printf("scanned_rows=%d%n", scan.scannedRows());
+    System.out.printf("unchanged_rows=%d%n", scan.unchangedRows());
+    System.out.printf("rename_groups=%d%n", groups.renameGroups());
+    System.out.printf("merge_groups=%d%n", groups.mergeGroups());
+    System.out.printf("duplicate_rows_to_delete=%d%n", database.deletedContentHeaders());
+    System.out.printf("full_text_rows_to_delete=%d%n", database.deletedFullTexts());
+    System.out.printf("export_history_rows_to_delete=%d%n", database.deletedExportHistories());
+    System.out.printf("feed_conflict_groups=%d%n", groups.feedConflictGroups());
+    System.out.printf("processed_groups=%d%n", groups.processedGroups());
+    System.out.printf("deleted_files=%d%n", files.deletedFiles());
+    System.out.printf("missing_files=%d%n", files.missingFiles());
+    System.out.printf("failed_files=%d%n", files.failedFiles());
+    System.out.printf("failed_groups=%d%n", groups.failedGroups());
   }
 }

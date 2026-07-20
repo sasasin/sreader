@@ -1,7 +1,7 @@
 package net.sasasin.sreader.service;
 
 import net.sasasin.sreader.domain.ContentCanonicalizationPlan;
-import net.sasasin.sreader.domain.ContentCanonicalizationResult;
+import net.sasasin.sreader.domain.ContentCanonicalizationResult.FileSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,20 +15,22 @@ final class ContentCanonicalizationFileCleaner {
     this.fileStore = fileStore;
   }
 
-  ContentCanonicalizationResult clean(
-      ContentCanonicalizationPlan plan, ContentCanonicalizationResult result) {
+  FileSummary clean(ContentCanonicalizationPlan plan) {
+    int deleted = 0;
+    int missing = 0;
+    int failed = 0;
     for (String id : plan.memberIds()) {
       ContentTextFileStore.DeleteResult fileResult = fileStore.deleteForHeaderId(id);
-      result =
-          switch (fileResult.status()) {
-            case DELETED -> result.withFileResult(1, 0, 0);
-            case MISSING -> result.withFileResult(0, 1, 0);
-            case FAILED -> result.withFileResult(0, 0, 1);
-          };
-      if (fileResult.status() == ContentTextFileStore.Status.FAILED) {
-        logger.error("Could not delete stale content text file for {}: {}", id, fileResult.error());
+      switch (fileResult.status()) {
+        case DELETED -> deleted++;
+        case MISSING -> missing++;
+        case FAILED -> {
+          failed++;
+          logger.error(
+              "Could not delete stale content text file for {}: {}", id, fileResult.error());
+        }
       }
     }
-    return result;
+    return new FileSummary(deleted, missing, failed);
   }
 }

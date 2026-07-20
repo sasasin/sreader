@@ -29,47 +29,42 @@ public class ContentCanonicalizationMaintenanceService {
   }
 
   public ContentCanonicalizationResult canonicalize(Options options) {
-    ContentCanonicalizationResult result = ContentCanonicalizationResult.empty();
+    ContentCanonicalizationResultAccumulator result =
+        new ContentCanonicalizationResultAccumulator();
     ContentCanonicalizationCandidateScanner.Session scanner =
         candidateScanner.start(options.host(), options.batchSize());
     while (options.limit() == null || result.processedGroups() < options.limit()) {
       ContentCanonicalizationCandidateScanner.Page page = scanner.next();
       if (page.isFinished()) {
-        return result;
+        return result.snapshot();
       }
-      for (int ignored = 0; ignored < page.scannedRows(); ignored++) {
-        result = result.incrementScannedRows();
-      }
+      result.addScannedRows(page.scannedRows());
       for (ContentCanonicalizationCandidateScanner.GroupCandidate candidate : page.groups()) {
         String normalized = candidate.normalizedUrl();
         var group = candidate.group();
         if (!planner.needsChange(group)) {
-          result = result.addUnchangedRows(group.members().size());
+          result.addUnchangedRows(group.members().size());
           continue;
         }
         ContentCanonicalizationPlan plan = planner.plan(group);
-        result = result.addPlannedGroup(plan.merge(), plan.feedConflict());
+        result.recordPlannedGroup(plan);
         if (options.apply()) {
           try {
             ContentCanonicalizationMaintenanceRepository.MergeCounts counts =
                 executor.execute(plan);
-            result =
-                result.addMergedRows(
-                    counts.deletedHeaders(),
-                    counts.deletedFullTexts(),
-                    counts.deletedExportHistories());
-            result = fileCleaner.clean(plan, result);
+            result.addMergeCounts(counts);
+            result.addFileSummary(fileCleaner.clean(plan));
           } catch (RuntimeException e) {
             logger.error("Could not canonicalize group {}", normalized, e);
-            result = result.withFailedGroup();
+            result.recordFailedGroup();
           }
         }
         if (options.limit() != null && result.processedGroups() >= options.limit()) {
-          return result;
+          return result.snapshot();
         }
       }
     }
-    return result;
+    return result.snapshot();
   }
 
   public record Options(String host, int batchSize, Integer limit, boolean apply) {
