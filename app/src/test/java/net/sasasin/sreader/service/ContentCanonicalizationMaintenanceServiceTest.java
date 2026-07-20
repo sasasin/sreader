@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,6 +16,10 @@ import net.sasasin.sreader.domain.ContentCanonicalizationFullText;
 import net.sasasin.sreader.domain.ContentCanonicalizationGroup;
 import net.sasasin.sreader.domain.ContentCanonicalizationHeader;
 import net.sasasin.sreader.domain.ContentCanonicalizationResult;
+import net.sasasin.sreader.domain.ContentCanonicalizationResult.DatabaseSummary;
+import net.sasasin.sreader.domain.ContentCanonicalizationResult.FileSummary;
+import net.sasasin.sreader.domain.ContentCanonicalizationResult.GroupSummary;
+import net.sasasin.sreader.domain.ContentCanonicalizationResult.ScanSummary;
 import net.sasasin.sreader.repository.ContentCanonicalizationMaintenanceRepository;
 import org.junit.jupiter.api.Test;
 
@@ -43,9 +48,10 @@ class ContentCanonicalizationMaintenanceServiceTest {
             new ContentCanonicalizationMaintenanceService.Options(
                 "canonicalization.test", 100, null, false));
 
-    assertThat(result.mergeGroups()).isEqualTo(1);
-    assertThat(result.deletedContentHeaders()).isZero();
-    assertThat(result.deletedFiles()).isZero();
+    assertThat(result.groups()).isEqualTo(new GroupSummary(0, 1, 0, 0));
+    assertThat(result.database()).isEqualTo(DatabaseSummary.empty());
+    assertThat(result.files()).isEqualTo(FileSummary.empty());
+    assertThat(result.groups().failedGroups()).isZero();
     verify(repository, never()).merge(any());
     verify(fileStore, never()).deleteForHeaderId(any());
   }
@@ -67,9 +73,10 @@ class ContentCanonicalizationMaintenanceServiceTest {
         service.canonicalize(
             new ContentCanonicalizationMaintenanceService.Options(null, 100, 1, true));
 
-    assertThat(result.renameGroups()).isEqualTo(1);
-    assertThat(result.deletedContentHeaders()).isEqualTo(1);
-    assertThat(result.missingFiles()).isEqualTo(1);
+    assertThat(result.scan()).isEqualTo(new ScanSummary(1, 0));
+    assertThat(result.groups()).isEqualTo(new GroupSummary(1, 0, 0, 0));
+    assertThat(result.database()).isEqualTo(new DatabaseSummary(1, 0, 0));
+    assertThat(result.files()).isEqualTo(new FileSummary(0, 1, 0));
     verify(repository).merge(any());
     verify(fileStore).deleteForHeaderId("0000000000000000000000000000000a");
   }
@@ -89,7 +96,11 @@ class ContentCanonicalizationMaintenanceServiceTest {
         service.canonicalize(
             new ContentCanonicalizationMaintenanceService.Options(null, 100, 1, true));
 
-    assertThat(result.failedGroups()).isEqualTo(1);
+    assertThat(result.groups().renameGroups()).isEqualTo(1);
+    assertThat(result.groups().failedGroups()).isEqualTo(1);
+    assertThat(result.database()).isEqualTo(DatabaseSummary.empty());
+    assertThat(result.files()).isEqualTo(FileSummary.empty());
+    assertThat(result.hasFailures()).isTrue();
     verify(fileStore, never()).deleteForHeaderId(any());
   }
 
@@ -106,9 +117,8 @@ class ContentCanonicalizationMaintenanceServiceTest {
         service.canonicalize(
             new ContentCanonicalizationMaintenanceService.Options(" ", 2, null, false));
 
-    assertThat(result.scannedRows()).isEqualTo(2);
-    assertThat(result.unchangedRows()).isEqualTo(1);
-    assertThat(result.processedGroups()).isZero();
+    assertThat(result.scan()).isEqualTo(new ScanSummary(2, 1));
+    assertThat(result.groups().processedGroups()).isZero();
     verify(repository, never()).merge(any());
   }
 
@@ -134,9 +144,57 @@ class ContentCanonicalizationMaintenanceServiceTest {
         service.canonicalize(
             new ContentCanonicalizationMaintenanceService.Options(null, 100, 1, true));
 
-    assertThat(result.deletedFiles()).isEqualTo(1);
-    assertThat(result.failedFiles()).isEqualTo(1);
+    assertThat(result.database()).isEqualTo(new DatabaseSummary(1, 1, 0));
+    assertThat(result.files()).isEqualTo(new FileSummary(1, 0, 1));
+    assertThat(result.groups().failedGroups()).isZero();
     assertThat(result.hasFailures()).isTrue();
+  }
+
+  @Test
+  void bulkPageScanCountsEveryCandidateRow() {
+    String canonical = "https://canonicalization.test/n/article-001";
+    ContentCanonicalizationGroup group =
+        new ContentCanonicalizationGroup(canonical, List.of(member("a", canonical)), 0);
+    when(repository.findCandidateCanonicalUrls(null, null, 10))
+        .thenReturn(List.of(canonical, canonical, canonical));
+    when(repository.loadGroup(canonical)).thenReturn(group);
+
+    ContentCanonicalizationResult result =
+        service.canonicalize(
+            new ContentCanonicalizationMaintenanceService.Options(null, 10, null, false));
+
+    assertThat(result.scan().scannedRows()).isEqualTo(3);
+    assertThat(result.scan().unchangedRows()).isEqualTo(1);
+  }
+
+  @Test
+  void limitStopsAfterProcessedChangedGroups() {
+    String firstCanonical = "https://canonicalization.test/n/article-001";
+    String secondCanonical = "https://canonicalization.test/n/article-002";
+    ContentCanonicalizationGroup first =
+        new ContentCanonicalizationGroup(
+            firstCanonical, List.of(member("a", firstCanonical + "?gs=one")), 0);
+    ContentCanonicalizationGroup second =
+        new ContentCanonicalizationGroup(
+            secondCanonical, List.of(member("b", secondCanonical + "?gs=two")), 0);
+    when(repository.findCandidateCanonicalUrls(null, null, 100))
+        .thenReturn(List.of(firstCanonical + "?gs=one", secondCanonical + "?gs=two"));
+    when(repository.loadGroup(firstCanonical)).thenReturn(first);
+    when(repository.loadGroup(secondCanonical)).thenReturn(second);
+    when(repository.merge(any()))
+        .thenReturn(new ContentCanonicalizationMaintenanceRepository.MergeCounts(1, 0, 0));
+    when(fileStore.deleteForHeaderId(any()))
+        .thenReturn(ContentTextFileStore.DeleteResult.missing());
+
+    ContentCanonicalizationResult result =
+        service.canonicalize(
+            new ContentCanonicalizationMaintenanceService.Options(null, 100, 1, true));
+
+    assertThat(result.groups().processedGroups()).isEqualTo(1);
+    assertThat(result.groups().renameGroups() + result.groups().mergeGroups()).isEqualTo(1);
+    // Scanner may load both groups for the page; limit only stops processing changed groups.
+    verify(repository, times(1)).merge(any());
+    verify(fileStore, times(1)).deleteForHeaderId(any());
   }
 
   @Test
