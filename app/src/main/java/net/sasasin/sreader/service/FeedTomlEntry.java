@@ -1,5 +1,6 @@
 package net.sasasin.sreader.service;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -16,7 +17,31 @@ record FeedTomlEntry(
     Optional<String> note,
     Optional<String> fullTextMethod,
     FeedTomlPosition tablePosition,
-    FeedTomlPosition urlPosition) {
+    FeedTomlPosition urlPosition,
+    Map<String, FeedTomlPosition> fieldPositions) {
+
+  FeedTomlEntry(
+      int index,
+      Optional<String> url,
+      Optional<String> status,
+      Optional<String> unsubscribeReason,
+      Optional<String> unsubscribedAt,
+      Optional<String> note,
+      Optional<String> fullTextMethod,
+      FeedTomlPosition tablePosition,
+      FeedTomlPosition urlPosition) {
+    this(
+        index,
+        url,
+        status,
+        unsubscribeReason,
+        unsubscribedAt,
+        note,
+        fullTextMethod,
+        tablePosition,
+        urlPosition,
+        Map.of());
+  }
 
   FeedTomlEntry {
     if (index < 0) {
@@ -30,6 +55,13 @@ record FeedTomlEntry(
     fullTextMethod = requireOptional(fullTextMethod, "fullTextMethod");
     Objects.requireNonNull(tablePosition, "tablePosition must not be null");
     Objects.requireNonNull(urlPosition, "urlPosition must not be null");
+    fieldPositions =
+        Map.copyOf(Objects.requireNonNull(fieldPositions, "fieldPositions must not be null"));
+    fieldPositions.forEach(
+        (field, position) -> {
+          Objects.requireNonNull(field, "fieldPositions must not contain null keys");
+          Objects.requireNonNull(position, "fieldPositions must not contain null values");
+        });
   }
 
   private static Optional<String> requireOptional(Optional<String> value, String name) {
@@ -44,5 +76,9 @@ record FeedTomlEntry(
 
   String path(String field) {
     return "feeds[" + displayIndex() + "]." + field;
+  }
+
+  FeedTomlPosition fieldPosition(String field) {
+    return fieldPositions.getOrDefault(field, tablePosition);
   }
 }

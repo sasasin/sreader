@@ -2,6 +2,7 @@ package net.sasasin.sreader.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -133,7 +134,23 @@ final class FeedTomlSchemaValidator {
 
     feeds.add(
         new FeedTomlEntry(
-            index, url, status, reason, unsubscribedAt, note, method, tablePosition, urlPosition));
+            index,
+            url,
+            status,
+            reason,
+            unsubscribedAt,
+            note,
+            method,
+            tablePosition,
+            urlPosition,
+            fieldPositions(table)));
+  }
+
+  private static Map<String, FeedTomlPosition> fieldPositions(TomlTable table) {
+    return table.keySet().stream()
+        .collect(
+            java.util.stream.Collectors.toUnmodifiableMap(
+                key -> key, key -> positionOf(table, key)));
   }
 
   private Optional<String> optionalUnsubscribedAt(

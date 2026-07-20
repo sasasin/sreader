@@ -30,10 +30,25 @@ final class FeedTomlParser {
   private static FeedTomlIssue toIssue(TomlParseError error, int sequence) {
     TomlPosition position = error.position();
     FeedTomlPosition feedPosition = FeedTomlPosition.of(position.line(), position.column());
-    String message = error.getMessage();
-    if (message == null || message.isBlank()) {
-      message = "TOML syntax error";
+    return FeedTomlIssue.syntax(feedPosition, normalizeMessage(error.getMessage()), sequence);
+  }
+
+  private static String normalizeMessage(String rawMessage) {
+    if (rawMessage == null || rawMessage.isBlank()) {
+      return "invalid TOML syntax";
     }
-    return FeedTomlIssue.syntax(feedPosition, message, sequence);
+    String message = rawMessage.toLowerCase(java.util.Locale.ROOT);
+    if (message.contains("duplicate")
+        || message.contains("defined")
+        || message.contains("already exists")) {
+      return "duplicate TOML key";
+    }
+    if (message.contains("escape")) {
+      return "invalid TOML string escape";
+    }
+    if (message.contains("unterminated")) {
+      return "unterminated TOML string";
+    }
+    return "invalid TOML syntax";
   }
 }

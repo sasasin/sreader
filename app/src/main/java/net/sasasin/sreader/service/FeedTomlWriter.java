@@ -3,6 +3,7 @@ package net.sasasin.sreader.service;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import net.sasasin.sreader.domain.FeedStatus;
 import net.sasasin.sreader.domain.FeedUrl;
@@ -49,13 +50,26 @@ final class FeedTomlWriter {
    * escapes and is therefore not used: canonical export keeps UTF-8 literals for Japanese/emoji.
    */
   static String escapeBasicString(String value) {
-    return value
-        .replace("\\", "\\\\")
-        .replace("\"", "\\\"")
-        .replace("\b", "\\b")
-        .replace("\t", "\\t")
-        .replace("\n", "\\n")
-        .replace("\f", "\\f")
-        .replace("\r", "\\r");
+    StringBuilder escaped = new StringBuilder(value.length());
+    for (int index = 0; index < value.length(); index++) {
+      char character = value.charAt(index);
+      switch (character) {
+        case '\\' -> escaped.append("\\\\");
+        case '"' -> escaped.append("\\\"");
+        case '\b' -> escaped.append("\\b");
+        case '\t' -> escaped.append("\\t");
+        case '\n' -> escaped.append("\\n");
+        case '\f' -> escaped.append("\\f");
+        case '\r' -> escaped.append("\\r");
+        default -> {
+          if (character <= '\u001f') {
+            escaped.append(String.format(Locale.ROOT, "\\u%04X", (int) character));
+          } else {
+            escaped.append(character);
+          }
+        }
+      }
+    }
+    return escaped.toString();
   }
 }

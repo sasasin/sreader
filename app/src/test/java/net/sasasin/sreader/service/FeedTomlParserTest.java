@@ -135,6 +135,8 @@ class FeedTomlParserTest {
             """);
     assertThat(invalidEscape.syntaxIssues()).isNotEmpty();
     assertThat(invalidEscape.syntaxIssues().getFirst().kind()).isEqualTo(FeedTomlIssue.Kind.SYNTAX);
+    assertThat(invalidEscape.syntaxIssues().getFirst().message())
+        .isEqualTo("invalid TOML string escape");
 
     ParsedFeedToml unterminated =
         parser.parse(
@@ -155,6 +157,7 @@ class FeedTomlParserTest {
             schema_version = 1
             """);
     assertThat(duplicate.syntaxIssues()).isNotEmpty();
+    assertThat(duplicate.syntaxIssues().getFirst().message()).isEqualTo("duplicate TOML key");
     assertThatThrownBy(() -> duplicate.syntaxIssues().add(null))
         .isInstanceOf(UnsupportedOperationException.class);
   }

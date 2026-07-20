@@ -146,6 +146,29 @@ class FeedTomlWriterTest {
 
   @Test
   void escapeBasicStringCoversControlCharacters() {
-    assertThat(FeedTomlWriter.escapeBasicString("a\bb\fc")).isEqualTo("a\\bb\\fc");
+    assertThat(FeedTomlWriter.escapeBasicString("a\bb\fc\u0000\u0001\u0007\u000b\u001f"))
+        .isEqualTo("a\\bb\\fc\\u0000\\u0001\\u0007\\u000B\\u001F");
+  }
+
+  @Test
+  void roundTripsAllOtherTomlControlCharacters() {
+    String controls = "\u0000\u0001\u0007\u000b\u001f";
+    String toml =
+        writer.write(
+            List.of(
+                new FeedUrl(
+                    "id",
+                    "https://example.test/feed.xml",
+                    FeedStatus.UNSUBSCRIBED,
+                    UnsubscribeReason.OTHER,
+                    null,
+                    controls,
+                    FullTextMethod.HTTP)),
+            clock);
+
+    assertThat(reader.read(toml))
+        .singleElement()
+        .extracting(FeedTomlService.ImportFeed::note)
+        .isEqualTo(controls);
   }
 }

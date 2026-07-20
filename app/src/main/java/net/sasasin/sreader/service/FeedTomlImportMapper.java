@@ -64,7 +64,7 @@ final class FeedTomlImportMapper {
       } catch (IllegalArgumentException e) {
         issues.add(
             FeedTomlIssue.domain(
-                entry.tablePosition(),
+                entry.fieldPosition("status"),
                 entry.path("status"),
                 entry.path("status") + " must be active or unsubscribed: " + statusValue,
                 issues.size()));
@@ -83,7 +83,7 @@ final class FeedTomlImportMapper {
       } catch (IllegalArgumentException e) {
         issues.add(
             FeedTomlIssue.domain(
-                entry.tablePosition(),
+                entry.fieldPosition("unsubscribe_reason"),
                 entry.path("unsubscribe_reason"),
                 entry.path("unsubscribe_reason") + " is invalid: " + reasonValue,
                 issues.size()));
@@ -148,7 +148,7 @@ final class FeedTomlImportMapper {
     } catch (RuntimeException e) {
       issues.add(
           FeedTomlIssue.domain(
-              entry.tablePosition(),
+              entry.fieldPosition("unsubscribed_at"),
               entry.path("unsubscribed_at"),
               entry.path("unsubscribed_at") + " must be an offset date-time: " + value,
               issues.size()));
@@ -166,7 +166,7 @@ final class FeedTomlImportMapper {
     } catch (IllegalArgumentException e) {
       issues.add(
           FeedTomlIssue.domain(
-              entry.tablePosition(),
+              entry.fieldPosition("full_text_method"),
               entry.path("full_text_method"),
               entry.path("full_text_method") + " is invalid: " + value,
               issues.size()));

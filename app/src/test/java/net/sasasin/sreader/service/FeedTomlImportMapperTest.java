@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import net.sasasin.sreader.domain.FeedStatus;
@@ -134,6 +135,36 @@ class FeedTomlImportMapperTest {
         .anyMatch(m -> m.contains("unsubscribe_reason is invalid"))
         .anyMatch(m -> m.contains("unsubscribed_at must be an offset date-time"))
         .anyMatch(m -> m.contains("full_text_method is invalid"));
+  }
+
+  @Test
+  void reportsDomainErrorsAtTheirFieldPositions() {
+    FeedTomlEntry bad =
+        new FeedTomlEntry(
+            0,
+            Optional.of("https://example.com/feed.xml"),
+            Optional.of("paused"),
+            Optional.of("bad"),
+            Optional.of("not-a-date"),
+            Optional.empty(),
+            Optional.of("bad"),
+            FeedTomlPosition.of(3, 1),
+            FeedTomlPosition.of(4, 1),
+            Map.of(
+                "status", FeedTomlPosition.of(5, 10),
+                "unsubscribe_reason", FeedTomlPosition.of(6, 22),
+                "unsubscribed_at", FeedTomlPosition.of(7, 19),
+                "full_text_method", FeedTomlPosition.of(8, 20)));
+
+    FeedTomlImportMapper.Result result = map(2, bad);
+
+    assertThat(result.issues())
+        .extracting(FeedTomlIssue::position)
+        .containsExactly(
+            FeedTomlPosition.of(5, 10),
+            FeedTomlPosition.of(6, 22),
+            FeedTomlPosition.of(7, 19),
+            FeedTomlPosition.of(8, 20));
   }
 
   @Test
