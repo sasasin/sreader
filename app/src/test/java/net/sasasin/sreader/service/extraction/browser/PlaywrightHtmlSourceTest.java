@@ -131,12 +131,18 @@ class PlaywrightHtmlSourceTest {
   void serializesConcurrentRenders() throws Exception {
     CountDownLatch entered = new CountDownLatch(1);
     CountDownLatch release = new CountDownLatch(1);
+    CountDownLatch secondRenderRequested = new CountDownLatch(1);
+    CountDownLatch secondRendererEntered = new CountDownLatch(1);
     AtomicInteger concurrent = new AtomicInteger();
     AtomicInteger maxConcurrent = new AtomicInteger();
     StandardPlaywrightPageRenderer standard = mock(StandardPlaywrightPageRenderer.class);
     when(standard.render(any()))
         .thenAnswer(
             invocation -> {
+              URI requestedUri = invocation.getArgument(0);
+              if (requestedUri.getPath().equals("/2")) {
+                secondRendererEntered.countDown();
+              }
               concurrent.incrementAndGet();
               maxConcurrent.updateAndGet(v -> Math.max(v, concurrent.get()));
               entered.countDown();
@@ -163,11 +169,14 @@ class PlaywrightHtmlSourceTest {
       assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
       Future<?> second =
           executor.submit(
-              () ->
-                  service.renderPage(
-                      URI.create("https://example.test/2"), PlaywrightRenderMode.STANDARD));
+              () -> {
+                secondRenderRequested.countDown();
+                return service.renderPage(
+                    URI.create("https://example.test/2"), PlaywrightRenderMode.STANDARD);
+              });
       // While first render holds the monitor, second must not enter renderer.
-      Thread.sleep(50);
+      assertThat(secondRenderRequested.await(5, TimeUnit.SECONDS)).isTrue();
+      assertThat(secondRendererEntered.await(100, TimeUnit.MILLISECONDS)).isFalse();
       assertThat(maxConcurrent.get()).isEqualTo(1);
       release.countDown();
       first.get(5, TimeUnit.SECONDS);
