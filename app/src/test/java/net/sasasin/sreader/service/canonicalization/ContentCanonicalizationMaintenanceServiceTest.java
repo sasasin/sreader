@@ -31,9 +31,12 @@ class ContentCanonicalizationMaintenanceServiceTest {
   private final ContentTextFileStore fileStore = mock();
   private final ContentCanonicalizationMaintenanceService service =
       new ContentCanonicalizationMaintenanceService(
-          ArticleUrlCanonicalizerFixtures.configuredFor("canonicalization.test", "/n/"),
-          repository,
-          fileStore);
+          new ContentCanonicalizationCandidateScanner(
+              ArticleUrlCanonicalizerFixtures.configuredFor("canonicalization.test", "/n/"),
+              repository),
+          new ContentCanonicalizationPlanner(),
+          new ContentCanonicalizationExecutor(repository),
+          new ContentCanonicalizationFileCleaner(fileStore));
 
   @Test
   void dryRunPlansSyntheticMergeWithoutChangingDatabaseOrFiles() {
