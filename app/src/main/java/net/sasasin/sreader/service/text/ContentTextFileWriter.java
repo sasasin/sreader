@@ -40,7 +40,9 @@ public class ContentTextFileWriter {
       throw new IllegalArgumentException("Invalid output path: " + outputPath);
     }
 
-    Files.createDirectories(outputDir);
+    if (!Files.isDirectory(outputDir)) {
+      Files.createDirectories(outputDir);
+    }
     Path temp = Files.createTempFile(outputDir, contentHeaderId + "-", ".tmp");
     try {
       Files.writeString(temp, content(target), StandardCharsets.UTF_8);
