@@ -70,6 +70,23 @@ class ContentTextFileWriterTest {
   }
 
   @Test
+  void createsMissingOutputDirectory() throws Exception {
+    Path outputDir = tempDir.resolve("missing");
+    ContentTextFileWriter writer = new ContentTextFileWriter(properties(outputDir));
+    ContentTextFileExportTarget target =
+        new ContentTextFileExportTarget(
+            "cccccccccccccccccccccccccccccccc",
+            "https://example.test/article",
+            "Article title",
+            "dddddddddddddddddddddddddddddddd",
+            "Body text");
+
+    writer.write(target);
+
+    assertThat(outputDir.resolve("cccccccccccccccccccccccccccccccc.txt")).isRegularFile();
+  }
+
+  @Test
   void rejectsInvalidContentHeaderId() {
     ContentTextFileWriter writer = new ContentTextFileWriter(properties(tempDir));
     ContentTextFileExportTarget target =
