@@ -16,7 +16,8 @@
         "/^\\.env\\.example$/"
       ],
       "matchStrings": [
-        "MAVEN_IMAGE=(?<depName>maven):(?<currentValue>[^\\s]+)"
+        "MAVEN_IMAGE=(?<depName>maven):(?<currentValue>[^\\s]+)",
+        "FLYWAY_IMAGE=(?<depName>redgate/flyway):(?<currentValue>[^\\s]+)"
       ],
       "datasourceTemplate": "docker"
     },
