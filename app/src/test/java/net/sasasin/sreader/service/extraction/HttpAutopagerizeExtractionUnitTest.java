@@ -34,14 +34,14 @@ import org.junit.jupiter.api.Test;
 class HttpAutopagerizeExtractionUnitTest {
 
   @Test
-  void catalogExceptionIsLoadDatabaseFailure() {
+  void catalogExceptionIsRuleMatchFailure() {
     AutoPagerizeRuleCatalog catalog = mock(AutoPagerizeRuleCatalog.class);
     when(catalog.getActiveSnapshot()).thenThrow(new AutoPagerizeCatalogException("broken"));
     FullTextExtractionService service = service(catalog, mock(HttpArticlePageSessionFactory.class));
     TextExtractionOutcome.Failed failed =
         (TextExtractionOutcome.Failed)
             service.extract(header("https://example.test/a"), FullTextMethod.HTTP_AUTOPAGERIZE);
-    assertThat(failed.failure().stage()).isEqualTo(FailureStage.LOAD_AUTOPAGERIZE_DATABASE);
+    assertThat(failed.failure().stage()).isEqualTo(FailureStage.MATCH_AUTOPAGERIZE_RULE);
     assertThat(failed.failure().kind()).isEqualTo(FailureKind.UNEXPECTED);
   }
 
@@ -92,6 +92,78 @@ class HttpAutopagerizeExtractionUnitTest {
             service.extract(header("https://example.test/a"), FullTextMethod.HTTP_AUTOPAGERIZE);
     assertThat(failed.failure().stage()).isEqualTo(FailureStage.FETCH_ARTICLE_PAGE);
     assertThat(failed.failure().kind()).isEqualTo(FailureKind.UNEXPECTED);
+  }
+
+  @Test
+  void paginationEngineRuntimeIsRuleMatchFailure() {
+    AutoPagerizeRuleCatalog catalog = mock(AutoPagerizeRuleCatalog.class);
+    when(catalog.getActiveSnapshot())
+        .thenReturn(Optional.of(new AutoPagerizeRuleSnapshot(1L, "a".repeat(64), 1, List.of())));
+    AutoPagerizeEngine engine = mock(AutoPagerizeEngine.class);
+    when(engine.paginate(any(), any(), any(), any())).thenThrow(new IllegalStateException("match"));
+    FullTextExtractionService service =
+        new FullTextExtractionService(
+            mock(ContentHeaderRepository.class),
+            mock(ContentFullTextWriter.class),
+            mock(HtmlTextExtractor.class),
+            mock(PaginatedHtmlTextExtractor.class),
+            mock(HttpFetchService.class),
+            mock(HttpArticlePageSessionFactory.class),
+            catalog,
+            engine,
+            mock(PlaywrightHtmlSource.class),
+            properties());
+
+    TextExtractionOutcome.Failed failed =
+        (TextExtractionOutcome.Failed)
+            service.extract(header("https://example.test/a"), FullTextMethod.HTTP_AUTOPAGERIZE);
+
+    assertThat(failed.failure().stage()).isEqualTo(FailureStage.MATCH_AUTOPAGERIZE_RULE);
+  }
+
+  @Test
+  void paginatedExtractionRuntimeIsTextExtractionFailure() {
+    AutoPagerizeRuleSnapshot snapshot =
+        new AutoPagerizeRuleSnapshot(9L, "b".repeat(64), 1, List.of());
+    AutoPagerizeRuleCatalog catalog = mock(AutoPagerizeRuleCatalog.class);
+    when(catalog.getActiveSnapshot()).thenReturn(Optional.of(snapshot));
+    ArticlePageSession session = mock(ArticlePageSession.class);
+    HttpArticlePageSessionFactory factory = mock(HttpArticlePageSessionFactory.class);
+    when(factory.open()).thenReturn(session);
+    PageSnapshot first =
+        PageSnapshot.ofUtf8(
+            URI.create("https://example.test/a"), URI.create("https://example.test/a"), "<html/>");
+    AutoPagerizeEngine engine = mock(AutoPagerizeEngine.class);
+    when(engine.paginate(any(), any(), any(), any()))
+        .thenReturn(
+            new PaginationResult.Succeeded(
+                first,
+                Optional.empty(),
+                List.of(
+                    net.sasasin.sreader.service.autopagerize.PageSlice.withoutPageElement(
+                        1, first)),
+                PaginationStopReason.NO_MATCHING_RULE));
+    PaginatedHtmlTextExtractor paginated = mock(PaginatedHtmlTextExtractor.class);
+    when(paginated.extract(any(), any(), any())).thenThrow(new IllegalStateException("extract"));
+    FullTextExtractionService service =
+        new FullTextExtractionService(
+            mock(ContentHeaderRepository.class),
+            mock(ContentFullTextWriter.class),
+            mock(HtmlTextExtractor.class),
+            paginated,
+            mock(HttpFetchService.class),
+            factory,
+            catalog,
+            engine,
+            mock(PlaywrightHtmlSource.class),
+            properties());
+
+    TextExtractionOutcome.Failed failed =
+        (TextExtractionOutcome.Failed)
+            service.extract(header("https://example.test/a"), FullTextMethod.HTTP_AUTOPAGERIZE);
+
+    assertThat(failed.failure().stage()).isEqualTo(FailureStage.EXTRACT_TEXT);
+    verify(session).close();
   }
 
   @Test

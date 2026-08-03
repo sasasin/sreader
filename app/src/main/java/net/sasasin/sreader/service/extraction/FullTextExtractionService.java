@@ -250,10 +250,10 @@ public class FullTextExtractionService {
     } catch (AutoPagerizeCatalogException e) {
       return new TextExtractionOutcome.Failed(
           OperationFailure.of(
-              FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+              FailureStage.MATCH_AUTOPAGERIZE_RULE,
               FailureKind.UNEXPECTED,
               header.fetchUrl(),
-              "Failed to load active AutoPagerize dataset: " + e.getMessage(),
+              "Failed to load or compile active AutoPagerize rules: " + e.getMessage(),
               e));
     } catch (RuntimeException e) {
       return new TextExtractionOutcome.Failed(
@@ -279,14 +279,32 @@ public class FullTextExtractionService {
     }
 
     try (ArticlePageSession session = httpArticlePageSessionFactory.open()) {
-      PaginationResult pagination =
-          autoPagerizeEngine.paginate(
-              startUri, session, snapshot, properties.autopagerize().toPaginationPolicy());
-      return switch (pagination) {
-        case PaginationResult.Failed failed -> new TextExtractionOutcome.Failed(failed.failure());
-        case PaginationResult.Succeeded succeeded ->
-            toPaginatedTextOutcome(succeeded, snapshot, extractor);
-      };
+      PaginationResult pagination;
+      try {
+        pagination =
+            autoPagerizeEngine.paginate(
+                startUri, session, snapshot, properties.autopagerize().toPaginationPolicy());
+      } catch (RuntimeException e) {
+        return failedOutcome(
+            header,
+            FailureStage.MATCH_AUTOPAGERIZE_RULE,
+            FailureKind.UNEXPECTED,
+            "HTTP AutoPagerize rule matching failed for " + header.fetchUrl(),
+            e);
+      }
+      if (pagination instanceof PaginationResult.Failed failed) {
+        return new TextExtractionOutcome.Failed(failed.failure());
+      }
+      try {
+        return toPaginatedTextOutcome((PaginationResult.Succeeded) pagination, snapshot, extractor);
+      } catch (RuntimeException e) {
+        return failedOutcome(
+            header,
+            FailureStage.EXTRACT_TEXT,
+            FailureKind.EXTRACTION,
+            "HTTP AutoPagerize text extraction failed for " + header.fetchUrl(),
+            e);
+      }
     } catch (RuntimeException e) {
       return new TextExtractionOutcome.Failed(
           OperationFailure.of(
@@ -299,6 +317,13 @@ public class FullTextExtractionService {
                   + e.getMessage(),
               e));
     }
+  }
+
+  private static TextExtractionOutcome.Failed failedOutcome(
+      ContentHeader header, FailureStage stage, FailureKind kind, String message, Throwable cause) {
+    return new TextExtractionOutcome.Failed(
+        OperationFailure.of(
+            stage, kind, header.fetchUrl(), message + ": " + cause.getMessage(), cause));
   }
 
   private TextExtractionOutcome toPaginatedTextOutcome(
