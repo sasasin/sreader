@@ -68,6 +68,8 @@ class FullTextMethodCatalogArchitectureTest {
     assertThat(UNIQUE_WIRE_LITERALS)
         .contains(
             "http_readability",
+            "http_autopagerize",
+            "http_autopagerize_readability",
             "playwright_readability",
             "playwright_infy_scroll",
             "playwright_infy_scroll_readability");

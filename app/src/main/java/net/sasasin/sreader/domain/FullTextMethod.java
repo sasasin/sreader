@@ -21,9 +21,19 @@ import java.util.stream.Collectors;
 public enum FullTextMethod {
   FEED("feed", new Definition.FeedEntry()),
 
-  HTTP("http", new Definition.HttpArticle(HtmlExtractor.XPATH_OR_BODY_TEXT)),
+  HTTP("http", new Definition.HttpArticle(PaginationMode.NONE, HtmlExtractor.XPATH_OR_BODY_TEXT)),
 
-  HTTP_READABILITY("http_readability", new Definition.HttpArticle(HtmlExtractor.READABILITY)),
+  HTTP_READABILITY(
+      "http_readability",
+      new Definition.HttpArticle(PaginationMode.NONE, HtmlExtractor.READABILITY)),
+
+  HTTP_AUTOPAGERIZE(
+      "http_autopagerize",
+      new Definition.HttpArticle(PaginationMode.AUTOPAGERIZE, HtmlExtractor.XPATH_OR_BODY_TEXT)),
+
+  HTTP_AUTOPAGERIZE_READABILITY(
+      "http_autopagerize_readability",
+      new Definition.HttpArticle(PaginationMode.AUTOPAGERIZE, HtmlExtractor.READABILITY)),
 
   PLAYWRIGHT(
       "playwright",
@@ -131,6 +141,12 @@ public enum FullTextMethod {
     return definition instanceof Definition.PlaywrightArticle;
   }
 
+  /** Whether AutoPagerize multi-page tracking is required. */
+  public boolean usesAutopagerize() {
+    return definition instanceof Definition.HttpArticle http
+        && http.pagination() == PaginationMode.AUTOPAGERIZE;
+  }
+
   public Optional<Definition.ArticleDefinition> articleDefinition() {
     return definition instanceof Definition.ArticleDefinition article
         ? Optional.of(article)
@@ -141,6 +157,12 @@ public enum FullTextMethod {
   public enum HtmlExtractor {
     XPATH_OR_BODY_TEXT,
     READABILITY
+  }
+
+  /** Pagination strategy for article methods. */
+  public enum PaginationMode {
+    NONE,
+    AUTOPAGERIZE
   }
 
   /** Playwright page rendering mode (catalog-owned; browser adapters depend on this). */
@@ -163,9 +185,14 @@ public enum FullTextMethod {
       HtmlExtractor extractor();
     }
 
-    /** HTTP fetch of the article URL, then HTML extraction. */
-    record HttpArticle(HtmlExtractor extractor) implements ArticleDefinition {
+    /**
+     * HTTP fetch of the article URL, then HTML extraction. {@link PaginationMode#AUTOPAGERIZE}
+     * tracks multi-page chains through a cookie-isolated session.
+     */
+    record HttpArticle(PaginationMode pagination, HtmlExtractor extractor)
+        implements ArticleDefinition {
       public HttpArticle {
+        Objects.requireNonNull(pagination, "pagination must not be null");
         Objects.requireNonNull(extractor, "extractor must not be null");
       }
     }
