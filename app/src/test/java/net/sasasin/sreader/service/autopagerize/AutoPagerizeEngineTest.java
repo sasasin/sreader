@@ -305,6 +305,22 @@ class AutoPagerizeEngineTest {
   }
 
   @Test
+  void detectsRedirectBackToPreviouslyVisitedFinalUri() {
+    URI p1 = URI.create("https://example.com/a/1");
+    URI p2 = URI.create("https://example.com/a/2");
+    FakeArticlePageSession session =
+        new FakeArticlePageSession()
+            .put(p1, pageHtml("one", p2.toString()))
+            .put(p2, p1, pageHtml("different content", null));
+
+    PaginationResult.Failed failed =
+        assertFailed(
+            engine.paginate(p1, session, snapshot(defaultRule()), PaginationPolicy.defaults()),
+            PaginationStopReason.URL_LOOP);
+    assertThat(failed.completedPages()).hasSize(1);
+  }
+
+  @Test
   void failsOnUnsupportedScheme() {
     URI p1 = URI.create("https://example.com/a/1");
     FakeArticlePageSession session =
@@ -391,6 +407,46 @@ class AutoPagerizeEngineTest {
           clock.advance(Duration.ofSeconds(2));
           return snap;
         };
+    assertFailed(
+        engine.paginate(p1, delaying, snapshot(defaultRule()), policy),
+        PaginationStopReason.TIMEOUT);
+  }
+
+  @Test
+  void failsWhenFirstPageLoadExceedsTotalTimeoutEvenWithoutMatchingRule() {
+    URI p1 = URI.create("https://example.com/a/1");
+    FakeArticlePageSession session = new FakeArticlePageSession().put(p1, pageHtml("one", null));
+    ArticlePageSession delaying =
+        uri -> {
+          PageSnapshot snapshot = session.load(uri);
+          clock.advance(Duration.ofSeconds(2));
+          return snapshot;
+        };
+    PaginationPolicy policy =
+        new PaginationPolicy(10, 5_000_000, 20_000_000, Duration.ofSeconds(1), true);
+
+    assertFailed(engine.paginate(p1, delaying, snapshot(), policy), PaginationStopReason.TIMEOUT);
+  }
+
+  @Test
+  void failsWhenLastPageLoadExceedsTotalTimeout() {
+    URI p1 = URI.create("https://example.com/a/1");
+    URI p2 = URI.create("https://example.com/a/2");
+    FakeArticlePageSession session =
+        new FakeArticlePageSession()
+            .put(p1, pageHtml("one", p2.toString()))
+            .put(p2, pageHtml("two", null));
+    ArticlePageSession delaying =
+        uri -> {
+          PageSnapshot snapshot = session.load(uri);
+          if (uri.equals(p2)) {
+            clock.advance(Duration.ofSeconds(2));
+          }
+          return snapshot;
+        };
+    PaginationPolicy policy =
+        new PaginationPolicy(10, 5_000_000, 20_000_000, Duration.ofSeconds(1), true);
+
     assertFailed(
         engine.paginate(p1, delaying, snapshot(defaultRule()), policy),
         PaginationStopReason.TIMEOUT);

@@ -72,6 +72,19 @@ public class AutoPagerizeEngine {
           e);
     }
 
+    if (timedOut(deadline)) {
+      return new PaginationResult.Failed(
+          Optional.of(firstPage),
+          Optional.empty(),
+          List.of(),
+          PaginationStopReason.TIMEOUT,
+          OperationFailure.of(
+              FailureStage.FETCH_ARTICLE,
+              FailureKind.IO,
+              firstPage.finalUri().toString(),
+              "Pagination timed out after loading the first page"));
+    }
+
     long totalBytes = firstPage.byteSize();
     Optional<OperationFailure> sizeFailure = checkPageSize(firstPage, totalBytes, policy);
     if (sizeFailure.isPresent()) {
@@ -277,6 +290,16 @@ public class AutoPagerizeEngine {
             e);
       }
 
+      if (timedOut(deadline)) {
+        return fail(
+            firstPage,
+            rule,
+            pages,
+            PaginationStopReason.TIMEOUT,
+            FailureKind.IO,
+            "Pagination timed out after loading page " + (pageNumber + 1));
+      }
+
       totalBytes += nextPage.byteSize();
       Optional<OperationFailure> nextSizeFailure = checkPageSize(nextPage, totalBytes, policy);
       if (nextSizeFailure.isPresent()) {
@@ -299,6 +322,16 @@ public class AutoPagerizeEngine {
             "Redirect final URI left the allowed origin: " + nextPage.finalUri());
       }
 
+      if (isVisited(visited, nextPage)) {
+        return fail(
+            firstPage,
+            rule,
+            pages,
+            PaginationStopReason.URL_LOOP,
+            FailureKind.INVALID_INPUT,
+            "URL loop detected after redirect to: " + nextPage.finalUri());
+      }
+
       markVisited(visited, nextPage);
       current = nextPage;
     }
@@ -315,6 +348,11 @@ public class AutoPagerizeEngine {
   private static void markVisited(Set<URI> visited, PageSnapshot page) {
     visited.add(PaginationUriSupport.forVisitedComparison(page.requestedUri()));
     visited.add(PaginationUriSupport.forVisitedComparison(page.finalUri()));
+  }
+
+  private static boolean isVisited(Set<URI> visited, PageSnapshot page) {
+    return visited.contains(PaginationUriSupport.forVisitedComparison(page.requestedUri()))
+        || visited.contains(PaginationUriSupport.forVisitedComparison(page.finalUri()));
   }
 
   private static Optional<OperationFailure> checkPageSize(
