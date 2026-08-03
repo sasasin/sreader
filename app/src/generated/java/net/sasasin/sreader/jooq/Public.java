@@ -7,6 +7,10 @@ package net.sasasin.sreader.jooq;
 import java.util.Arrays;
 import java.util.List;
 
+import net.sasasin.sreader.jooq.tables.AutopagerizeDataset;
+import net.sasasin.sreader.jooq.tables.AutopagerizeRule;
+import net.sasasin.sreader.jooq.tables.AutopagerizeRuleRejection;
+import net.sasasin.sreader.jooq.tables.AutopagerizeState;
 import net.sasasin.sreader.jooq.tables.ContentFullText;
 import net.sasasin.sreader.jooq.tables.ContentHeader;
 import net.sasasin.sreader.jooq.tables.ContentTextFileExport;
@@ -31,6 +35,26 @@ public class Public extends SchemaImpl {
      * The reference instance of <code>public</code>
      */
     public static final Public PUBLIC = new Public();
+
+    /**
+     * The table <code>public.autopagerize_dataset</code>.
+     */
+    public final AutopagerizeDataset AUTOPAGERIZE_DATASET = AutopagerizeDataset.AUTOPAGERIZE_DATASET;
+
+    /**
+     * The table <code>public.autopagerize_rule</code>.
+     */
+    public final AutopagerizeRule AUTOPAGERIZE_RULE = AutopagerizeRule.AUTOPAGERIZE_RULE;
+
+    /**
+     * The table <code>public.autopagerize_rule_rejection</code>.
+     */
+    public final AutopagerizeRuleRejection AUTOPAGERIZE_RULE_REJECTION = AutopagerizeRuleRejection.AUTOPAGERIZE_RULE_REJECTION;
+
+    /**
+     * The table <code>public.autopagerize_state</code>.
+     */
+    public final AutopagerizeState AUTOPAGERIZE_STATE = AutopagerizeState.AUTOPAGERIZE_STATE;
 
     /**
      * The table <code>public.content_full_text</code>.
@@ -73,6 +97,10 @@ public class Public extends SchemaImpl {
     @Override
     public final List<Table<?>> getTables() {
         return Arrays.asList(
+            AutopagerizeDataset.AUTOPAGERIZE_DATASET,
+            AutopagerizeRule.AUTOPAGERIZE_RULE,
+            AutopagerizeRuleRejection.AUTOPAGERIZE_RULE_REJECTION,
+            AutopagerizeState.AUTOPAGERIZE_STATE,
             ContentFullText.CONTENT_FULL_TEXT,
             ContentHeader.CONTENT_HEADER,
             ContentTextFileExport.CONTENT_TEXT_FILE_EXPORT,
