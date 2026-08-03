@@ -16,6 +16,7 @@ import picocli.CommandLine.Command;
       FeedsCommand.class,
       ContentCommand.class,
       ProbeCommand.class,
+      AutopagerizeCommand.class,
       RunOnceCommand.class,
     },
     usageHelpWidth = 100)
