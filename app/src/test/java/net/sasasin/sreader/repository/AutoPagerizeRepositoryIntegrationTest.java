@@ -20,6 +20,7 @@ import net.sasasin.sreader.domain.AutoPagerizeRule;
 import net.sasasin.sreader.domain.AutoPagerizeRuleCounts;
 import net.sasasin.sreader.domain.AutoPagerizeRuleRejection;
 import org.jooq.DSLContext;
+import org.jooq.JSONB;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -140,6 +141,30 @@ class AutoPagerizeRepositoryIntegrationTest {
     assertThat(counts.acceptedRuleCount()).isEqualTo(1);
     assertThat(counts.rejectedRuleCount()).isEqualTo(1);
     assertThat(counts.total()).isEqualTo(2);
+  }
+
+  @Test
+  void rejectionErrorsMustBeJsonArrayOrObject() {
+    long datasetId =
+        datasetRepository.insert(
+            new AutoPagerizeDatasetCreate(
+                AutoPagerizeFormats.WEDATA_AUTOPAGERIZE_ITEMS_ALL, null, null, SHA_A, 1, 1, 0, 1));
+
+    assertThatThrownBy(
+            () ->
+                dsl.insertInto(
+                        AUTOPAGERIZE_RULE_REJECTION,
+                        AUTOPAGERIZE_RULE_REJECTION.DATASET_ID,
+                        AUTOPAGERIZE_RULE_REJECTION.ORDINAL,
+                        AUTOPAGERIZE_RULE_REJECTION.RAW_ITEM,
+                        AUTOPAGERIZE_RULE_REJECTION.ERRORS)
+                    .values(
+                        datasetId,
+                        0,
+                        JSONB.valueOf("{\"name\":\"bad\"}"),
+                        JSONB.valueOf("\"not-structured\""))
+                    .execute())
+        .isInstanceOf(DataIntegrityViolationException.class);
   }
 
   @Test

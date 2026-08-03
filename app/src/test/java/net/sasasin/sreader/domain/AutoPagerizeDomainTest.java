@@ -277,6 +277,10 @@ class AutoPagerizeDomainTest {
     assertThatThrownBy(() -> new AutoPagerizeRuleRejection(1L, 0, null, "{}", " "))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("errorsJson");
+
+    assertThatThrownBy(() -> new AutoPagerizeRuleRejection(1L, 0, null, "{}", "\"not-structured\""))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("JSON array or object");
   }
 
   @Test

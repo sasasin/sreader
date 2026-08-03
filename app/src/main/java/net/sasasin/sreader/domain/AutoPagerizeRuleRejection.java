@@ -21,5 +21,14 @@ public record AutoPagerizeRuleRejection(
     if (errorsJson.isBlank()) {
       throw new IllegalArgumentException("errorsJson must not be blank");
     }
+    if (!isJsonArrayOrObject(errorsJson)) {
+      throw new IllegalArgumentException("errorsJson must be a JSON array or object");
+    }
+  }
+
+  private static boolean isJsonArrayOrObject(String json) {
+    String trimmed = json.trim();
+    return (trimmed.startsWith("[") && trimmed.endsWith("]"))
+        || (trimmed.startsWith("{") && trimmed.endsWith("}"));
   }
 }
