@@ -216,6 +216,32 @@ class AutoPagerizeJsonParserTest {
   }
 
   @Test
+  void rejectsTrailingJsonValues() {
+    byte[] json =
+        "[{\"data\":{\"url\":\"^https://example/\",\"nextLink\":\"//a\",\"pageElement\":\"//div\"}}] {}"
+            .getBytes(StandardCharsets.UTF_8);
+
+    assertThatThrownBy(() -> parser.parseArray(json))
+        .isInstanceOf(AutoPagerizeImportException.class)
+        .hasMessageContaining("JSON");
+  }
+
+  @Test
+  void rejectsNonStringRequiredFields() {
+    byte[] json =
+        "[{\"data\":{\"url\":true,\"nextLink\":123,\"pageElement\":{}}}]"
+            .getBytes(StandardCharsets.UTF_8);
+
+    AutoPagerizeParsedItem item = parser.parseArray(json).get(0);
+
+    assertThat(item.accepted()).isFalse();
+    assertThat(item.errors())
+        .extracting(AutoPagerizeIssue::code)
+        .containsExactlyInAnyOrder(
+            "INVALID_URL_TYPE", "INVALID_NEXTLINK_TYPE", "INVALID_PAGEELEMENT_TYPE");
+  }
+
+  @Test
   void emptyOptionalTimestampFieldsAreIgnored() {
     byte[] json =
         """

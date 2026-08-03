@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -27,7 +28,8 @@ public class AutoPagerizeJsonParser {
   public AutoPagerizeJsonParser(
       AutoPagerizeUrlPatternCompiler urlPatternCompiler,
       AutoPagerizeXPathSyntaxChecker xpathSyntaxChecker) {
-    this.jsonMapper = JsonMapper.shared();
+    this.jsonMapper =
+        JsonMapper.builder().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();
     this.urlPatternCompiler = urlPatternCompiler;
     this.xpathSyntaxChecker = xpathSyntaxChecker;
   }
@@ -190,6 +192,13 @@ public class AutoPagerizeJsonParser {
 
   private static String requiredText(
       JsonNode node, String fieldName, List<AutoPagerizeIssue> errors) {
+    if (node != null && !node.isNull() && !node.isMissingNode() && !node.isTextual()) {
+      errors.add(
+          new AutoPagerizeIssue(
+              "INVALID_" + fieldName.toUpperCase() + "_TYPE",
+              "data." + fieldName + " must be a JSON string"));
+      return null;
+    }
     String value = textOrNull(node);
     if (value == null || value.isBlank()) {
       errors.add(
