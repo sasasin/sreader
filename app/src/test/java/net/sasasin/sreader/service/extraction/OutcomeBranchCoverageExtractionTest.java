@@ -19,7 +19,10 @@ import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.domain.PendingFullTextTarget;
 import net.sasasin.sreader.repository.ContentHeaderRepository;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeEngine;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleCatalog;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
+import net.sasasin.sreader.service.http.HttpArticlePageSessionFactory;
 import net.sasasin.sreader.service.http.HttpFetchService;
 import net.sasasin.sreader.service.outcome.BatchStopReason;
 import net.sasasin.sreader.service.outcome.FailureKind;
@@ -127,7 +130,11 @@ class OutcomeBranchCoverageExtractionTest {
                 repository,
                 writer,
                 extractor,
+                mock(PaginatedHtmlTextExtractor.class),
                 http,
+                mock(HttpArticlePageSessionFactory.class),
+                mock(AutoPagerizeRuleCatalog.class),
+                mock(AutoPagerizeEngine.class),
                 mock(PlaywrightHtmlSource.class),
                 properties(true))
             .extractPending(10);
@@ -168,7 +175,11 @@ class OutcomeBranchCoverageExtractionTest {
                 repository,
                 writer,
                 extractor,
+                mock(PaginatedHtmlTextExtractor.class),
                 http,
+                mock(HttpArticlePageSessionFactory.class),
+                mock(AutoPagerizeRuleCatalog.class),
+                mock(AutoPagerizeEngine.class),
                 mock(PlaywrightHtmlSource.class),
                 properties(true))
             .extractPending(5);
@@ -190,7 +201,11 @@ class OutcomeBranchCoverageExtractionTest {
                 repository,
                 mock(ContentFullTextWriter.class),
                 mock(HtmlTextExtractor.class),
+                mock(PaginatedHtmlTextExtractor.class),
                 mock(HttpFetchService.class),
+                mock(HttpArticlePageSessionFactory.class),
+                mock(AutoPagerizeRuleCatalog.class),
+                mock(AutoPagerizeEngine.class),
                 mock(PlaywrightHtmlSource.class),
                 properties(true))
             .extractPending(10);
@@ -257,7 +272,11 @@ class OutcomeBranchCoverageExtractionTest {
         mock(ContentHeaderRepository.class),
         mock(ContentFullTextWriter.class),
         extractor,
+        mock(PaginatedHtmlTextExtractor.class),
         http,
+        mock(HttpArticlePageSessionFactory.class),
+        mock(AutoPagerizeRuleCatalog.class),
+        mock(AutoPagerizeEngine.class),
         playwright,
         properties(playwrightEnabled));
   }

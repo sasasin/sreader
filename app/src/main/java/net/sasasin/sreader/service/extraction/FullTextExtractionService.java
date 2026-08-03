@@ -9,9 +9,18 @@ import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.domain.FullTextMethod.Definition;
 import net.sasasin.sreader.domain.FullTextMethod.HtmlExtractor;
+import net.sasasin.sreader.domain.FullTextMethod.PaginationMode;
 import net.sasasin.sreader.domain.PendingFullTextTarget;
 import net.sasasin.sreader.repository.ContentHeaderRepository;
+import net.sasasin.sreader.service.autopagerize.ArticlePageSession;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeCatalogException;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeEngine;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleCatalog;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleSnapshot;
+import net.sasasin.sreader.service.autopagerize.CompiledAutoPagerizeRule;
+import net.sasasin.sreader.service.autopagerize.PaginationResult;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
+import net.sasasin.sreader.service.http.HttpArticlePageSessionFactory;
 import net.sasasin.sreader.service.http.HttpFetchService;
 import net.sasasin.sreader.service.outcome.BatchStopReason;
 import net.sasasin.sreader.service.outcome.FailureKind;
@@ -30,7 +39,11 @@ public class FullTextExtractionService {
   private final ContentHeaderRepository contentHeaderRepository;
   private final ContentFullTextWriter contentFullTextWriter;
   private final HtmlTextExtractor htmlTextExtractor;
+  private final PaginatedHtmlTextExtractor paginatedHtmlTextExtractor;
   private final HttpFetchService httpFetchService;
+  private final HttpArticlePageSessionFactory httpArticlePageSessionFactory;
+  private final AutoPagerizeRuleCatalog autoPagerizeRuleCatalog;
+  private final AutoPagerizeEngine autoPagerizeEngine;
   private final PlaywrightHtmlSource playwrightHtmlSource;
   private final FeedReaderProperties properties;
 
@@ -38,13 +51,21 @@ public class FullTextExtractionService {
       ContentHeaderRepository contentHeaderRepository,
       ContentFullTextWriter contentFullTextWriter,
       HtmlTextExtractor htmlTextExtractor,
+      PaginatedHtmlTextExtractor paginatedHtmlTextExtractor,
       HttpFetchService httpFetchService,
+      HttpArticlePageSessionFactory httpArticlePageSessionFactory,
+      AutoPagerizeRuleCatalog autoPagerizeRuleCatalog,
+      AutoPagerizeEngine autoPagerizeEngine,
       PlaywrightHtmlSource playwrightHtmlSource,
       FeedReaderProperties properties) {
     this.contentHeaderRepository = contentHeaderRepository;
     this.contentFullTextWriter = contentFullTextWriter;
     this.htmlTextExtractor = htmlTextExtractor;
+    this.paginatedHtmlTextExtractor = paginatedHtmlTextExtractor;
     this.httpFetchService = httpFetchService;
+    this.httpArticlePageSessionFactory = httpArticlePageSessionFactory;
+    this.autoPagerizeRuleCatalog = autoPagerizeRuleCatalog;
+    this.autoPagerizeEngine = autoPagerizeEngine;
     this.playwrightHtmlSource = playwrightHtmlSource;
     this.properties = properties;
   }
@@ -147,7 +168,7 @@ public class FullTextExtractionService {
   public TextExtractionOutcome extract(ContentHeader header, FullTextMethod method) {
     return switch (method.definition()) {
       case Definition.FeedEntry ignored -> extractFromFeed(header);
-      case Definition.HttpArticle http -> extractFromHttp(header, http.extractor());
+      case Definition.HttpArticle http -> extractFromHttp(header, http);
       case Definition.PlaywrightArticle playwright -> extractFromPlaywright(header, playwright);
     };
   }
@@ -166,7 +187,15 @@ public class FullTextExtractionService {
     return new TextExtractionOutcome.Extracted(text, ExtractionDecision.of(ExtractionSource.FEED));
   }
 
-  private TextExtractionOutcome extractFromHttp(ContentHeader header, HtmlExtractor extractor) {
+  private TextExtractionOutcome extractFromHttp(ContentHeader header, Definition.HttpArticle http) {
+    if (http.pagination() == PaginationMode.AUTOPAGERIZE) {
+      return extractFromHttpAutopagerize(header, http.extractor());
+    }
+    return extractFromHttpSinglePage(header, http.extractor());
+  }
+
+  private TextExtractionOutcome extractFromHttpSinglePage(
+      ContentHeader header, HtmlExtractor extractor) {
     try {
       HttpFetchService.FetchedResource resource =
           httpFetchService.get(URI.create(header.fetchUrl()));
@@ -193,6 +222,108 @@ public class FullTextExtractionService {
               "Article fetch failed for " + header.fetchUrl() + ": " + e.getMessage(),
               e));
     }
+  }
+
+  /**
+   * HTTP AutoPagerize path: load active rule snapshot once per article, paginate in a cookie
+   * isolated session, then extract text. Failures never produce partial success text.
+   */
+  private TextExtractionOutcome extractFromHttpAutopagerize(
+      ContentHeader header, HtmlExtractor extractor) {
+    final AutoPagerizeRuleSnapshot snapshot;
+    try {
+      Optional<AutoPagerizeRuleSnapshot> active = autoPagerizeRuleCatalog.getActiveSnapshot();
+      if (active.isEmpty()) {
+        return new TextExtractionOutcome.Failed(
+            OperationFailure.of(
+                FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+                FailureKind.INVALID_INPUT,
+                header.fetchUrl(),
+                "No active AutoPagerize dataset; import and activate a local SITEINFO JSON first"));
+      }
+      snapshot = active.get();
+    } catch (AutoPagerizeCatalogException e) {
+      return new TextExtractionOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+              FailureKind.UNEXPECTED,
+              header.fetchUrl(),
+              "Failed to load active AutoPagerize dataset: " + e.getMessage(),
+              e));
+    } catch (RuntimeException e) {
+      return new TextExtractionOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+              FailureKind.UNEXPECTED,
+              header.fetchUrl(),
+              "Failed to load active AutoPagerize dataset: " + e.getMessage(),
+              e));
+    }
+
+    URI startUri;
+    try {
+      startUri = URI.create(header.fetchUrl());
+    } catch (IllegalArgumentException e) {
+      return new TextExtractionOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.FETCH_ARTICLE_PAGE,
+              FailureKind.INVALID_INPUT,
+              header.fetchUrl(),
+              "Invalid article fetch URL: " + header.fetchUrl(),
+              e));
+    }
+
+    try (ArticlePageSession session = httpArticlePageSessionFactory.open()) {
+      PaginationResult pagination =
+          autoPagerizeEngine.paginate(
+              startUri, session, snapshot, properties.autopagerize().toPaginationPolicy());
+      return switch (pagination) {
+        case PaginationResult.Failed failed -> new TextExtractionOutcome.Failed(failed.failure());
+        case PaginationResult.Succeeded succeeded ->
+            toPaginatedTextOutcome(succeeded, snapshot, extractor);
+      };
+    } catch (RuntimeException e) {
+      return new TextExtractionOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.FETCH_ARTICLE_PAGE,
+              FailureKind.UNEXPECTED,
+              header.fetchUrl(),
+              "HTTP AutoPagerize extraction failed for "
+                  + header.fetchUrl()
+                  + ": "
+                  + e.getMessage(),
+              e));
+    }
+  }
+
+  private TextExtractionOutcome toPaginatedTextOutcome(
+      PaginationResult.Succeeded pagination,
+      AutoPagerizeRuleSnapshot snapshot,
+      HtmlExtractor extractor) {
+    PaginatedExtractionResult result =
+        paginatedHtmlTextExtractor.extract(pagination, extractor, Optional.empty());
+    PaginationMetadata metadata = paginationMetadata(pagination, snapshot, result.contributions());
+    return switch (result.outcome()) {
+      case TextExtractionOutcome.Extracted extracted -> extracted.withPagination(metadata);
+      case TextExtractionOutcome.NoContent noContent -> noContent;
+      case TextExtractionOutcome.Skipped skipped -> skipped;
+      case TextExtractionOutcome.Failed failed -> failed;
+    };
+  }
+
+  private static PaginationMetadata paginationMetadata(
+      PaginationResult.Succeeded pagination,
+      AutoPagerizeRuleSnapshot snapshot,
+      List<PageTextContribution> contributions) {
+    Optional<CompiledAutoPagerizeRule> rule = pagination.matchedRule();
+    return PaginationMetadata.of(
+        snapshot.datasetId(),
+        rule.map(CompiledAutoPagerizeRule::ordinal),
+        rule.map(CompiledAutoPagerizeRule::name),
+        pagination.pages().size(),
+        pagination.stopReason(),
+        true,
+        contributions);
   }
 
   private TextExtractionOutcome extractFromPlaywright(
