@@ -48,6 +48,9 @@ class ManagedCollaboratorConstructionTest {
                   "buildCollaborators(")),
           new Guard(
               "http/HttpFetchService.java", List.of("HttpClient.newBuilder(", "createClient(")),
+          new Guard(
+              "http/HttpArticlePageSession.java",
+              List.of("HttpClient.newBuilder(", "CookieManager(")),
           new Guard("extraction/HtmlTextExtractor.java", List.of("new Readability4JExtended(")));
 
   @Test
