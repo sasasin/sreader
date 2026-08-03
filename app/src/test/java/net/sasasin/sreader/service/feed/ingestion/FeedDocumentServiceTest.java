@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.net.URI;
 import net.sasasin.sreader.service.http.HttpFetchService;
+import net.sasasin.sreader.service.http.HttpStatusException;
 import net.sasasin.sreader.service.outcome.FailureKind;
 import net.sasasin.sreader.service.outcome.FailureStage;
 import org.junit.jupiter.api.AfterEach;
@@ -70,7 +71,7 @@ class FeedDocumentServiceTest {
 
   @Test
   void fetchHttpStatusFailureIsFailedWithHttpStatusKind() throws Exception {
-    IOException cause = new IOException("GET " + feedUrl + " returned HTTP 503");
+    IOException cause = new HttpStatusException(feedUrl, 503);
     when(http.get(feedUrl)).thenThrow(cause);
 
     FeedDocumentOutcome.Failed failed = (FeedDocumentOutcome.Failed) service.fetch(feedUrl);

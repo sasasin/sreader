@@ -16,15 +16,20 @@ class HttpDependencyWiringTest {
 
   @Autowired private ApplicationContext context;
   @Autowired private HttpFetchService service;
+  @Autowired private HttpTransport transport;
+  @Autowired private HttpArticlePageSessionFactory sessionFactory;
   @Autowired private HttpClient client;
   @Autowired private FeedReaderProperties properties;
 
   @Test
-  void serviceUsesManagedHttpClientBean() {
+  void serviceUsesManagedHttpClientBeanAndSharedTransport() {
     assertThat(context.getBeansOfType(HttpClient.class)).hasSize(1);
     assertThat(context.getBeansOfType(HttpFetchService.class)).hasSize(1);
+    assertThat(context.getBeansOfType(HttpTransport.class)).hasSize(1);
+    assertThat(context.getBeansOfType(HttpArticlePageSessionFactory.class)).hasSize(1);
     assertThat(ReflectionTestUtils.getField(service, "client")).isSameAs(client);
-    assertThat(ReflectionTestUtils.getField(service, "properties")).isSameAs(properties);
+    assertThat(ReflectionTestUtils.getField(service, "transport")).isSameAs(transport);
+    assertThat(ReflectionTestUtils.getField(sessionFactory, "transport")).isSameAs(transport);
   }
 
   @Test

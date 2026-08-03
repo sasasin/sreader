@@ -9,6 +9,7 @@ import net.sasasin.sreader.domain.FullTextMethod.Definition;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
 import net.sasasin.sreader.service.extraction.browser.RenderedPage;
 import net.sasasin.sreader.service.http.HttpFetchService;
+import net.sasasin.sreader.service.http.HttpStatusException;
 import net.sasasin.sreader.service.outcome.FailureKind;
 import net.sasasin.sreader.service.outcome.FailureStage;
 import net.sasasin.sreader.service.outcome.OperationFailure;
@@ -80,15 +81,19 @@ final class ProbeDocumentFetcher {
               subject,
               "HTTP fetch interrupted for " + subject,
               e));
-    } catch (IOException e) {
-      FailureKind kind =
-          e.getMessage() != null && e.getMessage().contains(" returned HTTP ")
-              ? FailureKind.HTTP_STATUS
-              : FailureKind.IO;
+    } catch (HttpStatusException e) {
       return new FetchOutcome.Failed(
           OperationFailure.of(
               FailureStage.FETCH_ARTICLE,
-              kind,
+              FailureKind.HTTP_STATUS,
+              subject,
+              "HTTP fetch failed for " + subject + ": " + e.getMessage(),
+              e));
+    } catch (IOException e) {
+      return new FetchOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.FETCH_ARTICLE,
+              FailureKind.IO,
               subject,
               "HTTP fetch failed for " + subject + ": " + e.getMessage(),
               e));

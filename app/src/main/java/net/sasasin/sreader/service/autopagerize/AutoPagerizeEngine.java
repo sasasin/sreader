@@ -55,7 +55,7 @@ public class AutoPagerizeEngine {
     try {
       firstPage = session.load(startUri);
     } catch (PageLoadException e) {
-      if (isInterruptedCause(e)) {
+      if (isInterruptedCause(e) || e.kind() == FailureKind.INTERRUPTED) {
         Thread.currentThread().interrupt();
         return failNoPage(
             startUri,
@@ -67,7 +67,7 @@ public class AutoPagerizeEngine {
       return failNoPage(
           startUri,
           PaginationStopReason.FETCH_FAILED,
-          FailureKind.IO,
+          e.kind(),
           "Failed to load first page: " + message(e),
           e);
     }
@@ -79,7 +79,7 @@ public class AutoPagerizeEngine {
           List.of(),
           PaginationStopReason.TIMEOUT,
           OperationFailure.of(
-              FailureStage.FETCH_ARTICLE,
+              FailureStage.FETCH_ARTICLE_PAGE,
               FailureKind.IO,
               firstPage.finalUri().toString(),
               "Pagination timed out after loading the first page"));
@@ -276,7 +276,7 @@ public class AutoPagerizeEngine {
       try {
         nextPage = session.load(next);
       } catch (PageLoadException e) {
-        if (isInterruptedCause(e)) {
+        if (isInterruptedCause(e) || e.kind() == FailureKind.INTERRUPTED) {
           Thread.currentThread().interrupt();
           return fail(
               firstPage,
@@ -292,7 +292,7 @@ public class AutoPagerizeEngine {
             rule,
             pages,
             PaginationStopReason.FETCH_FAILED,
-            FailureKind.IO,
+            e.kind(),
             "Failed to load page " + (pageNumber + 1) + ": " + message(e),
             e);
       }
@@ -367,7 +367,7 @@ public class AutoPagerizeEngine {
     if (page.byteSize() > policy.maxPageBytes()) {
       return Optional.of(
           OperationFailure.of(
-              FailureStage.FETCH_ARTICLE,
+              FailureStage.FETCH_ARTICLE_PAGE,
               FailureKind.INVALID_INPUT,
               page.finalUri().toString(),
               "Page byte size "
@@ -378,7 +378,7 @@ public class AutoPagerizeEngine {
     if (totalBytes > policy.maxTotalBytes()) {
       return Optional.of(
           OperationFailure.of(
-              FailureStage.FETCH_ARTICLE,
+              FailureStage.FETCH_ARTICLE_PAGE,
               FailureKind.INVALID_INPUT,
               page.finalUri().toString(),
               "Total byte size "
@@ -424,11 +424,11 @@ public class AutoPagerizeEngine {
       FailureKind kind,
       String message,
       Throwable cause) {
+    FailureStage stage = stageFor(reason);
     OperationFailure failure =
         cause == null
-            ? OperationFailure.of(FailureStage.FETCH_ARTICLE, kind, startUri.toString(), message)
-            : OperationFailure.of(
-                FailureStage.FETCH_ARTICLE, kind, startUri.toString(), message, cause);
+            ? OperationFailure.of(stage, kind, startUri.toString(), message)
+            : OperationFailure.of(stage, kind, startUri.toString(), message, cause);
     return new PaginationResult.Failed(
         Optional.empty(), Optional.empty(), List.of(), reason, failure);
   }
@@ -451,15 +451,29 @@ public class AutoPagerizeEngine {
       FailureKind kind,
       String message,
       Throwable cause) {
-    FailureStage stage =
-        reason == PaginationStopReason.FETCH_FAILED
-            ? FailureStage.FETCH_ARTICLE
-            : FailureStage.EXTRACT_TEXT;
+    FailureStage stage = stageFor(reason);
     OperationFailure failure =
         cause == null
             ? OperationFailure.of(stage, kind, firstPage.finalUri().toString(), message)
             : OperationFailure.of(stage, kind, firstPage.finalUri().toString(), message, cause);
     return new PaginationResult.Failed(
         Optional.of(firstPage), Optional.of(rule), pages, reason, failure);
+  }
+
+  private static FailureStage stageFor(PaginationStopReason reason) {
+    return switch (reason) {
+      case FETCH_FAILED, TIMEOUT, INTERRUPTED, MAX_PAGE_BYTES, MAX_TOTAL_BYTES ->
+          FailureStage.FETCH_ARTICLE_PAGE;
+      case PAGE_ELEMENT_MISSING,
+          INVALID_NEXT_URI,
+          UNSUPPORTED_SCHEME,
+          OFF_ORIGIN,
+          REDIRECT_OFF_ORIGIN,
+          URL_LOOP,
+          CONTENT_LOOP,
+          MAX_PAGES ->
+          FailureStage.ANALYZE_PAGINATION;
+      case NO_MATCHING_RULE, NO_NEXT_LINK -> FailureStage.EXTRACT_TEXT;
+    };
   }
 }

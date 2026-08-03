@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.stream.Stream;
 import net.sasasin.sreader.domain.FullTextMethod.Definition;
 import net.sasasin.sreader.domain.FullTextMethod.HtmlExtractor;
+import net.sasasin.sreader.domain.FullTextMethod.PaginationMode;
 import net.sasasin.sreader.domain.FullTextMethod.PlaywrightMode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -24,6 +25,8 @@ class FullTextMethodTest {
             "feed",
             "http",
             "http_readability",
+            "http_autopagerize",
+            "http_autopagerize_readability",
             "playwright",
             "playwright_readability",
             "playwright_infy_scroll",
@@ -60,9 +63,17 @@ class FullTextMethodTest {
   void definitionMappingIsExactForAllConstants() {
     assertThat(FullTextMethod.FEED.definition()).isInstanceOf(Definition.FeedEntry.class);
     assertThat(FullTextMethod.HTTP.definition())
-        .isEqualTo(new Definition.HttpArticle(HtmlExtractor.XPATH_OR_BODY_TEXT));
+        .isEqualTo(
+            new Definition.HttpArticle(PaginationMode.NONE, HtmlExtractor.XPATH_OR_BODY_TEXT));
     assertThat(FullTextMethod.HTTP_READABILITY.definition())
-        .isEqualTo(new Definition.HttpArticle(HtmlExtractor.READABILITY));
+        .isEqualTo(new Definition.HttpArticle(PaginationMode.NONE, HtmlExtractor.READABILITY));
+    assertThat(FullTextMethod.HTTP_AUTOPAGERIZE.definition())
+        .isEqualTo(
+            new Definition.HttpArticle(
+                PaginationMode.AUTOPAGERIZE, HtmlExtractor.XPATH_OR_BODY_TEXT));
+    assertThat(FullTextMethod.HTTP_AUTOPAGERIZE_READABILITY.definition())
+        .isEqualTo(
+            new Definition.HttpArticle(PaginationMode.AUTOPAGERIZE, HtmlExtractor.READABILITY));
     assertThat(FullTextMethod.PLAYWRIGHT.definition())
         .isEqualTo(
             new Definition.PlaywrightArticle(
@@ -88,6 +99,7 @@ class FullTextMethodTest {
     assertThat(feed.supportsArticleProbe()).isFalse();
     assertThat(feed.supportsXpathOverride()).isFalse();
     assertThat(feed.requiresPlaywright()).isFalse();
+    assertThat(feed.usesAutopagerize()).isFalse();
     assertThat(feed.articleDefinition()).isEmpty();
   }
 
@@ -103,6 +115,22 @@ class FullTextMethodTest {
   }
 
   @ParameterizedTest
+  @MethodSource("httpAutopagerizeMethods")
+  void httpAutopagerizeCapabilities(FullTextMethod method) {
+    assertThat(method.usesAutopagerize()).isTrue();
+    assertThat(method.definition())
+        .isInstanceOfSatisfying(
+            Definition.HttpArticle.class,
+            http -> assertThat(http.pagination()).isEqualTo(PaginationMode.AUTOPAGERIZE));
+  }
+
+  @ParameterizedTest
+  @MethodSource("httpSinglePageMethods")
+  void httpSinglePageDoesNotUseAutopagerize(FullTextMethod method) {
+    assertThat(method.usesAutopagerize()).isFalse();
+  }
+
+  @ParameterizedTest
   @MethodSource("playwrightMethods")
   void playwrightCapabilities(FullTextMethod method) {
     assertThat(method.usesFeedEntryContent()).isFalse();
@@ -110,12 +138,16 @@ class FullTextMethodTest {
     assertThat(method.supportsArticleProbe()).isTrue();
     assertThat(method.supportsXpathOverride()).isTrue();
     assertThat(method.requiresPlaywright()).isTrue();
+    assertThat(method.usesAutopagerize()).isFalse();
     assertThat(method.articleDefinition()).containsInstanceOf(Definition.PlaywrightArticle.class);
   }
 
   @Test
   void nestedRecordsRejectNullComponents() {
-    assertThatThrownBy(() -> new Definition.HttpArticle(null))
+    assertThatThrownBy(() -> new Definition.HttpArticle(null, HtmlExtractor.READABILITY))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessageContaining("pagination");
+    assertThatThrownBy(() -> new Definition.HttpArticle(PaginationMode.NONE, null))
         .isInstanceOf(NullPointerException.class)
         .hasMessageContaining("extractor");
     assertThatThrownBy(() -> new Definition.PlaywrightArticle(null, HtmlExtractor.READABILITY))
@@ -137,7 +169,20 @@ class FullTextMethodTest {
   }
 
   static Stream<FullTextMethod> httpMethods() {
+    return Stream.of(
+        FullTextMethod.HTTP,
+        FullTextMethod.HTTP_READABILITY,
+        FullTextMethod.HTTP_AUTOPAGERIZE,
+        FullTextMethod.HTTP_AUTOPAGERIZE_READABILITY);
+  }
+
+  static Stream<FullTextMethod> httpSinglePageMethods() {
     return Stream.of(FullTextMethod.HTTP, FullTextMethod.HTTP_READABILITY);
+  }
+
+  static Stream<FullTextMethod> httpAutopagerizeMethods() {
+    return Stream.of(
+        FullTextMethod.HTTP_AUTOPAGERIZE, FullTextMethod.HTTP_AUTOPAGERIZE_READABILITY);
   }
 
   static Stream<FullTextMethod> playwrightMethods() {

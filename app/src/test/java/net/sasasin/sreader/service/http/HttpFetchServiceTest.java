@@ -42,7 +42,8 @@ class HttpFetchServiceTest {
     stubByteResponse(
         client, response(200, finalUri, "本文".getBytes(StandardCharsets.UTF_8), Optional.empty()));
 
-    HttpFetchService service = new HttpFetchService(properties(1, Duration.ofSeconds(2)), client);
+    HttpFetchService service =
+        new HttpFetchService(new HttpTransport(properties(1, Duration.ofSeconds(2))), client);
 
     assertThat(service.get(requested))
         .isEqualTo(new HttpFetchService.FetchedResource(finalUri, "本文"));
@@ -60,7 +61,8 @@ class HttpFetchServiceTest {
     HttpClient client = mock(HttpClient.class);
     stubByteResponse(
         client, response(199, URI.create("https://example.test/"), new byte[0], Optional.empty()));
-    HttpFetchService service = new HttpFetchService(properties(0, Duration.ofSeconds(1)), client);
+    HttpFetchService service =
+        new HttpFetchService(new HttpTransport(properties(0, Duration.ofSeconds(1))), client);
 
     assertThatIOException()
         .isThrownBy(() -> service.get(URI.create("https://example.test/a")))
@@ -83,7 +85,8 @@ class HttpFetchServiceTest {
             uri,
             "café".getBytes(Charset.forName("ISO-8859-1")),
             Optional.of("text/html; charset=ISO-8859-1")));
-    HttpFetchService service = new HttpFetchService(properties(0, Duration.ofSeconds(1)), client);
+    HttpFetchService service =
+        new HttpFetchService(new HttpTransport(properties(0, Duration.ofSeconds(1))), client);
     assertThat(service.get(uri).body()).isEqualTo("café");
 
     stubByteResponse(
@@ -128,7 +131,8 @@ class HttpFetchServiceTest {
                     Optional.empty()))
         .when(client)
         .send(any(), any());
-    HttpFetchService service = new HttpFetchService(properties(1, Duration.ofSeconds(1)), client);
+    HttpFetchService service =
+        new HttpFetchService(new HttpTransport(properties(1, Duration.ofSeconds(1))), client);
     assertThat(service.get(URI.create("https://example.test/")).body()).isEqualTo("ok");
     verify(client, times(2)).send(any(), any());
 
@@ -144,7 +148,8 @@ class HttpFetchServiceTest {
         .when(failingClient)
         .send(any(), any());
     HttpFetchService failing =
-        new HttpFetchService(properties(1, Duration.ofSeconds(1)), failingClient);
+        new HttpFetchService(
+            new HttpTransport(properties(1, Duration.ofSeconds(1))), failingClient);
     assertThatThrownBy(() -> failing.get(URI.create("https://example.test/"))).isSameAs(last);
   }
 
@@ -153,7 +158,7 @@ class HttpFetchServiceTest {
     HttpClient zero = mock(HttpClient.class);
     stubByteResponse(
         zero, response(200, URI.create("https://example.test/"), new byte[0], Optional.empty()));
-    new HttpFetchService(properties(0, Duration.ofSeconds(1)), zero)
+    new HttpFetchService(new HttpTransport(properties(0, Duration.ofSeconds(1))), zero)
         .get(URI.create("https://example.test/"));
     verify(zero).send(any(), any());
 
@@ -166,7 +171,8 @@ class HttpFetchServiceTest {
         .send(any(), any());
     assertThatThrownBy(
             () ->
-                new HttpFetchService(properties(4, Duration.ofSeconds(1)), interrupted)
+                new HttpFetchService(
+                        new HttpTransport(properties(4, Duration.ofSeconds(1))), interrupted)
                     .get(URI.create("https://example.test/")))
         .isInstanceOf(InterruptedException.class);
     verify(interrupted).send(any(), any());
@@ -177,7 +183,8 @@ class HttpFetchServiceTest {
     URI uri = URI.create("https://example.test/start");
     HttpClient client = mock(HttpClient.class);
     stubVoidResponse(client, voidResponse(200, uri));
-    HttpFetchService service = new HttpFetchService(properties(0, Duration.ofMillis(200)), client);
+    HttpFetchService service =
+        new HttpFetchService(new HttpTransport(properties(0, Duration.ofMillis(200))), client);
 
     assertThat(service.resolveRedirect(uri)).isEqualTo(new RedirectResolution.Resolved(uri, uri));
   }
@@ -188,7 +195,8 @@ class HttpFetchServiceTest {
     URI finalUri = URI.create("https://example.test/final");
     HttpClient client = mock(HttpClient.class);
     stubVoidResponse(client, voidResponse(399, finalUri));
-    HttpFetchService service = new HttpFetchService(properties(0, Duration.ofMillis(200)), client);
+    HttpFetchService service =
+        new HttpFetchService(new HttpTransport(properties(0, Duration.ofMillis(200))), client);
 
     RedirectResolution resolution = service.resolveRedirect(uri);
     assertThat(resolution).isInstanceOf(RedirectResolution.Resolved.class);
@@ -204,7 +212,8 @@ class HttpFetchServiceTest {
     URI uri = URI.create("https://example.test/start");
     HttpClient client = mock(HttpClient.class);
     stubVoidResponse(client, voidResponse(400, URI.create("https://example.test/final")));
-    HttpFetchService service = new HttpFetchService(properties(0, Duration.ofMillis(200)), client);
+    HttpFetchService service =
+        new HttpFetchService(new HttpTransport(properties(0, Duration.ofMillis(200))), client);
 
     RedirectResolution resolution = service.resolveRedirect(uri);
     assertThat(resolution).isInstanceOf(RedirectResolution.Fallback.class);
@@ -224,7 +233,8 @@ class HttpFetchServiceTest {
             })
         .when(client)
         .send(any(), any());
-    HttpFetchService service = new HttpFetchService(properties(0, Duration.ofMillis(200)), client);
+    HttpFetchService service =
+        new HttpFetchService(new HttpTransport(properties(0, Duration.ofMillis(200))), client);
 
     RedirectResolution.Fallback fallback =
         (RedirectResolution.Fallback) service.resolveRedirect(uri);
@@ -243,7 +253,8 @@ class HttpFetchServiceTest {
             })
         .when(client)
         .send(any(), any());
-    HttpFetchService service = new HttpFetchService(properties(0, Duration.ofMillis(200)), client);
+    HttpFetchService service =
+        new HttpFetchService(new HttpTransport(properties(0, Duration.ofMillis(200))), client);
 
     RedirectResolution.Fallback fallback =
         (RedirectResolution.Fallback) service.resolveRedirect(uri);
@@ -261,7 +272,8 @@ class HttpFetchServiceTest {
             })
         .when(client)
         .send(any(), any());
-    HttpFetchService service = new HttpFetchService(properties(0, Duration.ofMillis(200)), client);
+    HttpFetchService service =
+        new HttpFetchService(new HttpTransport(properties(0, Duration.ofMillis(200))), client);
 
     RedirectResolution.Fallback fallback =
         (RedirectResolution.Fallback) service.resolveRedirect(uri);

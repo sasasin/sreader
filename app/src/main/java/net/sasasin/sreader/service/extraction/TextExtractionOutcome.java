@@ -1,6 +1,7 @@
 package net.sasasin.sreader.service.extraction;
 
 import java.util.Objects;
+import java.util.Optional;
 import net.sasasin.sreader.service.outcome.OperationFailure;
 import net.sasasin.sreader.service.outcome.OutcomePreconditions;
 
@@ -11,10 +12,26 @@ public sealed interface TextExtractionOutcome
         TextExtractionOutcome.Skipped,
         TextExtractionOutcome.Failed {
 
-  record Extracted(String text, ExtractionDecision decision) implements TextExtractionOutcome {
+  /**
+   * Successful extraction. Optional {@link #pagination()} carries AutoPagerize metadata when the
+   * method used multi-page tracking (or single-page fallback after rule miss).
+   */
+  record Extracted(
+      String text, ExtractionDecision decision, Optional<PaginationMetadata> pagination)
+      implements TextExtractionOutcome {
+
+    public Extracted(String text, ExtractionDecision decision) {
+      this(text, decision, Optional.empty());
+    }
+
     public Extracted {
       text = OutcomePreconditions.requireNonBlank(text, "text");
       Objects.requireNonNull(decision, "decision must not be null");
+      Objects.requireNonNull(pagination, "pagination must not be null");
+    }
+
+    public Extracted withPagination(PaginationMetadata metadata) {
+      return new Extracted(text, decision, Optional.of(metadata));
     }
   }
 
