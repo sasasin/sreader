@@ -4,11 +4,19 @@
 package net.sasasin.sreader.jooq;
 
 
+import net.sasasin.sreader.jooq.tables.AutopagerizeDataset;
+import net.sasasin.sreader.jooq.tables.AutopagerizeRule;
+import net.sasasin.sreader.jooq.tables.AutopagerizeRuleRejection;
+import net.sasasin.sreader.jooq.tables.AutopagerizeState;
 import net.sasasin.sreader.jooq.tables.ContentFullText;
 import net.sasasin.sreader.jooq.tables.ContentHeader;
 import net.sasasin.sreader.jooq.tables.ContentTextFileExport;
 import net.sasasin.sreader.jooq.tables.EftRules;
 import net.sasasin.sreader.jooq.tables.FeedUrl;
+import net.sasasin.sreader.jooq.tables.records.AutopagerizeDatasetRecord;
+import net.sasasin.sreader.jooq.tables.records.AutopagerizeRuleRecord;
+import net.sasasin.sreader.jooq.tables.records.AutopagerizeRuleRejectionRecord;
+import net.sasasin.sreader.jooq.tables.records.AutopagerizeStateRecord;
 import net.sasasin.sreader.jooq.tables.records.ContentFullTextRecord;
 import net.sasasin.sreader.jooq.tables.records.ContentHeaderRecord;
 import net.sasasin.sreader.jooq.tables.records.ContentTextFileExportRecord;
@@ -34,6 +42,12 @@ public class Keys {
     // UNIQUE and PRIMARY KEY definitions
     // -------------------------------------------------------------------------
 
+    public static final UniqueKey<AutopagerizeDatasetRecord> AUTOPAGERIZE_DATASET_IDENTITY_KEY = Internal.createUniqueKey(AutopagerizeDataset.AUTOPAGERIZE_DATASET, DSL.name("autopagerize_dataset_identity_key"), new TableField[] { AutopagerizeDataset.AUTOPAGERIZE_DATASET.FORMAT, AutopagerizeDataset.AUTOPAGERIZE_DATASET.SOURCE_SHA256, AutopagerizeDataset.AUTOPAGERIZE_DATASET.IMPORTER_VERSION }, true);
+    public static final UniqueKey<AutopagerizeDatasetRecord> AUTOPAGERIZE_DATASET_PKEY = Internal.createUniqueKey(AutopagerizeDataset.AUTOPAGERIZE_DATASET, DSL.name("autopagerize_dataset_pkey"), new TableField[] { AutopagerizeDataset.AUTOPAGERIZE_DATASET.ID }, true);
+    public static final UniqueKey<AutopagerizeRuleRecord> AUTOPAGERIZE_RULE_MATCH_ORDER_KEY = Internal.createUniqueKey(AutopagerizeRule.AUTOPAGERIZE_RULE, DSL.name("autopagerize_rule_match_order_key"), new TableField[] { AutopagerizeRule.AUTOPAGERIZE_RULE.DATASET_ID, AutopagerizeRule.AUTOPAGERIZE_RULE.MATCH_ORDER }, true);
+    public static final UniqueKey<AutopagerizeRuleRecord> AUTOPAGERIZE_RULE_PKEY = Internal.createUniqueKey(AutopagerizeRule.AUTOPAGERIZE_RULE, DSL.name("autopagerize_rule_pkey"), new TableField[] { AutopagerizeRule.AUTOPAGERIZE_RULE.DATASET_ID, AutopagerizeRule.AUTOPAGERIZE_RULE.ORDINAL }, true);
+    public static final UniqueKey<AutopagerizeRuleRejectionRecord> AUTOPAGERIZE_RULE_REJECTION_PKEY = Internal.createUniqueKey(AutopagerizeRuleRejection.AUTOPAGERIZE_RULE_REJECTION, DSL.name("autopagerize_rule_rejection_pkey"), new TableField[] { AutopagerizeRuleRejection.AUTOPAGERIZE_RULE_REJECTION.DATASET_ID, AutopagerizeRuleRejection.AUTOPAGERIZE_RULE_REJECTION.ORDINAL }, true);
+    public static final UniqueKey<AutopagerizeStateRecord> AUTOPAGERIZE_STATE_PKEY = Internal.createUniqueKey(AutopagerizeState.AUTOPAGERIZE_STATE, DSL.name("autopagerize_state_pkey"), new TableField[] { AutopagerizeState.AUTOPAGERIZE_STATE.ID }, true);
     public static final UniqueKey<ContentFullTextRecord> CONTENT_FULL_TEXT_CONTENT_HEADER_ID_KEY = Internal.createUniqueKey(ContentFullText.CONTENT_FULL_TEXT, DSL.name("content_full_text_content_header_id_key"), new TableField[] { ContentFullText.CONTENT_FULL_TEXT.CONTENT_HEADER_ID }, true);
     public static final UniqueKey<ContentFullTextRecord> CONTENT_FULL_TEXT_PKEY = Internal.createUniqueKey(ContentFullText.CONTENT_FULL_TEXT, DSL.name("content_full_text_pkey"), new TableField[] { ContentFullText.CONTENT_FULL_TEXT.ID }, true);
     public static final UniqueKey<ContentHeaderRecord> CONTENT_HEADER_CANONICAL_URL_KEY = Internal.createUniqueKey(ContentHeader.CONTENT_HEADER, DSL.name("content_header_canonical_url_key"), new TableField[] { ContentHeader.CONTENT_HEADER.CANONICAL_URL }, true);
@@ -49,6 +63,11 @@ public class Keys {
     // FOREIGN KEY definitions
     // -------------------------------------------------------------------------
 
+    public static final ForeignKey<AutopagerizeRuleRecord, AutopagerizeDatasetRecord> AUTOPAGERIZE_RULE__AUTOPAGERIZE_RULE_DATASET_ID_FKEY = Internal.createForeignKey(AutopagerizeRule.AUTOPAGERIZE_RULE, DSL.name("autopagerize_rule_dataset_id_fkey"), new TableField[] { AutopagerizeRule.AUTOPAGERIZE_RULE.DATASET_ID }, Keys.AUTOPAGERIZE_DATASET_PKEY, new TableField[] { AutopagerizeDataset.AUTOPAGERIZE_DATASET.ID }, true, ForeignKeyRule.CASCADE, ForeignKeyRule.NO_ACTION);
+    public static final ForeignKey<AutopagerizeRuleRejectionRecord, AutopagerizeDatasetRecord> AUTOPAGERIZE_RULE_REJECTION__AUTOPAGERIZE_RULE_REJECTION_DATASET_ID_FKEY = Internal.createForeignKey(AutopagerizeRuleRejection.AUTOPAGERIZE_RULE_REJECTION, DSL.name("autopagerize_rule_rejection_dataset_id_fkey"), new TableField[] { AutopagerizeRuleRejection.AUTOPAGERIZE_RULE_REJECTION.DATASET_ID }, Keys.AUTOPAGERIZE_DATASET_PKEY, new TableField[] { AutopagerizeDataset.AUTOPAGERIZE_DATASET.ID }, true, ForeignKeyRule.CASCADE, ForeignKeyRule.NO_ACTION);
+    public static final ForeignKey<AutopagerizeStateRecord, AutopagerizeDatasetRecord> AUTOPAGERIZE_STATE__AUTOPAGERIZE_STATE_ACTIVE_DATASET_ID_FKEY = Internal.createForeignKey(AutopagerizeState.AUTOPAGERIZE_STATE, DSL.name("autopagerize_state_active_dataset_id_fkey"), new TableField[] { AutopagerizeState.AUTOPAGERIZE_STATE.ACTIVE_DATASET_ID }, Keys.AUTOPAGERIZE_DATASET_PKEY, new TableField[] { AutopagerizeDataset.AUTOPAGERIZE_DATASET.ID }, true, ForeignKeyRule.RESTRICT, ForeignKeyRule.NO_ACTION);
+    public static final ForeignKey<ContentFullTextRecord, AutopagerizeDatasetRecord> CONTENT_FULL_TEXT__CONTENT_FULL_TEXT_AUTOPAGERIZE_DATASET_FKEY = Internal.createForeignKey(ContentFullText.CONTENT_FULL_TEXT, DSL.name("content_full_text_autopagerize_dataset_fkey"), new TableField[] { ContentFullText.CONTENT_FULL_TEXT.AUTOPAGERIZE_DATASET_ID }, Keys.AUTOPAGERIZE_DATASET_PKEY, new TableField[] { AutopagerizeDataset.AUTOPAGERIZE_DATASET.ID }, true, ForeignKeyRule.RESTRICT, ForeignKeyRule.NO_ACTION);
+    public static final ForeignKey<ContentFullTextRecord, AutopagerizeRuleRecord> CONTENT_FULL_TEXT__CONTENT_FULL_TEXT_AUTOPAGERIZE_RULE_FKEY = Internal.createForeignKey(ContentFullText.CONTENT_FULL_TEXT, DSL.name("content_full_text_autopagerize_rule_fkey"), new TableField[] { ContentFullText.CONTENT_FULL_TEXT.AUTOPAGERIZE_DATASET_ID, ContentFullText.CONTENT_FULL_TEXT.AUTOPAGERIZE_RULE_ORDINAL }, Keys.AUTOPAGERIZE_RULE_PKEY, new TableField[] { AutopagerizeRule.AUTOPAGERIZE_RULE.DATASET_ID, AutopagerizeRule.AUTOPAGERIZE_RULE.ORDINAL }, true, ForeignKeyRule.NO_ACTION, ForeignKeyRule.NO_ACTION);
     public static final ForeignKey<ContentFullTextRecord, ContentHeaderRecord> CONTENT_FULL_TEXT__CONTENT_FULL_TEXT_CONTENT_HEADER_FKEY = Internal.createForeignKey(ContentFullText.CONTENT_FULL_TEXT, DSL.name("content_full_text_content_header_fkey"), new TableField[] { ContentFullText.CONTENT_FULL_TEXT.CONTENT_HEADER_ID }, Keys.CONTENT_HEADER_PKEY, new TableField[] { ContentHeader.CONTENT_HEADER.ID }, true, ForeignKeyRule.CASCADE, ForeignKeyRule.NO_ACTION);
     public static final ForeignKey<ContentHeaderRecord, FeedUrlRecord> CONTENT_HEADER__CONTENT_HEADER_FEED_URL_FKEY = Internal.createForeignKey(ContentHeader.CONTENT_HEADER, DSL.name("content_header_feed_url_fkey"), new TableField[] { ContentHeader.CONTENT_HEADER.FEED_URL_ID }, Keys.FEED_URL_PKEY, new TableField[] { FeedUrl.FEED_URL.ID }, true, ForeignKeyRule.CASCADE, ForeignKeyRule.NO_ACTION);
     public static final ForeignKey<ContentTextFileExportRecord, ContentFullTextRecord> CONTENT_TEXT_FILE_EXPORT__CONTENT_TEXT_FILE_EXPORT_FULL_TEXT_FKEY = Internal.createForeignKey(ContentTextFileExport.CONTENT_TEXT_FILE_EXPORT, DSL.name("content_text_file_export_full_text_fkey"), new TableField[] { ContentTextFileExport.CONTENT_TEXT_FILE_EXPORT.CONTENT_FULL_TEXT_ID }, Keys.CONTENT_FULL_TEXT_PKEY, new TableField[] { ContentFullText.CONTENT_FULL_TEXT.ID }, true, ForeignKeyRule.CASCADE, ForeignKeyRule.NO_ACTION);

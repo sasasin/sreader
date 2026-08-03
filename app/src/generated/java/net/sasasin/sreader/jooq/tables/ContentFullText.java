@@ -11,10 +11,13 @@ import java.util.List;
 
 import net.sasasin.sreader.jooq.Keys;
 import net.sasasin.sreader.jooq.Public;
+import net.sasasin.sreader.jooq.tables.AutopagerizeDataset.AutopagerizeDatasetPath;
+import net.sasasin.sreader.jooq.tables.AutopagerizeRule.AutopagerizeRulePath;
 import net.sasasin.sreader.jooq.tables.ContentHeader.ContentHeaderPath;
 import net.sasasin.sreader.jooq.tables.ContentTextFileExport.ContentTextFileExportPath;
 import net.sasasin.sreader.jooq.tables.records.ContentFullTextRecord;
 
+import org.jooq.Check;
 import org.jooq.Condition;
 import org.jooq.Field;
 import org.jooq.ForeignKey;
@@ -114,6 +117,32 @@ public class ContentFullText extends TableImpl<ContentFullTextRecord> {
      */
     public final TableField<ContentFullTextRecord, String> EXTRACTED_URL = createField(DSL.name("extracted_url"), SQLDataType.CLOB, this, "");
 
+    /**
+     * The column <code>public.content_full_text.autopagerize_dataset_id</code>.
+     */
+    public final TableField<ContentFullTextRecord, Long> AUTOPAGERIZE_DATASET_ID = createField(DSL.name("autopagerize_dataset_id"), SQLDataType.BIGINT, this, "");
+
+    /**
+     * The column
+     * <code>public.content_full_text.autopagerize_rule_ordinal</code>.
+     */
+    public final TableField<ContentFullTextRecord, Integer> AUTOPAGERIZE_RULE_ORDINAL = createField(DSL.name("autopagerize_rule_ordinal"), SQLDataType.INTEGER, this, "");
+
+    /**
+     * The column <code>public.content_full_text.pagination_page_count</code>.
+     */
+    public final TableField<ContentFullTextRecord, Integer> PAGINATION_PAGE_COUNT = createField(DSL.name("pagination_page_count"), SQLDataType.INTEGER, this, "");
+
+    /**
+     * The column <code>public.content_full_text.pagination_stop_reason</code>.
+     */
+    public final TableField<ContentFullTextRecord, String> PAGINATION_STOP_REASON = createField(DSL.name("pagination_stop_reason"), SQLDataType.VARCHAR(64), this, "");
+
+    /**
+     * The column <code>public.content_full_text.pagination_complete</code>.
+     */
+    public final TableField<ContentFullTextRecord, Boolean> PAGINATION_COMPLETE = createField(DSL.name("pagination_complete"), SQLDataType.BOOLEAN, this, "");
+
     private ContentFullText(Name alias, Table<ContentFullTextRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }
@@ -193,7 +222,33 @@ public class ContentFullText extends TableImpl<ContentFullTextRecord> {
 
     @Override
     public List<ForeignKey<ContentFullTextRecord, ?>> getReferences() {
-        return Arrays.asList(Keys.CONTENT_FULL_TEXT__CONTENT_FULL_TEXT_CONTENT_HEADER_FKEY);
+        return Arrays.asList(Keys.CONTENT_FULL_TEXT__CONTENT_FULL_TEXT_AUTOPAGERIZE_DATASET_FKEY, Keys.CONTENT_FULL_TEXT__CONTENT_FULL_TEXT_AUTOPAGERIZE_RULE_FKEY, Keys.CONTENT_FULL_TEXT__CONTENT_FULL_TEXT_CONTENT_HEADER_FKEY);
+    }
+
+    private transient AutopagerizeDatasetPath _autopagerizeDataset;
+
+    /**
+     * Get the implicit join path to the
+     * <code>public.autopagerize_dataset</code> table.
+     */
+    public AutopagerizeDatasetPath autopagerizeDataset() {
+        if (_autopagerizeDataset == null)
+            _autopagerizeDataset = new AutopagerizeDatasetPath(this, Keys.CONTENT_FULL_TEXT__CONTENT_FULL_TEXT_AUTOPAGERIZE_DATASET_FKEY, null);
+
+        return _autopagerizeDataset;
+    }
+
+    private transient AutopagerizeRulePath _autopagerizeRule;
+
+    /**
+     * Get the implicit join path to the <code>public.autopagerize_rule</code>
+     * table.
+     */
+    public AutopagerizeRulePath autopagerizeRule() {
+        if (_autopagerizeRule == null)
+            _autopagerizeRule = new AutopagerizeRulePath(this, Keys.CONTENT_FULL_TEXT__CONTENT_FULL_TEXT_AUTOPAGERIZE_RULE_FKEY, null);
+
+        return _autopagerizeRule;
     }
 
     private transient ContentHeaderPath _contentHeader;
@@ -220,6 +275,14 @@ public class ContentFullText extends TableImpl<ContentFullTextRecord> {
             _contentTextFileExport = new ContentTextFileExportPath(this, null, Keys.CONTENT_TEXT_FILE_EXPORT__CONTENT_TEXT_FILE_EXPORT_FULL_TEXT_FKEY.getInverseKey());
 
         return _contentTextFileExport;
+    }
+
+    @Override
+    public List<Check<ContentFullTextRecord>> getChecks() {
+        return Arrays.asList(
+            Internal.createCheck(this, DSL.name("content_full_text_autopagerize_rule_pair_check"), "(((autopagerize_rule_ordinal IS NULL) OR (autopagerize_dataset_id IS NOT NULL)))", true),
+            Internal.createCheck(this, DSL.name("content_full_text_pagination_page_count_check"), "(((pagination_page_count IS NULL) OR (pagination_page_count >= 1)))", true)
+        );
     }
 
     @Override

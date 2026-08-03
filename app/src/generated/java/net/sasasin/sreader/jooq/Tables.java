@@ -4,6 +4,10 @@
 package net.sasasin.sreader.jooq;
 
 
+import net.sasasin.sreader.jooq.tables.AutopagerizeDataset;
+import net.sasasin.sreader.jooq.tables.AutopagerizeRule;
+import net.sasasin.sreader.jooq.tables.AutopagerizeRuleRejection;
+import net.sasasin.sreader.jooq.tables.AutopagerizeState;
 import net.sasasin.sreader.jooq.tables.ContentFullText;
 import net.sasasin.sreader.jooq.tables.ContentHeader;
 import net.sasasin.sreader.jooq.tables.ContentTextFileExport;
@@ -16,6 +20,26 @@ import net.sasasin.sreader.jooq.tables.FeedUrl;
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes", "this-escape" })
 public class Tables {
+
+    /**
+     * The table <code>public.autopagerize_dataset</code>.
+     */
+    public static final AutopagerizeDataset AUTOPAGERIZE_DATASET = AutopagerizeDataset.AUTOPAGERIZE_DATASET;
+
+    /**
+     * The table <code>public.autopagerize_rule</code>.
+     */
+    public static final AutopagerizeRule AUTOPAGERIZE_RULE = AutopagerizeRule.AUTOPAGERIZE_RULE;
+
+    /**
+     * The table <code>public.autopagerize_rule_rejection</code>.
+     */
+    public static final AutopagerizeRuleRejection AUTOPAGERIZE_RULE_REJECTION = AutopagerizeRuleRejection.AUTOPAGERIZE_RULE_REJECTION;
+
+    /**
+     * The table <code>public.autopagerize_state</code>.
+     */
+    public static final AutopagerizeState AUTOPAGERIZE_STATE = AutopagerizeState.AUTOPAGERIZE_STATE;
 
     /**
      * The table <code>public.content_full_text</code>.

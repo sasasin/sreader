@@ -174,6 +174,78 @@ public class ContentFullTextRecord extends UpdatableRecordImpl<ContentFullTextRe
         return (String) get(10);
     }
 
+    /**
+     * Setter for <code>public.content_full_text.autopagerize_dataset_id</code>.
+     */
+    public void setAutopagerizeDatasetId(Long value) {
+        set(11, value);
+    }
+
+    /**
+     * Getter for <code>public.content_full_text.autopagerize_dataset_id</code>.
+     */
+    public Long getAutopagerizeDatasetId() {
+        return (Long) get(11);
+    }
+
+    /**
+     * Setter for
+     * <code>public.content_full_text.autopagerize_rule_ordinal</code>.
+     */
+    public void setAutopagerizeRuleOrdinal(Integer value) {
+        set(12, value);
+    }
+
+    /**
+     * Getter for
+     * <code>public.content_full_text.autopagerize_rule_ordinal</code>.
+     */
+    public Integer getAutopagerizeRuleOrdinal() {
+        return (Integer) get(12);
+    }
+
+    /**
+     * Setter for <code>public.content_full_text.pagination_page_count</code>.
+     */
+    public void setPaginationPageCount(Integer value) {
+        set(13, value);
+    }
+
+    /**
+     * Getter for <code>public.content_full_text.pagination_page_count</code>.
+     */
+    public Integer getPaginationPageCount() {
+        return (Integer) get(13);
+    }
+
+    /**
+     * Setter for <code>public.content_full_text.pagination_stop_reason</code>.
+     */
+    public void setPaginationStopReason(String value) {
+        set(14, value);
+    }
+
+    /**
+     * Getter for <code>public.content_full_text.pagination_stop_reason</code>.
+     */
+    public String getPaginationStopReason() {
+        return (String) get(14);
+    }
+
+    /**
+     * Setter for <code>public.content_full_text.pagination_complete</code>.
+     */
+    public void setPaginationComplete(Boolean value) {
+        set(15, value);
+    }
+
+    /**
+     * Getter for <code>public.content_full_text.pagination_complete</code>.
+     */
+    public Boolean getPaginationComplete() {
+        return (Boolean) get(15);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -197,7 +269,7 @@ public class ContentFullTextRecord extends UpdatableRecordImpl<ContentFullTextRe
     /**
      * Create a detached, initialised ContentFullTextRecord
      */
-    public ContentFullTextRecord(String id, String contentHeaderId, String fullText, OffsetDateTime extractedAt, OffsetDateTime createdAt, OffsetDateTime updatedAt, String extractionMethod, String extractionStatus, String errorMessage, String sourceKind, String extractedUrl) {
+    public ContentFullTextRecord(String id, String contentHeaderId, String fullText, OffsetDateTime extractedAt, OffsetDateTime createdAt, OffsetDateTime updatedAt, String extractionMethod, String extractionStatus, String errorMessage, String sourceKind, String extractedUrl, Long autopagerizeDatasetId, Integer autopagerizeRuleOrdinal, Integer paginationPageCount, String paginationStopReason, Boolean paginationComplete) {
         super(ContentFullText.CONTENT_FULL_TEXT);
 
         setId(id);
@@ -211,6 +283,11 @@ public class ContentFullTextRecord extends UpdatableRecordImpl<ContentFullTextRe
         setErrorMessage(errorMessage);
         setSourceKind(sourceKind);
         setExtractedUrl(extractedUrl);
+        setAutopagerizeDatasetId(autopagerizeDatasetId);
+        setAutopagerizeRuleOrdinal(autopagerizeRuleOrdinal);
+        setPaginationPageCount(paginationPageCount);
+        setPaginationStopReason(paginationStopReason);
+        setPaginationComplete(paginationComplete);
         resetTouchedOnNotNull();
     }
 }
