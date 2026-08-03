@@ -8,7 +8,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import net.sasasin.sreader.jooq.Indexes;
 import net.sasasin.sreader.jooq.Keys;
 import net.sasasin.sreader.jooq.Public;
 import net.sasasin.sreader.jooq.tables.AutopagerizeDataset.AutopagerizeDatasetPath;
@@ -18,7 +17,6 @@ import org.jooq.Check;
 import org.jooq.Condition;
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Index;
 import org.jooq.InverseForeignKey;
 import org.jooq.JSONB;
 import org.jooq.Name;
@@ -156,11 +154,6 @@ public class AutopagerizeRuleRejection extends TableImpl<AutopagerizeRuleRejecti
     }
 
     @Override
-    public List<Index> getIndexes() {
-        return Arrays.asList(Indexes.AUTOPAGERIZE_RULE_REJECTION_DATASET_ID_IDX);
-    }
-
-    @Override
     public UniqueKey<AutopagerizeRuleRejectionRecord> getPrimaryKey() {
         return Keys.AUTOPAGERIZE_RULE_REJECTION_PKEY;
     }
@@ -186,6 +179,7 @@ public class AutopagerizeRuleRejection extends TableImpl<AutopagerizeRuleRejecti
     @Override
     public List<Check<AutopagerizeRuleRejectionRecord>> getChecks() {
         return Arrays.asList(
+            Internal.createCheck(this, DSL.name("autopagerize_rule_rejection_errors_shape_check"), "((jsonb_typeof(errors) = ANY (ARRAY['array'::text, 'object'::text])))", true),
             Internal.createCheck(this, DSL.name("autopagerize_rule_rejection_ordinal_check"), "((ordinal >= 0))", true)
         );
     }

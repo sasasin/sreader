@@ -9,7 +9,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import net.sasasin.sreader.jooq.Indexes;
 import net.sasasin.sreader.jooq.Keys;
 import net.sasasin.sreader.jooq.Public;
 import net.sasasin.sreader.jooq.tables.AutopagerizeDataset.AutopagerizeDatasetPath;
@@ -20,7 +19,6 @@ import org.jooq.Check;
 import org.jooq.Condition;
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Index;
 import org.jooq.InverseForeignKey;
 import org.jooq.JSONB;
 import org.jooq.Name;
@@ -203,11 +201,6 @@ public class AutopagerizeRule extends TableImpl<AutopagerizeRuleRecord> {
     @Override
     public Schema getSchema() {
         return aliased() ? null : Public.PUBLIC;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.asList(Indexes.AUTOPAGERIZE_RULE_DATASET_ID_IDX);
     }
 
     @Override

@@ -4,8 +4,6 @@
 package net.sasasin.sreader.jooq;
 
 
-import net.sasasin.sreader.jooq.tables.AutopagerizeRule;
-import net.sasasin.sreader.jooq.tables.AutopagerizeRuleRejection;
 import net.sasasin.sreader.jooq.tables.ContentHeader;
 import net.sasasin.sreader.jooq.tables.ContentTextFileExport;
 import net.sasasin.sreader.jooq.tables.EftRules;
@@ -26,8 +24,6 @@ public class Indexes {
     // INDEX definitions
     // -------------------------------------------------------------------------
 
-    public static final Index AUTOPAGERIZE_RULE_DATASET_ID_IDX = Internal.createIndex(DSL.name("autopagerize_rule_dataset_id_idx"), AutopagerizeRule.AUTOPAGERIZE_RULE, new OrderField[] { AutopagerizeRule.AUTOPAGERIZE_RULE.DATASET_ID }, false);
-    public static final Index AUTOPAGERIZE_RULE_REJECTION_DATASET_ID_IDX = Internal.createIndex(DSL.name("autopagerize_rule_rejection_dataset_id_idx"), AutopagerizeRuleRejection.AUTOPAGERIZE_RULE_REJECTION, new OrderField[] { AutopagerizeRuleRejection.AUTOPAGERIZE_RULE_REJECTION.DATASET_ID }, false);
     public static final Index CONTENT_HEADER_FEED_URL_ID_IDX = Internal.createIndex(DSL.name("content_header_feed_url_id_idx"), ContentHeader.CONTENT_HEADER, new OrderField[] { ContentHeader.CONTENT_HEADER.FEED_URL_ID }, false);
     public static final Index CONTENT_TEXT_FILE_EXPORT_EXPORTED_AT_IDX = Internal.createIndex(DSL.name("content_text_file_export_exported_at_idx"), ContentTextFileExport.CONTENT_TEXT_FILE_EXPORT, new OrderField[] { ContentTextFileExport.CONTENT_TEXT_FILE_EXPORT.EXPORTED_AT }, false);
     public static final Index EFT_RULES_URL_PATTERN_IDX = Internal.createIndex(DSL.name("eft_rules_url_pattern_idx"), EftRules.EFT_RULES, new OrderField[] { EftRules.EFT_RULES.URL_PATTERN }, false);
