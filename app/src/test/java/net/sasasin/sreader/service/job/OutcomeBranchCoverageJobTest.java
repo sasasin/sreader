@@ -88,6 +88,7 @@ class OutcomeBranchCoverageJobTest {
         null,
         null,
         new FeedReaderProperties.TextExport(true, java.nio.file.Path.of("/tmp"), batch),
+        null,
         List.of());
   }
 }

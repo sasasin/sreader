@@ -110,6 +110,7 @@ class FeedReaderCommandRunnerTest {
         new FeedReaderProperties.Http("test", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
         null,
         null,
+        null,
         List.of());
   }
 

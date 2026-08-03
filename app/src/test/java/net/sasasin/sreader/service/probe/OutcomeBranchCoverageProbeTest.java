@@ -164,6 +164,7 @@ class OutcomeBranchCoverageProbeTest {
             1,
             Duration.ofMillis(1)),
         null,
+        null,
         List.of());
   }
 }

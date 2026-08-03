@@ -2,10 +2,12 @@ package net.sasasin.sreader.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeEngine;
 import net.sasasin.sreader.service.autopagerize.AutoPagerizeImportService;
 import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleCatalog;
 import net.sasasin.sreader.service.canonicalization.ContentCanonicalizationMaintenanceService;
 import net.sasasin.sreader.service.extraction.FullTextExtractionService;
+import net.sasasin.sreader.service.extraction.PaginatedHtmlTextExtractor;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
 import net.sasasin.sreader.service.feed.FeedDiscoveryService;
 import net.sasasin.sreader.service.feed.FeedRegistrationService;
@@ -39,5 +41,7 @@ class ServiceFacadeWiringTest {
     assertThat(context.getBean(FeedRegistrationService.class)).isNotNull();
     assertThat(context.getBean(AutoPagerizeImportService.class)).isNotNull();
     assertThat(context.getBean(AutoPagerizeRuleCatalog.class)).isNotNull();
+    assertThat(context.getBean(AutoPagerizeEngine.class)).isNotNull();
+    assertThat(context.getBean(PaginatedHtmlTextExtractor.class)).isNotNull();
   }
 }

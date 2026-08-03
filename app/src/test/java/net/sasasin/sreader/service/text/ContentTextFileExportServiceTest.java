@@ -98,6 +98,7 @@ class ContentTextFileExportServiceTest {
         null,
         null,
         new FeedReaderProperties.TextExport(enabled, Path.of("/tmp/sreader-test"), 100),
+        null,
         List.of());
   }
 

@@ -45,6 +45,11 @@ class FeedReaderPropertiesBindingTest {
     values.put("sreader.text-export.enabled", "true");
     values.put("sreader.text-export.output-dir", "/tmp/export");
     values.put("sreader.text-export.batch-size", "25");
+    values.put("sreader.autopagerize.max-pages", "7");
+    values.put("sreader.autopagerize.max-page-bytes", "1048576");
+    values.put("sreader.autopagerize.max-total-bytes", "4194304");
+    values.put("sreader.autopagerize.total-timeout", "45s");
+    values.put("sreader.autopagerize.same-origin-only", "false");
     values.put("sreader.seed-feed-urls[0]", "https://example.com/a.xml");
     values.put("sreader.seed-feed-urls[1]", "https://example.com/b.xml");
 
@@ -71,6 +76,11 @@ class FeedReaderPropertiesBindingTest {
     assertEquals(true, properties.textExport().enabled());
     assertEquals(Path.of("/tmp/export"), properties.textExport().outputDir());
     assertEquals(25, properties.textExport().batchSize());
+    assertEquals(7, properties.autopagerize().maxPages());
+    assertEquals(1_048_576L, properties.autopagerize().maxPageBytes());
+    assertEquals(4_194_304L, properties.autopagerize().maxTotalBytes());
+    assertEquals(Duration.ofSeconds(45), properties.autopagerize().totalTimeout());
+    assertEquals(false, properties.autopagerize().sameOriginOnly());
     assertEquals(
         List.of("https://example.com/a.xml", "https://example.com/b.xml"),
         properties.seedFeedUrls());
@@ -131,6 +141,8 @@ class FeedReaderPropertiesBindingTest {
     assertEquals(Duration.ofSeconds(5), properties.http().connectTimeout());
     assertEquals(1280, properties.playwright().viewportWidth());
     assertEquals(Path.of("/var/lib/sreader/content-text"), properties.textExport().outputDir());
+    assertEquals(20, properties.autopagerize().maxPages());
+    assertEquals(true, properties.autopagerize().sameOriginOnly());
   }
 
   @Test
