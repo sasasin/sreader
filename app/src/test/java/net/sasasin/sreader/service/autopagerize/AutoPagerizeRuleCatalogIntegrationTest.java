@@ -179,6 +179,82 @@ class AutoPagerizeRuleCatalogIntegrationTest {
   }
 
   @Test
+  void rejectionCountMismatchIsCatalogError() {
+    long datasetId =
+        datasetRepository.insert(
+            new AutoPagerizeDatasetCreate(
+                AutoPagerizeFormats.WEDATA_AUTOPAGERIZE_ITEMS_ALL,
+                "rejection-mismatch.json",
+                null,
+                "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                1,
+                2,
+                1,
+                1));
+    ruleRepository.insertRules(
+        List.of(
+            new AutoPagerizeRule(
+                datasetId,
+                0,
+                0,
+                null,
+                null,
+                "valid",
+                null,
+                null,
+                null,
+                "^https://valid[.]example/",
+                "//a",
+                "//div",
+                null,
+                null,
+                "{\"name\":\"valid\"}")));
+    stateRepository.activateDataset(datasetId);
+
+    assertThatThrownBy(() -> catalog.getActiveSnapshot())
+        .isInstanceOf(AutoPagerizeCatalogException.class)
+        .hasMessageContaining("rejection count mismatch");
+  }
+
+  @Test
+  void matchOrderGapIsCatalogError() {
+    long datasetId =
+        datasetRepository.insert(
+            new AutoPagerizeDatasetCreate(
+                AutoPagerizeFormats.WEDATA_AUTOPAGERIZE_ITEMS_ALL,
+                "order-mismatch.json",
+                null,
+                "abababababababababababababababababababababababababababababababab",
+                1,
+                1,
+                1,
+                0));
+    ruleRepository.insertRules(
+        List.of(
+            new AutoPagerizeRule(
+                datasetId,
+                0,
+                1,
+                null,
+                null,
+                "invalid-order",
+                null,
+                null,
+                null,
+                "^https://order[.]example/",
+                "//a",
+                "//div",
+                null,
+                null,
+                "{\"name\":\"invalid-order\"}")));
+    stateRepository.activateDataset(datasetId);
+
+    assertThatThrownBy(() -> catalog.getActiveSnapshot())
+        .isInstanceOf(AutoPagerizeCatalogException.class)
+        .hasMessageContaining("match_order mismatch");
+  }
+
+  @Test
   void getSnapshotByIdDoesNotRequireActive() throws Exception {
     Path input = writeValidTwoItems();
     long id =

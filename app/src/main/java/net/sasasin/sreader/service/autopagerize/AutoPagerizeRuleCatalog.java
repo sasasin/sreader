@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import net.sasasin.sreader.domain.AutoPagerizeDataset;
 import net.sasasin.sreader.domain.AutoPagerizeRule;
+import net.sasasin.sreader.domain.AutoPagerizeRuleCounts;
 import net.sasasin.sreader.repository.AutoPagerizeDatasetRepository;
 import net.sasasin.sreader.repository.AutoPagerizeRuleRepository;
 import net.sasasin.sreader.repository.AutoPagerizeStateRepository;
@@ -100,9 +101,31 @@ public class AutoPagerizeRuleCatalog {
               + ", loaded="
               + rules.size());
     }
+    AutoPagerizeRuleCounts counts = ruleRepository.countByDatasetId(datasetId);
+    if (counts.rejectedRuleCount() != dataset.rejectedRuleCount()) {
+      throw new AutoPagerizeCatalogException(
+          "Dataset "
+              + datasetId
+              + " rejection count mismatch: stored rejected_rule_count="
+              + dataset.rejectedRuleCount()
+              + ", loaded="
+              + counts.rejectedRuleCount());
+    }
 
     List<CompiledAutoPagerizeRule> compiled = new ArrayList<>(rules.size());
-    for (AutoPagerizeRule rule : rules) {
+    for (int expectedMatchOrder = 0; expectedMatchOrder < rules.size(); expectedMatchOrder++) {
+      AutoPagerizeRule rule = rules.get(expectedMatchOrder);
+      if (rule.datasetId() != datasetId || rule.matchOrder() != expectedMatchOrder) {
+        throw new AutoPagerizeCatalogException(
+            "Dataset "
+                + datasetId
+                + " match_order mismatch at position "
+                + expectedMatchOrder
+                + ": loaded dataset_id="
+                + rule.datasetId()
+                + ", match_order="
+                + rule.matchOrder());
+      }
       compiled.add(compile(rule));
     }
     return new AutoPagerizeRuleSnapshot(
