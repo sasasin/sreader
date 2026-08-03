@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import net.sasasin.sreader.scheduler.FeedReaderScheduler;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeImportService;
 import net.sasasin.sreader.service.canonicalization.ContentCanonicalizationMaintenanceService;
 import net.sasasin.sreader.service.feed.FeedDiscoveryService;
 import net.sasasin.sreader.service.feed.toml.FeedTomlService;
@@ -32,6 +33,13 @@ class SreaderCliExecutorTest {
 
     assertEquals(0, executor.execute("--help"));
     assertEquals(2, executor.execute("no-such-command"));
+  }
+
+  @Test
+  void autopagerizeWithoutSubcommandIsUsageError() {
+    SreaderCliExecutor executor = executor(mock(FeedReaderScheduler.class));
+    assertEquals(2, executor.execute("autopagerize"));
+    assertEquals(2, executor.execute("autopagerize", "datasets"));
   }
 
   @Test
@@ -137,6 +145,8 @@ class SreaderCliExecutorTest {
     private final FullTextProbeService fullTextProbeService;
     private final FeedTomlService feedTomlService = mock(FeedTomlService.class);
     private final FeedDiscoveryService feedDiscoveryService = mock(FeedDiscoveryService.class);
+    private final AutoPagerizeImportService autoPagerizeImportService =
+        mock(AutoPagerizeImportService.class);
 
     TestPicocliFactory(
         FeedReaderScheduler scheduler,
@@ -176,6 +186,21 @@ class SreaderCliExecutorTest {
       }
       if (cls == FeedExportCommand.class) {
         return cls.cast(new FeedExportCommand(feedTomlService));
+      }
+      if (cls == AutopagerizeCommand.class) {
+        return cls.cast(new AutopagerizeCommand());
+      }
+      if (cls == AutopagerizeImportCommand.class) {
+        return cls.cast(new AutopagerizeImportCommand(autoPagerizeImportService));
+      }
+      if (cls == AutopagerizeDatasetsCommand.class) {
+        return cls.cast(new AutopagerizeDatasetsCommand());
+      }
+      if (cls == AutopagerizeDatasetsListCommand.class) {
+        return cls.cast(new AutopagerizeDatasetsListCommand(autoPagerizeImportService));
+      }
+      if (cls == AutopagerizeDatasetsActivateCommand.class) {
+        return cls.cast(new AutopagerizeDatasetsActivateCommand(autoPagerizeImportService));
       }
       return super.create(cls);
     }

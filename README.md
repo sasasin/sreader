@@ -318,6 +318,40 @@ TITLE: <content_header.title>
 - `SREADER_TEXT_EXPORT_HOST_DIR=./var/sreader/content-text`
 - `SREADER_TEXT_EXPORT_BATCH_SIZE=100`
 
+## AutoPagerize dataset import
+
+AutoPagerize の WeData `items_all.json` 相当を、**利用者がローカルに用意した JSON ファイルだけ**から PostgreSQL へ immutable dataset として import します。SReader は AutoPagerize DB を URL から自動取得しません。実データの JSON はソースツリーに同梱しません。
+
+```sh
+# 検証のみ（DB 変更なし）
+docker compose run --rm -v ./items_all.json:/tmp/items_all.json:ro app \
+  --sreader.scheduler.enabled=false autopagerize import \
+  --input /tmp/items_all.json --dry-run
+
+# 通常 import（保存後に active を切替）
+docker compose run --rm -v ./items_all.json:/tmp/items_all.json:ro app \
+  --sreader.scheduler.enabled=false autopagerize import \
+  --input /tmp/items_all.json
+
+# 保存するが active は変えない
+docker compose run --rm -v ./items_all.json:/tmp/items_all.json:ro app \
+  --sreader.scheduler.enabled=false autopagerize import \
+  --input /tmp/items_all.json --no-activate
+
+# rejection が 1 件でもあれば DB を変更せず失敗
+docker compose run --rm -v ./items_all.json:/tmp/items_all.json:ro app \
+  --sreader.scheduler.enabled=false autopagerize import \
+  --input /tmp/items_all.json --strict
+
+# dataset 一覧 / active 切替
+docker compose run --rm app --sreader.scheduler.enabled=false autopagerize datasets list
+docker compose run --rm app --sreader.scheduler.enabled=false autopagerize datasets activate --dataset-id 1
+```
+
+- identity は `format` + ファイル raw bytes の SHA-256 + importer version です。同一 identity の再 import は dataset を重複作成せず、必要なら既存を active にします。
+- 任意の `--source-uri` は provenance metadata のみで、fetch には使いません。
+- 必須 rule 項目や regex/XPath 構文不正は rule rejection です。任意 timestamp の不正は NULL + warning（rule は受理）です。
+
 ## feed URL TOML import / export
 
 `feed_url` は購読状態を持つ購読レコードです。
