@@ -17,23 +17,38 @@ public sealed interface PaginationResult
 
   PaginationStopReason stopReason();
 
+  default List<AutoPagerizeRuleMatchDiagnostic> ruleMatchDiagnostics() {
+    return List.of();
+  }
+
   record Succeeded(
       PageSnapshot firstPage,
       Optional<CompiledAutoPagerizeRule> matchedRule,
       List<PageSlice> pages,
-      PaginationStopReason stopReason)
+      PaginationStopReason stopReason,
+      List<AutoPagerizeRuleMatchDiagnostic> ruleMatchDiagnostics)
       implements PaginationResult {
+
+    public Succeeded(
+        PageSnapshot firstPage,
+        Optional<CompiledAutoPagerizeRule> matchedRule,
+        List<PageSlice> pages,
+        PaginationStopReason stopReason) {
+      this(firstPage, matchedRule, pages, stopReason, List.of());
+    }
 
     public Succeeded {
       Objects.requireNonNull(firstPage, "firstPage must not be null");
       Objects.requireNonNull(matchedRule, "matchedRule must not be null");
       Objects.requireNonNull(pages, "pages must not be null");
       Objects.requireNonNull(stopReason, "stopReason must not be null");
+      Objects.requireNonNull(ruleMatchDiagnostics, "ruleMatchDiagnostics must not be null");
       if (!stopReason.isSuccess()) {
         throw new IllegalArgumentException(
             "Succeeded stopReason must be a success reason: " + stopReason);
       }
       pages = List.copyOf(pages);
+      ruleMatchDiagnostics = List.copyOf(ruleMatchDiagnostics);
     }
 
     @Override

@@ -551,6 +551,41 @@ class AutoPagerizeEngineTest {
             engine.paginate(p1, session, snapshot(bad, good), PaginationPolicy.defaults()),
             PaginationStopReason.NO_NEXT_LINK);
     assertThat(succeeded.matchedRule()).contains(good);
+    assertThat(succeeded.ruleMatchDiagnostics())
+        .singleElement()
+        .satisfies(
+            diagnostic -> {
+              assertThat(diagnostic.matchOrder()).isZero();
+              assertThat(diagnostic.target())
+                  .isEqualTo(AutoPagerizeRuleMatchDiagnostic.Target.NEXT_LINK);
+              assertThat(diagnostic.presence())
+                  .isEqualTo(AutoPagerizePageAnalyzer.XPathPresence.INVALID);
+            });
+  }
+
+  @Test
+  void ruleMatchDiagnosticsDistinguishEmptySelectionFromInvalidXpath() {
+    URI start = URI.create("https://example.com/a/1");
+    AutoPagerizePageAnalyzer analyzer = new AutoPagerizePageAnalyzer();
+    CompiledAutoPagerizeRule empty =
+        rule(0, 0, "^https://example\\.com/", "//a[@rel='missing']", "//div[@class='body']");
+    CompiledAutoPagerizeRule invalid =
+        rule(1, 1, "^https://example\\.com/", "//[", "//div[@class='body']");
+    AutoPagerizeRuleMatchResult result =
+        new AutoPagerizeRuleMatcher(analyzer)
+            .findMatchingRuleWithDiagnostics(
+                PageSnapshot.ofUtf8(start, start, pageHtml("one", start + "/a/2")),
+                snapshot(empty, invalid));
+
+    assertThat(result.matchedRule()).isEmpty();
+    assertThat(result.diagnostics())
+        .extracting(AutoPagerizeRuleMatchDiagnostic::matchOrder)
+        .containsExactly(0, 1);
+    assertThat(result.diagnostics())
+        .extracting(AutoPagerizeRuleMatchDiagnostic::presence)
+        .containsExactly(
+            AutoPagerizePageAnalyzer.XPathPresence.EMPTY,
+            AutoPagerizePageAnalyzer.XPathPresence.INVALID);
   }
 
   @Test

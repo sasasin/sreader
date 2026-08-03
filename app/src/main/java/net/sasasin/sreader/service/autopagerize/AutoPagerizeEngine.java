@@ -96,13 +96,16 @@ public class AutoPagerizeEngine {
           Optional.of(firstPage), Optional.empty(), List.of(), reason, sizeFailure.get());
     }
 
-    Optional<CompiledAutoPagerizeRule> matched = ruleMatcher.findMatchingRule(firstPage, snapshot);
+    AutoPagerizeRuleMatchResult matchResult =
+        ruleMatcher.findMatchingRuleWithDiagnostics(firstPage, snapshot);
+    Optional<CompiledAutoPagerizeRule> matched = matchResult.matchedRule();
     if (matched.isEmpty()) {
       return new PaginationResult.Succeeded(
           firstPage,
           Optional.empty(),
           List.of(PageSlice.withoutPageElement(1, firstPage)),
-          PaginationStopReason.NO_MATCHING_RULE);
+          PaginationStopReason.NO_MATCHING_RULE,
+          matchResult.diagnostics());
     }
 
     CompiledAutoPagerizeRule rule = matched.get();
@@ -211,7 +214,11 @@ public class AutoPagerizeEngine {
 
       if (!usableNext) {
         return new PaginationResult.Succeeded(
-            firstPage, Optional.of(rule), pages, PaginationStopReason.NO_NEXT_LINK);
+            firstPage,
+            Optional.of(rule),
+            pages,
+            PaginationStopReason.NO_NEXT_LINK,
+            matchResult.diagnostics());
       }
 
       URI next = nextUri.get();
