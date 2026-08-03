@@ -242,12 +242,22 @@ docker compose run --rm app --sreader.scheduler.enabled=false run-once
 - `feed`: RSS/Atom entry 本文を保存します。
 - `http`: 記事 URL を HTTP GET し、XPath rule、失敗時 body text で抽出します。
 - `http_readability`: 記事 URL を HTTP GET し、取得した HTML を Readability4J で抽出します。
+- `http_autopagerize`: 記事 URL を HTTP GET し、active AutoPagerize rule で複数ページを追跡します。ページごとに XPath rule、失敗時は AutoPagerize の pageElement で抽出します。
+- `http_autopagerize_readability`: active AutoPagerize rule で複数ページを追跡し、ページごとに Readability4J、失敗時は pageElement で抽出します。
 - `playwright`: Chromium で JS 実行後の DOM HTML から XPath rule、失敗時 body text で抽出します。
 - `playwright_readability`: Chromium で JS 実行後の DOM HTML を Readability4J で抽出します。
 - `playwright_infy_scroll`: Infy Scroll extension を読み込んだ Chromium で scroll 後の DOM HTML から XPath rule、失敗時 body text で抽出します。
 - `playwright_infy_scroll_readability`: Infy Scroll 後の DOM HTML を Readability4J で抽出します。
 
 Playwright 系 method はデフォルトでは無効です。使う場合は `SREADER_PLAYWRIGHT_ENABLED=true` を設定してください。無効時に Playwright 系 method の feed がある場合、その記事の全文取得は warning log を出して skip します。
+
+HTTP AutoPagerize method は、ローカルに import して activate した AutoPagerize dataset を使用します。dataset が active でない場合は記事取得を失敗として扱います。ページネーションの主な環境変数は以下です。
+
+- `SREADER_AUTOPAGERIZE_MAX_PAGES=20`
+- `SREADER_AUTOPAGERIZE_MAX_PAGE_BYTES=5242880`
+- `SREADER_AUTOPAGERIZE_MAX_TOTAL_BYTES=20971520`
+- `SREADER_AUTOPAGERIZE_TOTAL_TIMEOUT=120s`
+- `SREADER_AUTOPAGERIZE_SAME_ORIGIN_ONLY=true`
 
 Playwright / Infy Scroll 用の主な環境変数:
 
