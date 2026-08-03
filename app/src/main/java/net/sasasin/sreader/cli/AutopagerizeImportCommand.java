@@ -80,6 +80,12 @@ public class AutopagerizeImportCommand implements Callable<Integer> {
     System.out.println("accepted_count=" + report.acceptedCount());
     System.out.println("rejected_count=" + report.rejectedCount());
     System.out.println("warning_count=" + report.warningCount());
+    if (!report.warningReasonCounts().isEmpty()) {
+      System.out.println("warning_reasons:");
+      for (Map.Entry<String, Integer> entry : report.warningReasonCounts().entrySet()) {
+        System.out.println("  " + entry.getKey() + "=" + entry.getValue());
+      }
+    }
     System.out.println("duplicate_diagnostic_count=" + report.duplicateDiagnosticCount());
     System.out.println("dry_run=" + report.dryRun());
     System.out.println("strict=" + report.strict());

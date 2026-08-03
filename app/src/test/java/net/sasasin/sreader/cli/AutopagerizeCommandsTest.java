@@ -53,6 +53,7 @@ class AutopagerizeCommandsTest {
                 true,
                 null,
                 Map.of("MISSING_URL", 1),
+                Map.of("INVALID_CREATED_AT", 1),
                 List.of("dry-run: no database changes")));
 
     Path input = tempDir.resolve("items.json");
@@ -83,6 +84,7 @@ class AutopagerizeCommandsTest {
         .importFile(
             any(Path.class), eq(new AutoPagerizeImportOptions(true, true, true, "file:///x")));
     assertThat(baos.toString(StandardCharsets.UTF_8)).contains("dry_run=true");
+    assertThat(baos.toString(StandardCharsets.UTF_8)).contains("INVALID_CREATED_AT=1");
   }
 
   @Test
@@ -107,6 +109,7 @@ class AutopagerizeCommandsTest {
                 true,
                 false,
                 null,
+                Map.of(),
                 Map.of(),
                 List.of("strict mode")));
     Path input = tempDir.resolve("items.json");

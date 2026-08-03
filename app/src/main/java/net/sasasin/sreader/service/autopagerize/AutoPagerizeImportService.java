@@ -109,6 +109,7 @@ public class AutoPagerizeImportService {
     int warningCount = items.stream().mapToInt(item -> item.warnings().size()).sum();
     int duplicateDiagnosticCount = countExactDuplicates(accepted);
     Map<String, Integer> rejectionReasonCounts = countRejectionReasons(rejected);
+    Map<String, Integer> warningReasonCounts = countWarningReasons(items);
 
     ParsedImportPayload payload =
         new ParsedImportPayload(
@@ -123,6 +124,7 @@ public class AutoPagerizeImportService {
             warningCount,
             duplicateDiagnosticCount,
             rejectionReasonCounts,
+            warningReasonCounts,
             options);
 
     if (options.strict() && !rejected.isEmpty()) {
@@ -180,6 +182,7 @@ public class AutoPagerizeImportService {
         success,
         datasetId,
         payload.rejectionReasonCounts(),
+        payload.warningReasonCounts(),
         messages);
   }
 
@@ -187,6 +190,16 @@ public class AutoPagerizeImportService {
     Map<String, Integer> counts = new HashMap<>();
     for (AutoPagerizeParsedItem item : rejected) {
       for (AutoPagerizeIssue issue : item.errors()) {
+        counts.merge(issue.code(), 1, Integer::sum);
+      }
+    }
+    return Map.copyOf(counts);
+  }
+
+  private static Map<String, Integer> countWarningReasons(List<AutoPagerizeParsedItem> items) {
+    Map<String, Integer> counts = new HashMap<>();
+    for (AutoPagerizeParsedItem item : items) {
+      for (AutoPagerizeIssue issue : item.warnings()) {
         counts.merge(issue.code(), 1, Integer::sum);
       }
     }
@@ -245,5 +258,6 @@ public class AutoPagerizeImportService {
       int warningCount,
       int duplicateDiagnosticCount,
       Map<String, Integer> rejectionReasonCounts,
+      Map<String, Integer> warningReasonCounts,
       AutoPagerizeImportOptions options) {}
 }

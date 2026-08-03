@@ -139,9 +139,11 @@ class AutoPagerizeSupportTypesTest {
             true,
             9L,
             Map.of("X", 1),
+            Map.of("W", 2),
             List.of("m"));
     assertThat(report.datasetId()).isEqualTo(9L);
     assertThat(report.rejectionReasonCounts()).containsEntry("X", 1);
+    assertThat(report.warningReasonCounts()).containsEntry("W", 2);
   }
 
   @Test
@@ -181,6 +183,7 @@ class AutoPagerizeSupportTypesTest {
             false,
             true,
             5L,
+            Map.of(),
             Map.of(),
             List.of());
     assertThat(report.rejectionReasonCounts()).isEmpty();

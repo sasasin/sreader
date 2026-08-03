@@ -142,6 +142,20 @@ class AutoPagerizeImportServiceIntegrationTest {
   }
 
   @Test
+  void warningReasonsAreIncludedInStructuredReport() {
+    byte[] json =
+        "[{\"created_at\":\"not-a-date\",\"data\":{\"url\":\"^https://example/\",\"nextLink\":\"//a\",\"pageElement\":\"//div\"}}]"
+            .getBytes(StandardCharsets.UTF_8);
+
+    AutoPagerizeImportReport report =
+        importService.importBytes(
+            json, "warning.json", AutoPagerizeImportOptions.defaults().withDryRun(true));
+
+    assertThat(report.warningCount()).isEqualTo(1);
+    assertThat(report.warningReasonCounts()).containsEntry("INVALID_CREATED_AT", 1);
+  }
+
+  @Test
   void reimportSameFileIsIdempotentAndCanReactivate() throws Exception {
     Path input = writeResource("autopagerize/valid_two_items.json");
 

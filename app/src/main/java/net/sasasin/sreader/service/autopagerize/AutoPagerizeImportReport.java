@@ -23,14 +23,17 @@ public record AutoPagerizeImportReport(
     boolean success,
     Long datasetId,
     Map<String, Integer> rejectionReasonCounts,
+    Map<String, Integer> warningReasonCounts,
     List<String> messages) {
 
   public AutoPagerizeImportReport {
     Objects.requireNonNull(format, "format must not be null");
     Objects.requireNonNull(sourceSha256, "sourceSha256 must not be null");
     Objects.requireNonNull(rejectionReasonCounts, "rejectionReasonCounts must not be null");
+    Objects.requireNonNull(warningReasonCounts, "warningReasonCounts must not be null");
     Objects.requireNonNull(messages, "messages must not be null");
     rejectionReasonCounts = Map.copyOf(rejectionReasonCounts);
+    warningReasonCounts = Map.copyOf(warningReasonCounts);
     messages = List.copyOf(messages);
   }
 }
