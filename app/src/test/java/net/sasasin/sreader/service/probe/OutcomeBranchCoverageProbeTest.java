@@ -8,7 +8,6 @@ import static org.mockito.Mockito.when;
 
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
-import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
@@ -25,6 +24,7 @@ import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentOutcome;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentService;
 import net.sasasin.sreader.service.http.HttpFetchService;
+import net.sasasin.sreader.service.http.HttpStatusException;
 import net.sasasin.sreader.service.http.RedirectResolution;
 import net.sasasin.sreader.service.outcome.FailureKind;
 import net.sasasin.sreader.service.outcome.FailureStage;
@@ -60,7 +60,7 @@ class OutcomeBranchCoverageProbeTest {
     ProbeDocumentFetcher fetcher = new ProbeDocumentFetcher(http, playwright, properties(true));
 
     when(http.get(URI.create("https://a")))
-        .thenThrow(new IOException("GET https://a returned HTTP 500"));
+        .thenThrow(new HttpStatusException(URI.create("https://a"), 500));
     ProbeDocumentFetcher.FetchOutcome.Failed status =
         (ProbeDocumentFetcher.FetchOutcome.Failed)
             fetcher.fetch(URI.create("https://a"), FullTextMethod.HTTP, "https://a");

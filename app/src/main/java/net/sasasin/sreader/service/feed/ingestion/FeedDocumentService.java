@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import net.sasasin.sreader.service.http.HttpFetchService;
+import net.sasasin.sreader.service.http.HttpStatusException;
 import net.sasasin.sreader.service.outcome.FailureKind;
 import net.sasasin.sreader.service.outcome.FailureStage;
 import net.sasasin.sreader.service.outcome.OperationFailure;
@@ -41,11 +42,19 @@ public class FeedDocumentService {
               feedUrl.toString(),
               "Feed fetch interrupted for " + feedUrl,
               e));
+    } catch (HttpStatusException e) {
+      return new FeedDocumentOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.FETCH_FEED,
+              FailureKind.HTTP_STATUS,
+              feedUrl.toString(),
+              "Failed to fetch feed: " + feedUrl + ": " + e.getMessage(),
+              e));
     } catch (IOException e) {
       return new FeedDocumentOutcome.Failed(
           OperationFailure.of(
               FailureStage.FETCH_FEED,
-              fetchFailureKind(e),
+              FailureKind.IO,
               feedUrl.toString(),
               "Failed to fetch feed: " + feedUrl + ": " + e.getMessage(),
               e));
@@ -58,12 +67,5 @@ public class FeedDocumentService {
               "Failed to parse feed: " + feedUrl + ": " + e.getMessage(),
               e));
     }
-  }
-
-  private FailureKind fetchFailureKind(IOException exception) {
-    String message = exception.getMessage();
-    return message != null && message.contains(" returned HTTP ")
-        ? FailureKind.HTTP_STATUS
-        : FailureKind.IO;
   }
 }

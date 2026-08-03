@@ -25,6 +25,7 @@ import net.sasasin.sreader.service.autopagerize.PaginationStopReason;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
 import net.sasasin.sreader.service.http.HttpArticlePageSessionFactory;
 import net.sasasin.sreader.service.http.HttpFetchService;
+import net.sasasin.sreader.service.http.HttpStatusException;
 import net.sasasin.sreader.service.outcome.FailureKind;
 import net.sasasin.sreader.service.outcome.FailureStage;
 import net.sasasin.sreader.service.outcome.OperationFailure;
@@ -273,7 +274,7 @@ class HttpAutopagerizeExtractionUnitTest {
   @Test
   void singlePageHttpStatusFailureMapsHttpStatusKind() throws Exception {
     HttpFetchService http = mock(HttpFetchService.class);
-    when(http.get(any())).thenThrow(new java.io.IOException("GET https://x returned HTTP 500"));
+    when(http.get(any())).thenThrow(new HttpStatusException(URI.create("https://x"), 500));
     FullTextExtractionService service =
         new FullTextExtractionService(
             mock(ContentHeaderRepository.class),

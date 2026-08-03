@@ -38,10 +38,14 @@ final class HttpArticlePageSession implements ArticlePageSession {
       Thread.currentThread().interrupt();
       throw new PageLoadException(
           FailureKind.INTERRUPTED, "Article page load interrupted for " + uri, e);
-    } catch (IOException e) {
-      FailureKind kind = failureKindFor(e);
+    } catch (HttpStatusException e) {
       throw new PageLoadException(
-          kind, "Article page load failed for " + uri + ": " + message(e), e);
+          FailureKind.HTTP_STATUS,
+          "Article page load failed for " + uri + ": " + e.getMessage(),
+          e);
+    } catch (IOException e) {
+      throw new PageLoadException(
+          FailureKind.IO, "Article page load failed for " + uri + ": " + message(e), e);
     } catch (IllegalArgumentException e) {
       throw new PageLoadException(
           FailureKind.INVALID_INPUT,
@@ -53,19 +57,6 @@ final class HttpArticlePageSession implements ArticlePageSession {
   @Override
   public void close() {
     closed = true;
-  }
-
-  private static FailureKind failureKindFor(IOException e) {
-    String message = e.getMessage();
-    if (message != null && message.contains(" returned HTTP ")) {
-      return FailureKind.HTTP_STATUS;
-    }
-    // java.net.http maps connect/read timeouts to IOException subtypes / messages.
-    if (e instanceof java.net.http.HttpTimeoutException
-        || (message != null && message.toLowerCase().contains("timed out"))) {
-      return FailureKind.IO;
-    }
-    return FailureKind.IO;
   }
 
   private static String message(Throwable e) {

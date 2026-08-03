@@ -22,6 +22,7 @@ import net.sasasin.sreader.service.autopagerize.PaginationResult;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
 import net.sasasin.sreader.service.http.HttpArticlePageSessionFactory;
 import net.sasasin.sreader.service.http.HttpFetchService;
+import net.sasasin.sreader.service.http.HttpStatusException;
 import net.sasasin.sreader.service.outcome.BatchStopReason;
 import net.sasasin.sreader.service.outcome.FailureKind;
 import net.sasasin.sreader.service.outcome.FailureStage;
@@ -209,15 +210,19 @@ public class FullTextExtractionService {
               header.fetchUrl(),
               "Article fetch interrupted for " + header.fetchUrl(),
               e));
-    } catch (IOException e) {
-      FailureKind kind =
-          e.getMessage() != null && e.getMessage().contains(" returned HTTP ")
-              ? FailureKind.HTTP_STATUS
-              : FailureKind.IO;
+    } catch (HttpStatusException e) {
       return new TextExtractionOutcome.Failed(
           OperationFailure.of(
               FailureStage.FETCH_ARTICLE,
-              kind,
+              FailureKind.HTTP_STATUS,
+              header.fetchUrl(),
+              "Article fetch failed for " + header.fetchUrl() + ": " + e.getMessage(),
+              e));
+    } catch (IOException e) {
+      return new TextExtractionOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.FETCH_ARTICLE,
+              FailureKind.IO,
               header.fetchUrl(),
               "Article fetch failed for " + header.fetchUrl() + ": " + e.getMessage(),
               e));

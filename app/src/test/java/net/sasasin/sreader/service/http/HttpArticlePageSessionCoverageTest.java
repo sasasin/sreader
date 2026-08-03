@@ -36,11 +36,10 @@ class HttpArticlePageSessionCoverageTest {
   }
 
   @Test
-  void mapsHttpStatusIoException() throws Exception {
+  void mapsHttpStatusException() throws Exception {
     HttpTransport transport = mock(HttpTransport.class);
     URI uri = URI.create("https://example.test/a");
-    when(transport.get(any(), eq(uri)))
-        .thenThrow(new IOException("GET " + uri + " returned HTTP 404"));
+    when(transport.get(any(), eq(uri))).thenThrow(new HttpStatusException(uri, 404));
     HttpArticlePageSession session = new HttpArticlePageSession(mock(HttpClient.class), transport);
     assertThatThrownBy(() -> session.load(uri))
         .isInstanceOf(PageLoadException.class)

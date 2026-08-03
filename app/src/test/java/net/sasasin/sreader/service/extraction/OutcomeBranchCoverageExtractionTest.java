@@ -8,7 +8,6 @@ import static org.mockito.Mockito.when;
 
 import com.rometools.rome.feed.synd.SyndContentImpl;
 import com.rometools.rome.feed.synd.SyndEntryImpl;
-import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
@@ -24,6 +23,7 @@ import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleCatalog;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
 import net.sasasin.sreader.service.http.HttpArticlePageSessionFactory;
 import net.sasasin.sreader.service.http.HttpFetchService;
+import net.sasasin.sreader.service.http.HttpStatusException;
 import net.sasasin.sreader.service.outcome.BatchStopReason;
 import net.sasasin.sreader.service.outcome.FailureKind;
 import net.sasasin.sreader.service.outcome.FailureStage;
@@ -64,7 +64,7 @@ class OutcomeBranchCoverageExtractionTest {
     ContentHeader header =
         new ContentHeader("id", "feed", "https://s", "https://f", "https://c", "t", null, null);
     when(http.get(URI.create("https://f")))
-        .thenThrow(new IOException("GET https://f returned HTTP 404"));
+        .thenThrow(new HttpStatusException(URI.create("https://f"), 404));
 
     TextExtractionOutcome.Failed failed =
         (TextExtractionOutcome.Failed)

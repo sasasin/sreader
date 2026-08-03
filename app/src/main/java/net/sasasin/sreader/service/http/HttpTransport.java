@@ -102,9 +102,9 @@ public class HttpTransport {
     return new FetchedBytes(response.uri(), decode(response), body.length);
   }
 
-  public void ensure2xx(URI requestedUri, int statusCode) throws IOException {
+  public void ensure2xx(URI requestedUri, int statusCode) throws HttpStatusException {
     if (statusCode < 200 || statusCode >= 300) {
-      throw new IOException("GET " + requestedUri + " returned HTTP " + statusCode);
+      throw new HttpStatusException(requestedUri, statusCode);
     }
   }
 
