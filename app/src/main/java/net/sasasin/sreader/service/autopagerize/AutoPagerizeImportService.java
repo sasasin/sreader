@@ -125,16 +125,19 @@ public class AutoPagerizeImportService {
             rejectionReasonCounts,
             options);
 
-    if (options.dryRun()) {
-      return buildReport(
-          payload, null, false, false, true, List.of("dry-run: no database changes"));
-    }
-
     if (options.strict() && !rejected.isEmpty()) {
       List<String> messages = new ArrayList<>();
       messages.add("strict mode: import aborted because rejected rules are present");
       messages.add("rejected=" + rejected.size());
+      if (options.dryRun()) {
+        messages.add("dry-run: no database changes");
+      }
       return buildReport(payload, null, false, false, false, messages);
+    }
+
+    if (options.dryRun()) {
+      return buildReport(
+          payload, null, false, false, true, List.of("dry-run: no database changes"));
     }
 
     return persister.persist(payload);

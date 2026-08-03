@@ -126,6 +126,22 @@ class AutoPagerizeImportServiceIntegrationTest {
   }
 
   @Test
+  void strictDryRunWithRejectionsFailsWithoutWriting() throws Exception {
+    Path input = writeResource("autopagerize/mixed_valid_and_invalid.json");
+
+    AutoPagerizeImportReport report =
+        importService.importFile(
+            input, AutoPagerizeImportOptions.defaults().withDryRun(true).withStrict(true));
+
+    assertThat(report.success()).isFalse();
+    assertThat(report.dryRun()).isTrue();
+    assertThat(report.strict()).isTrue();
+    assertThat(report.datasetId()).isNull();
+    assertThat(dsl.fetchCount(AUTOPAGERIZE_DATASET)).isZero();
+    assertThat(stateRepository.findActiveDatasetId()).isEmpty();
+  }
+
+  @Test
   void reimportSameFileIsIdempotentAndCanReactivate() throws Exception {
     Path input = writeResource("autopagerize/valid_two_items.json");
 
