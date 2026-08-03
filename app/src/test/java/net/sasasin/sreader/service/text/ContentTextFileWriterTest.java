@@ -103,6 +103,7 @@ class ContentTextFileWriterTest {
         null,
         null,
         new FeedReaderProperties.TextExport(true, outputDir, 100),
+        null,
         List.of());
   }
 

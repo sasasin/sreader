@@ -302,7 +302,7 @@ class PlaywrightHtmlSourceTest {
   }
 
   private static FeedReaderProperties properties(boolean enabled) {
-    return new FeedReaderProperties(null, null, null, settings(enabled), null, List.of());
+    return new FeedReaderProperties(null, null, null, settings(enabled), null, null, List.of());
   }
 
   private static FeedReaderProperties.Playwright settings(boolean enabled) {
@@ -331,7 +331,7 @@ class PlaywrightHtmlSourceTest {
     PlaywrightResourceLifecycle lifecycle =
         new PlaywrightResourceLifecycle(settings, runtime, infy);
     return new PlaywrightHtmlSource(
-        new FeedReaderProperties(null, null, null, settings, null, List.of()),
+        new FeedReaderProperties(null, null, null, settings, null, null, List.of()),
         lifecycle,
         standard,
         infy);

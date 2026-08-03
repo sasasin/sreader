@@ -44,4 +44,10 @@ sreader:
     enabled: ${SREADER_TEXT_EXPORT_ENABLED:false}
     output-dir: ${SREADER_TEXT_EXPORT_OUTPUT_DIR:/var/lib/sreader/content-text}
     batch-size: ${SREADER_TEXT_EXPORT_BATCH_SIZE:100}
+  autopagerize:
+    max-pages: ${SREADER_AUTOPAGERIZE_MAX_PAGES:20}
+    max-page-bytes: ${SREADER_AUTOPAGERIZE_MAX_PAGE_BYTES:5242880}
+    max-total-bytes: ${SREADER_AUTOPAGERIZE_MAX_TOTAL_BYTES:20971520}
+    total-timeout: ${SREADER_AUTOPAGERIZE_TOTAL_TIMEOUT:120s}
+    same-origin-only: ${SREADER_AUTOPAGERIZE_SAME_ORIGIN_ONLY:true}
   seed-feed-urls: ${SREADER_SEED_FEED_URLS:}

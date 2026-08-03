@@ -50,6 +50,7 @@ class ContentTextFileStoreTest {
         null,
         null,
         new FeedReaderProperties.TextExport(false, outputDir, 10),
+        null,
         List.of());
   }
 }

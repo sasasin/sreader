@@ -278,6 +278,7 @@ class HttpFetchServiceTest {
         new FeedReaderProperties.Http("test-agent", Duration.ofSeconds(1), timeout, retries),
         null,
         null,
+        null,
         null);
   }
 

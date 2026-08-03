@@ -6,5 +6,9 @@ public enum ExtractionSource {
   XPATH_OVERRIDE,
   CONFIGURED_XPATH,
   READABILITY,
-  BODY_TEXT
+  BODY_TEXT,
+  /** AutoPagerize pageElement text (matched rule path). */
+  PAGE_ELEMENT,
+  /** Multiple pages used different extraction sources. */
+  MIXED
 }

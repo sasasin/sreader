@@ -20,6 +20,7 @@ class ServicePackageLayoutTest {
   private static final List<String> EXPECTED_FEATURE_DIRS =
       List.of(
           "article",
+          "autopagerize",
           "canonicalization",
           "extraction",
           "feed",

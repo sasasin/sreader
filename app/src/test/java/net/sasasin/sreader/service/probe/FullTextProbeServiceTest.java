@@ -579,6 +579,7 @@ class FullTextProbeServiceTest {
             1,
             Duration.ofMillis(10)),
         null,
+        null,
         java.util.List.of());
   }
 

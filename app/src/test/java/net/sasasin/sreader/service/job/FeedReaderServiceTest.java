@@ -48,6 +48,7 @@ class FeedReaderServiceTest {
             null,
             null,
             new FeedReaderProperties.TextExport(true, Path.of("/tmp/sreader-test"), 7),
+            null,
             List.of("https://example.test/rss.xml"));
     FeedUrl feedUrl = new FeedUrl("feed", "https://example.test/rss.xml");
     when(feedRegistrationService.registerFeedUrls(properties.seedFeedUrls())).thenReturn(1);
@@ -201,6 +202,7 @@ class FeedReaderServiceTest {
         null,
         null,
         new FeedReaderProperties.TextExport(true, Path.of("/tmp/sreader-test"), exportBatch),
+        null,
         List.of());
   }
 }

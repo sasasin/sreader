@@ -11,7 +11,8 @@ class FeedReaderPropertiesTest {
 
   @Test
   void nullComponentsUseDocumentedDefaults() {
-    FeedReaderProperties properties = new FeedReaderProperties(null, null, null, null, null, null);
+    FeedReaderProperties properties =
+        new FeedReaderProperties(null, null, null, null, null, null, null);
 
     assertThat(properties.scheduler().cron()).isEqualTo("0 */15 * * * *");
     assertThat(properties.http().userAgent()).isEqualTo("SReader/0.1");
@@ -20,6 +21,11 @@ class FeedReaderPropertiesTest {
     assertThat(properties.playwright().infyScrollWait()).isEqualTo(Duration.ofMillis(2700));
     assertThat(properties.textExport().outputDir())
         .isEqualTo(Path.of("/var/lib/sreader/content-text"));
+    assertThat(properties.autopagerize().maxPages()).isEqualTo(20);
+    assertThat(properties.autopagerize().maxPageBytes()).isEqualTo(5L * 1024 * 1024);
+    assertThat(properties.autopagerize().maxTotalBytes()).isEqualTo(20L * 1024 * 1024);
+    assertThat(properties.autopagerize().totalTimeout()).isEqualTo(Duration.ofSeconds(120));
+    assertThat(properties.autopagerize().sameOriginOnly()).isTrue();
   }
 
   @Test
@@ -58,5 +64,34 @@ class FeedReaderPropertiesTest {
         .hasMessage("sreader.http.user-agent must not be blank");
     assertThatThrownBy(() -> new FeedReaderProperties.Scheduler(true, " "))
         .hasMessage("sreader.scheduler.cron must not be blank");
+    assertThatThrownBy(
+            () ->
+                new FeedReaderProperties.Autopagerize(0, 1024L, 2048L, Duration.ofSeconds(1), true))
+        .hasMessage("sreader.autopagerize.max-pages must be positive");
+    assertThatThrownBy(
+            () ->
+                new FeedReaderProperties.Autopagerize(2, 4096L, 1024L, Duration.ofSeconds(1), true))
+        .hasMessage("sreader.autopagerize.max-total-bytes must be >= max-page-bytes");
+    assertThatThrownBy(
+            () -> new FeedReaderProperties.Autopagerize(1, 0L, 1024L, Duration.ofSeconds(1), true))
+        .hasMessage("sreader.autopagerize.max-page-bytes must be positive");
+    assertThatThrownBy(
+            () -> new FeedReaderProperties.Autopagerize(1, 1024L, 0L, Duration.ofSeconds(1), true))
+        .hasMessage("sreader.autopagerize.max-total-bytes must be positive");
+    assertThatThrownBy(
+            () -> new FeedReaderProperties.Autopagerize(1, 1024L, 2048L, Duration.ZERO, true))
+        .hasMessage("sreader.autopagerize.total-timeout must be positive");
+  }
+
+  @Test
+  void autopagerizeNullsUseDefaults() {
+    FeedReaderProperties.Autopagerize cfg =
+        new FeedReaderProperties.Autopagerize(null, null, null, null, null);
+    assertThat(cfg.maxPages()).isEqualTo(20);
+    assertThat(cfg.maxPageBytes()).isEqualTo(5L * 1024 * 1024);
+    assertThat(cfg.maxTotalBytes()).isEqualTo(20L * 1024 * 1024);
+    assertThat(cfg.totalTimeout()).isEqualTo(Duration.ofSeconds(120));
+    assertThat(cfg.sameOriginOnly()).isTrue();
+    assertThat(cfg.toPaginationPolicy().maxPages()).isEqualTo(20);
   }
 }
