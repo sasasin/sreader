@@ -1,0 +1,25 @@
+[
+  {
+    "name": "Good Rule",
+    "data": {
+      "url": "^https://good\\.example/",
+      "nextLink": "//a[@rel='next']",
+      "pageElement": "//div[@id='content']"
+    }
+  },
+  {
+    "name": "Missing Page Element",
+    "data": {
+      "url": "^https://bad\\.example/",
+      "nextLink": "//a[@rel='next']"
+    }
+  },
+  {
+    "name": "Invalid Regex",
+    "data": {
+      "url": "[unterminated",
+      "nextLink": "//a[@rel='next']",
+      "pageElement": "//div"
+    }
+  }
+]

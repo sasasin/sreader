@@ -1,0 +1,29 @@
+[
+  {
+    "id": "100",
+    "resource_url": "http://wedata.net/items/100",
+    "name": "Short Pattern Site",
+    "created_by": "author-a",
+    "created_at": "2024-01-01T12:00:00+09:00",
+    "updated_at": "2024-01-02T12:00:00+09:00",
+    "data": {
+      "url": "^https://short\\.example/",
+      "nextLink": "//a[@rel='next']",
+      "pageElement": "//div[@class='body']",
+      "insertBefore": "",
+      "exampleUrl": "https://short.example/a/1"
+    }
+  },
+  {
+    "id": 200,
+    "resource_url": "http://wedata.net/items/200",
+    "name": "Longer Pattern Site",
+    "created_by": "author-b",
+    "data": {
+      "url": "^https://longer\\.example\\.com/articles/",
+      "nextLink": "//link[@rel='next']",
+      "pageElement": "//article",
+      "exampleUrl": "https://longer.example.com/articles/1"
+    }
+  }
+]
