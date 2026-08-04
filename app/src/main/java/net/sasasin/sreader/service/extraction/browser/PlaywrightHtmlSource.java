@@ -49,6 +49,19 @@ public class PlaywrightHtmlSource implements SmartLifecycle {
     };
   }
 
+  /**
+   * Runs {@code work} against one short-lived standard BrowserContext/Page session while holding
+   * this facade's monitor for the entire pagination chain. Does not load extensions or persistent
+   * profiles.
+   */
+  public synchronized <T> T withStandardSession(PlaywrightSessionWork<T> work) {
+    Objects.requireNonNull(work, "work must not be null");
+    if (!settings.enabled()) {
+      throw new IllegalStateException("Playwright full text extraction is disabled");
+    }
+    return standardRenderer.withSession(work);
+  }
+
   @Override
   public synchronized void start() {
     lifecycle.start();

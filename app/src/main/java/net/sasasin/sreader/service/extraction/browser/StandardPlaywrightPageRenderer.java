@@ -51,4 +51,29 @@ final class StandardPlaywrightPageRenderer {
     }
     return result;
   }
+
+  /**
+   * Opens one short-lived standard context/page session, runs {@code work}, and always closes the
+   * session. Primary work failures are preserved when close also fails.
+   *
+   * <p>Must be called only while holding the {@link PlaywrightHtmlSource} monitor.
+   */
+  <T> T withSession(PlaywrightSessionWork<T> work) {
+    Objects.requireNonNull(work, "work must not be null");
+    PlaywrightArticlePageSession session =
+        PlaywrightArticlePageSession.open(runtime, settings, navigator);
+    RuntimeException primary = null;
+    T result = null;
+    try {
+      result = work.apply(session);
+    } catch (RuntimeException e) {
+      primary = e;
+    } finally {
+      primary = PlaywrightCloseSupport.close(primary, session::close);
+    }
+    if (primary != null) {
+      throw primary;
+    }
+    return result;
+  }
 }
