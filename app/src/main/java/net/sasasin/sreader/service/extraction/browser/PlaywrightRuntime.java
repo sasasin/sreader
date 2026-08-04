@@ -1,10 +1,8 @@
 package net.sasasin.sreader.service.extraction.browser;
 
 import com.microsoft.playwright.Browser;
-import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Playwright;
-import java.nio.file.Path;
 import java.util.Objects;
 import net.sasasin.sreader.config.FeedReaderProperties;
 
@@ -61,16 +59,6 @@ final class PlaywrightRuntime {
   Browser browser() {
     ensureStarted();
     return browser;
-  }
-
-  BrowserType chromium() {
-    ensureStarted();
-    return playwright.chromium();
-  }
-
-  BrowserContext launchPersistentContext(
-      Path userDataDir, BrowserType.LaunchPersistentContextOptions options) {
-    return chromium().launchPersistentContext(userDataDir, options);
   }
 
   boolean isRunning() {

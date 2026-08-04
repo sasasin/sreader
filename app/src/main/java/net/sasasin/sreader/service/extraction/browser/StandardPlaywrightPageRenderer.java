@@ -9,7 +9,7 @@ import net.sasasin.sreader.config.FeedReaderProperties;
 
 /**
  * Renders a page with a short-lived BrowserContext from the shared regular Browser. One context per
- * render; never uses Infy persistent context.
+ * render.
  */
 final class StandardPlaywrightPageRenderer {
 

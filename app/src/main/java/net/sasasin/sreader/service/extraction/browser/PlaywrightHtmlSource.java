@@ -3,15 +3,15 @@ package net.sasasin.sreader.service.extraction.browser;
 import java.net.URI;
 import java.util.Objects;
 import net.sasasin.sreader.config.FeedReaderProperties;
-import net.sasasin.sreader.domain.FullTextMethod.PlaywrightMode;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.stereotype.Service;
 
 /**
  * Public facade for Playwright page rendering.
  *
- * <p>All public render/start/stop operations are synchronized on this instance so Playwright
- * operations and resource teardown never interleave.
+ * <p>Exposes standard single-page render and short-lived standard AutoPagerize sessions. All public
+ * render/start/stop operations are synchronized on this instance so Playwright operations and
+ * resource teardown never interleave.
  */
 @Service
 public class PlaywrightHtmlSource implements SmartLifecycle {
@@ -19,34 +19,27 @@ public class PlaywrightHtmlSource implements SmartLifecycle {
   private final FeedReaderProperties.Playwright settings;
   private final PlaywrightResourceLifecycle lifecycle;
   private final StandardPlaywrightPageRenderer standardRenderer;
-  private final InfyScrollPageRenderer infyRenderer;
 
   PlaywrightHtmlSource(
       FeedReaderProperties properties,
       PlaywrightResourceLifecycle lifecycle,
-      StandardPlaywrightPageRenderer standardRenderer,
-      InfyScrollPageRenderer infyRenderer) {
+      StandardPlaywrightPageRenderer standardRenderer) {
     this.settings = Objects.requireNonNull(properties, "properties must not be null").playwright();
     this.lifecycle = Objects.requireNonNull(lifecycle, "lifecycle must not be null");
     this.standardRenderer =
         Objects.requireNonNull(standardRenderer, "standardRenderer must not be null");
-    this.infyRenderer = Objects.requireNonNull(infyRenderer, "infyRenderer must not be null");
   }
 
-  public synchronized String render(URI uri, PlaywrightMode mode) {
-    return renderPage(uri, mode).html();
+  public synchronized String render(URI uri) {
+    return renderPage(uri).html();
   }
 
-  public synchronized RenderedPage renderPage(URI uri, PlaywrightMode mode) {
+  public synchronized RenderedPage renderPage(URI uri) {
     Objects.requireNonNull(uri, "uri must not be null");
-    Objects.requireNonNull(mode, "mode must not be null");
     if (!settings.enabled()) {
       throw new IllegalStateException("Playwright full text extraction is disabled");
     }
-    return switch (mode) {
-      case STANDARD -> standardRenderer.render(uri);
-      case INFY_SCROLL -> infyRenderer.render(uri);
-    };
+    return standardRenderer.render(uri);
   }
 
   /**
