@@ -83,25 +83,9 @@ public record FeedReaderProperties(
       Integer viewportWidth,
       Integer viewportHeight,
       Duration navigationTimeout,
-      Duration networkIdleTimeout,
-      Path infyExtensionDir,
-      Path infyUserDataDir,
-      Integer infyMaxScrolls,
-      Integer infyStableRounds,
-      Duration infyScrollWait) {
+      Duration networkIdleTimeout) {
     static Playwright defaults() {
-      return new Playwright(
-          false,
-          true,
-          1280,
-          1600,
-          Duration.ofSeconds(60),
-          Duration.ofSeconds(5),
-          null,
-          null,
-          20,
-          3,
-          Duration.ofMillis(2700));
+      return new Playwright(false, true, 1280, 1600, Duration.ofSeconds(60), Duration.ofSeconds(5));
     }
 
     public Playwright {
@@ -115,11 +99,6 @@ public record FeedReaderProperties(
       networkIdleTimeout =
           positiveDuration(
               networkIdleTimeout, "sreader.playwright.network-idle-timeout", Duration.ofSeconds(5));
-      infyMaxScrolls = positive(infyMaxScrolls, "sreader.playwright.infy-max-scrolls", 20);
-      infyStableRounds = positive(infyStableRounds, "sreader.playwright.infy-stable-rounds", 3);
-      infyScrollWait =
-          positiveDuration(
-              infyScrollWait, "sreader.playwright.infy-scroll-wait", Duration.ofMillis(2700));
     }
   }
 

@@ -35,11 +35,6 @@ sreader:
     viewport-height: ${SREADER_PLAYWRIGHT_VIEWPORT_HEIGHT:1600}
     navigation-timeout: ${SREADER_PLAYWRIGHT_NAVIGATION_TIMEOUT:60s}
     network-idle-timeout: ${SREADER_PLAYWRIGHT_NETWORK_IDLE_TIMEOUT:5s}
-    infy-extension-dir: ${SREADER_PLAYWRIGHT_INFY_EXTENSION_DIR:}
-    infy-user-data-dir: ${SREADER_PLAYWRIGHT_INFY_USER_DATA_DIR:}
-    infy-max-scrolls: ${SREADER_PLAYWRIGHT_INFY_MAX_SCROLLS:20}
-    infy-stable-rounds: ${SREADER_PLAYWRIGHT_INFY_STABLE_ROUNDS:3}
-    infy-scroll-wait: ${SREADER_PLAYWRIGHT_INFY_SCROLL_WAIT:2700ms}
   text-export:
     enabled: ${SREADER_TEXT_EXPORT_ENABLED:false}
     output-dir: ${SREADER_TEXT_EXPORT_OUTPUT_DIR:/var/lib/sreader/content-text}
