@@ -36,6 +36,40 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether to validate app container
+        id: container_changes
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            # master image creation is owned by publish-container.yml.
+            echo "required=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          container_change=false
+          while IFS= read -r changed_file; do
+            case "$changed_file" in
+              .dockerignore|docker-compose.yml|docker/app/*|pom.xml|app/pom.xml|.mvn/*|app/src/main/*|app/src/generated/*)
+                container_change=true
+                break
+                ;;
+            esac
+          done < <(git diff --name-only "${BASE_SHA}...HEAD")
+
+          echo "required=$container_change" >> "$GITHUB_OUTPUT"
 
       - name: Prepare PostgreSQL databases
         shell: bash
@@ -254,9 +288,11 @@ jobs:
           } >> "$summary"
 
       - name: Build app image
+        if: steps.container_changes.outputs.required == 'true'
         run: docker build --tag sreader-app:ci --file docker/app/Dockerfile .
 
       - name: Start app smoke test
+        if: steps.container_changes.outputs.required == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -312,15 +348,15 @@ jobs:
           path: app/target/site/jacoco
 
       - name: Show Docker status
-        if: always()
+        if: always() && steps.container_changes.outputs.required == 'true'
         run: docker ps -a
 
       - name: Show app logs
-        if: always()
+        if: always() && steps.container_changes.outputs.required == 'true'
         run: docker logs --tail=300 sreader-app-ci 2>&1 || true
 
       - name: Cleanup
-        if: always()
+        if: always() && steps.container_changes.outputs.required == 'true'
         run: docker rm --force sreader-app-ci 2>/dev/null || true
 
   deploy-coverage:
