@@ -3,10 +3,19 @@ package net.sasasin.sreader.service.probe;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Objects;
+import java.util.Optional;
 import net.sasasin.sreader.config.FeedReaderProperties;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.domain.FullTextMethod.Definition;
+import net.sasasin.sreader.domain.FullTextMethod.PaginationMode;
+import net.sasasin.sreader.service.autopagerize.ArticlePageSession;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeCatalogException;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeEngine;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleCatalog;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleSnapshot;
+import net.sasasin.sreader.service.autopagerize.PaginationResult;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightSessionFailure;
 import net.sasasin.sreader.service.extraction.browser.RenderedPage;
 import net.sasasin.sreader.service.http.HttpFetchService;
 import net.sasasin.sreader.service.http.HttpStatusException;
@@ -20,21 +29,36 @@ final class ProbeDocumentFetcher {
   private final HttpFetchService httpFetchService;
   private final PlaywrightHtmlSource playwrightHtmlSource;
   private final FeedReaderProperties properties;
+  private final AutoPagerizeRuleCatalog autoPagerizeRuleCatalog;
+  private final AutoPagerizeEngine autoPagerizeEngine;
 
   ProbeDocumentFetcher(
       HttpFetchService httpFetchService,
       PlaywrightHtmlSource playwrightHtmlSource,
-      FeedReaderProperties properties) {
+      FeedReaderProperties properties,
+      AutoPagerizeRuleCatalog autoPagerizeRuleCatalog,
+      AutoPagerizeEngine autoPagerizeEngine) {
     this.httpFetchService = httpFetchService;
     this.playwrightHtmlSource = playwrightHtmlSource;
     this.properties = properties;
+    this.autoPagerizeRuleCatalog = autoPagerizeRuleCatalog;
+    this.autoPagerizeEngine = autoPagerizeEngine;
   }
 
   sealed interface FetchOutcome
-      permits FetchOutcome.Fetched, FetchOutcome.Skipped, FetchOutcome.Failed {
+      permits FetchOutcome.Fetched,
+          FetchOutcome.Paginated,
+          FetchOutcome.Skipped,
+          FetchOutcome.Failed {
     record Fetched(FetchedProbeDocument document) implements FetchOutcome {
       public Fetched {
         Objects.requireNonNull(document, "document must not be null");
+      }
+    }
+
+    record Paginated(PaginationResult.Succeeded pagination) implements FetchOutcome {
+      public Paginated {
+        Objects.requireNonNull(pagination, "pagination must not be null");
       }
     }
 
@@ -56,7 +80,9 @@ final class ProbeDocumentFetcher {
     return switch (method.definition()) {
       case Definition.HttpArticle ignored -> fetchHttp(requestedUri, failureSubject);
       case Definition.PlaywrightArticle playwright ->
-          fetchPlaywright(requestedUri, playwright, failureSubject);
+          playwright.pagination() == PaginationMode.AUTOPAGERIZE
+              ? fetchPlaywrightAutopagerize(requestedUri, failureSubject)
+              : fetchPlaywright(requestedUri, playwright, failureSubject);
       case Definition.FeedEntry ignored ->
           new FetchOutcome.Failed(
               OperationFailure.of(
@@ -117,6 +143,80 @@ final class ProbeDocumentFetcher {
               FailureKind.RENDER,
               subject,
               "Playwright render failed for " + subject + ": " + e.getMessage(),
+              e));
+    }
+  }
+
+  private FetchOutcome fetchPlaywrightAutopagerize(URI uri, String subject) {
+    if (!properties.playwright().enabled()) {
+      return new FetchOutcome.Skipped(
+          ProbeSkipReason.PLAYWRIGHT_DISABLED,
+          "Playwright is required for method but is disabled or misconfigured");
+    }
+
+    final AutoPagerizeRuleSnapshot snapshot;
+    try {
+      Optional<AutoPagerizeRuleSnapshot> active = autoPagerizeRuleCatalog.getActiveSnapshot();
+      if (active.isEmpty()) {
+        return new FetchOutcome.Failed(
+            OperationFailure.of(
+                FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+                FailureKind.INVALID_INPUT,
+                subject,
+                "No active AutoPagerize dataset; import and activate a local SITEINFO JSON first"));
+      }
+      snapshot = active.get();
+    } catch (AutoPagerizeCatalogException e) {
+      return new FetchOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.MATCH_AUTOPAGERIZE_RULE,
+              FailureKind.UNEXPECTED,
+              subject,
+              "Failed to load or compile active AutoPagerize rules: " + e.getMessage(),
+              e));
+    } catch (RuntimeException e) {
+      return new FetchOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+              FailureKind.UNEXPECTED,
+              subject,
+              "Failed to load active AutoPagerize dataset: " + e.getMessage(),
+              e));
+    }
+
+    try {
+      return playwrightHtmlSource.withStandardSession(
+          session -> paginate(uri, subject, snapshot, session));
+    } catch (PlaywrightSessionFailure e) {
+      return new FetchOutcome.Failed(e.failure());
+    } catch (RuntimeException e) {
+      return new FetchOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.RENDER_ARTICLE,
+              FailureKind.RENDER,
+              subject,
+              "Playwright AutoPagerize render failed for " + subject + ": " + e.getMessage(),
+              e));
+    }
+  }
+
+  private FetchOutcome paginate(
+      URI uri, String subject, AutoPagerizeRuleSnapshot snapshot, ArticlePageSession session) {
+    try {
+      PaginationResult result =
+          autoPagerizeEngine.paginate(
+              uri, session, snapshot, properties.autopagerize().toPaginationPolicy());
+      if (result instanceof PaginationResult.Failed failed) {
+        throw new PlaywrightSessionFailure(failed.failure());
+      }
+      return new FetchOutcome.Paginated((PaginationResult.Succeeded) result);
+    } catch (RuntimeException e) {
+      throw new PlaywrightSessionFailure(
+          OperationFailure.of(
+              FailureStage.MATCH_AUTOPAGERIZE_RULE,
+              FailureKind.UNEXPECTED,
+              subject,
+              "Playwright AutoPagerize rule matching failed for " + subject + ": " + e.getMessage(),
               e));
     }
   }

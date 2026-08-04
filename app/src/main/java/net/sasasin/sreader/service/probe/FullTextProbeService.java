@@ -7,8 +7,10 @@ import net.sasasin.sreader.domain.FeedEntrySelection;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.domain.FullTextMethod.Definition;
 import net.sasasin.sreader.domain.FullTextMethod.HtmlExtractor;
+import net.sasasin.sreader.service.autopagerize.PageSnapshot;
 import net.sasasin.sreader.service.extraction.FeedEntryFullTextExtractor;
 import net.sasasin.sreader.service.extraction.HtmlTextExtractor;
+import net.sasasin.sreader.service.extraction.PaginatedHtmlTextExtractor;
 import net.sasasin.sreader.service.extraction.TextExtractionOutcome;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentOutcome;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentService;
@@ -27,6 +29,7 @@ public class FullTextProbeService {
   private final HttpFetchService httpFetchService;
   private final ProbeDocumentFetcher documentFetcher;
   private final HtmlTextExtractor htmlTextExtractor;
+  private final PaginatedHtmlTextExtractor paginatedHtmlTextExtractor;
   private final FeedDocumentService feedDocumentService;
   private final FeedEntryPicker feedEntryPicker;
   private final FeedEntryFullTextExtractor feedEntryFullTextExtractor;
@@ -35,12 +38,14 @@ public class FullTextProbeService {
       HttpFetchService httpFetchService,
       ProbeDocumentFetcher documentFetcher,
       HtmlTextExtractor htmlTextExtractor,
+      PaginatedHtmlTextExtractor paginatedHtmlTextExtractor,
       FeedDocumentService feedDocumentService,
       FeedEntryPicker feedEntryPicker,
       FeedEntryFullTextExtractor feedEntryFullTextExtractor) {
     this.httpFetchService = httpFetchService;
     this.documentFetcher = documentFetcher;
     this.htmlTextExtractor = htmlTextExtractor;
+    this.paginatedHtmlTextExtractor = paginatedHtmlTextExtractor;
     this.feedDocumentService = feedDocumentService;
     this.feedEntryPicker = feedEntryPicker;
     this.feedEntryFullTextExtractor = feedEntryFullTextExtractor;
@@ -152,28 +157,8 @@ public class FullTextProbeService {
 
     ProbeDocumentFetcher.FetchOutcome fetch =
         documentFetcher.fetch(entryLink, method, "entry " + entryLink);
-    return switch (fetch) {
-      case ProbeDocumentFetcher.FetchOutcome.Skipped skipped ->
-          new ProbeOutcome.Skipped(skipped.reason(), skipped.message());
-      case ProbeDocumentFetcher.FetchOutcome.Failed failed ->
-          new ProbeOutcome.Failed(failed.failure());
-      case ProbeDocumentFetcher.FetchOutcome.Fetched fetchedDoc -> {
-        Optional<String> title =
-            entryTitle != null && !entryTitle.isBlank()
-                ? Optional.of(entryTitle)
-                : extractTitleFromHtml(fetchedDoc.document().html());
-        yield toProbeOutcome(
-            feedUrl,
-            fetchedDoc.document().finalUri(),
-            title,
-            method,
-            htmlTextExtractor.extract(
-                fetchedDoc.document().finalUri().toString(),
-                fetchedDoc.document().html(),
-                extractor,
-                xpathOverride));
-      }
-    };
+    Optional<String> title = optionalTitle(entryTitle);
+    return toProbeOutcome(fetch, feedUrl, method, extractor, xpathOverride, title);
   }
 
   private ProbeOutcome fetchAndExtractArticle(
@@ -183,22 +168,56 @@ public class FullTextProbeService {
       Optional<String> xpathOverride) {
     ProbeDocumentFetcher.FetchOutcome fetch =
         documentFetcher.fetch(articleUrl, method, articleUrl.toString());
+    return toProbeOutcome(fetch, articleUrl, method, extractor, xpathOverride, Optional.empty());
+  }
+
+  private ProbeOutcome toProbeOutcome(
+      ProbeDocumentFetcher.FetchOutcome fetch,
+      URI inputUrl,
+      FullTextMethod method,
+      HtmlExtractor extractor,
+      Optional<String> xpathOverride,
+      Optional<String> preferredTitle) {
     return switch (fetch) {
       case ProbeDocumentFetcher.FetchOutcome.Skipped skipped ->
           new ProbeOutcome.Skipped(skipped.reason(), skipped.message());
       case ProbeDocumentFetcher.FetchOutcome.Failed failed ->
           new ProbeOutcome.Failed(failed.failure());
-      case ProbeDocumentFetcher.FetchOutcome.Fetched fetched ->
-          toProbeOutcome(
-              articleUrl,
-              fetched.document().finalUri(),
-              extractTitleFromHtml(fetched.document().html()),
-              method,
-              htmlTextExtractor.extract(
-                  fetched.document().finalUri().toString(),
-                  fetched.document().html(),
-                  extractor,
-                  xpathOverride));
+      case ProbeDocumentFetcher.FetchOutcome.Fetched fetched -> {
+        Optional<String> title =
+            preferredTitle.or(() -> extractTitleFromHtml(fetched.document().html()));
+        yield toProbeOutcome(
+            inputUrl,
+            fetched.document().finalUri(),
+            title,
+            method,
+            htmlTextExtractor.extract(
+                fetched.document().finalUri().toString(),
+                fetched.document().html(),
+                extractor,
+                xpathOverride));
+      }
+      case ProbeDocumentFetcher.FetchOutcome.Paginated paginated -> {
+        PageSnapshot firstPage = paginated.pagination().firstPage();
+        Optional<String> title = preferredTitle.or(() -> extractTitleFromHtml(firstPage.html()));
+        TextExtractionOutcome extraction;
+        try {
+          extraction =
+              paginatedHtmlTextExtractor
+                  .extract(paginated.pagination(), extractor, xpathOverride)
+                  .outcome();
+        } catch (RuntimeException e) {
+          extraction =
+              new TextExtractionOutcome.Failed(
+                  OperationFailure.of(
+                      FailureStage.EXTRACT_TEXT,
+                      FailureKind.EXTRACTION,
+                      inputUrl.toString(),
+                      "Playwright AutoPagerize probe extraction failed for " + inputUrl,
+                      e));
+        }
+        yield toProbeOutcome(inputUrl, firstPage.finalUri(), title, method, extraction);
+      }
     };
   }
 

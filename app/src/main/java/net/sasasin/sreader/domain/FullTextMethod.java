@@ -37,20 +37,33 @@ public enum FullTextMethod {
 
   PLAYWRIGHT(
       "playwright",
-      new Definition.PlaywrightArticle(PlaywrightMode.STANDARD, HtmlExtractor.XPATH_OR_BODY_TEXT)),
+      new Definition.PlaywrightArticle(
+          PlaywrightMode.STANDARD, PaginationMode.NONE, HtmlExtractor.XPATH_OR_BODY_TEXT)),
 
   PLAYWRIGHT_READABILITY(
       "playwright_readability",
-      new Definition.PlaywrightArticle(PlaywrightMode.STANDARD, HtmlExtractor.READABILITY)),
+      new Definition.PlaywrightArticle(
+          PlaywrightMode.STANDARD, PaginationMode.NONE, HtmlExtractor.READABILITY)),
+
+  PLAYWRIGHT_AUTOPAGERIZE(
+      "playwright_autopagerize",
+      new Definition.PlaywrightArticle(
+          PlaywrightMode.STANDARD, PaginationMode.AUTOPAGERIZE, HtmlExtractor.XPATH_OR_BODY_TEXT)),
+
+  PLAYWRIGHT_AUTOPAGERIZE_READABILITY(
+      "playwright_autopagerize_readability",
+      new Definition.PlaywrightArticle(
+          PlaywrightMode.STANDARD, PaginationMode.AUTOPAGERIZE, HtmlExtractor.READABILITY)),
 
   PLAYWRIGHT_INFY_SCROLL(
       "playwright_infy_scroll",
       new Definition.PlaywrightArticle(
-          PlaywrightMode.INFY_SCROLL, HtmlExtractor.XPATH_OR_BODY_TEXT)),
+          PlaywrightMode.INFY_SCROLL, PaginationMode.NONE, HtmlExtractor.XPATH_OR_BODY_TEXT)),
 
   PLAYWRIGHT_INFY_SCROLL_READABILITY(
       "playwright_infy_scroll_readability",
-      new Definition.PlaywrightArticle(PlaywrightMode.INFY_SCROLL, HtmlExtractor.READABILITY));
+      new Definition.PlaywrightArticle(
+          PlaywrightMode.INFY_SCROLL, PaginationMode.NONE, HtmlExtractor.READABILITY));
 
   private static final FullTextMethod DEFAULT = HTTP;
 
@@ -143,8 +156,12 @@ public enum FullTextMethod {
 
   /** Whether AutoPagerize multi-page tracking is required. */
   public boolean usesAutopagerize() {
-    return definition instanceof Definition.HttpArticle http
-        && http.pagination() == PaginationMode.AUTOPAGERIZE;
+    return switch (definition) {
+      case Definition.HttpArticle http -> http.pagination() == PaginationMode.AUTOPAGERIZE;
+      case Definition.PlaywrightArticle playwright ->
+          playwright.pagination() == PaginationMode.AUTOPAGERIZE;
+      case Definition.FeedEntry ignored -> false;
+    };
   }
 
   public Optional<Definition.ArticleDefinition> articleDefinition() {
@@ -197,12 +214,22 @@ public enum FullTextMethod {
       }
     }
 
-    /** Playwright render of the article URL with a mode, then HTML extraction. */
-    record PlaywrightArticle(PlaywrightMode mode, HtmlExtractor extractor)
+    /**
+     * Playwright render of the article URL with a mode, then HTML extraction. {@link
+     * PaginationMode#AUTOPAGERIZE} tracks multi-page chains through a short-lived standard browser
+     * context (no extension / persistent profile). Infy Scroll cannot combine with AutoPagerize.
+     */
+    record PlaywrightArticle(
+        PlaywrightMode mode, PaginationMode pagination, HtmlExtractor extractor)
         implements ArticleDefinition {
       public PlaywrightArticle {
         Objects.requireNonNull(mode, "mode must not be null");
+        Objects.requireNonNull(pagination, "pagination must not be null");
         Objects.requireNonNull(extractor, "extractor must not be null");
+        if (mode == PlaywrightMode.INFY_SCROLL && pagination == PaginationMode.AUTOPAGERIZE) {
+          throw new IllegalArgumentException(
+              "Infy Scroll cannot combine with AutoPagerize pagination");
+        }
       }
     }
   }

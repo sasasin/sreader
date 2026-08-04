@@ -20,6 +20,7 @@ import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleSnapshot;
 import net.sasasin.sreader.service.autopagerize.CompiledAutoPagerizeRule;
 import net.sasasin.sreader.service.autopagerize.PaginationResult;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightSessionFailure;
 import net.sasasin.sreader.service.http.HttpArticlePageSessionFactory;
 import net.sasasin.sreader.service.http.HttpFetchService;
 import net.sasasin.sreader.service.http.HttpStatusException;
@@ -361,6 +362,14 @@ public class FullTextExtractionService {
     if (!properties.playwright().enabled()) {
       return new TextExtractionOutcome.Skipped(TextExtractionSkipReason.PLAYWRIGHT_DISABLED);
     }
+    if (definition.pagination() == PaginationMode.AUTOPAGERIZE) {
+      return extractFromPlaywrightAutopagerize(header, definition.extractor());
+    }
+    return extractFromPlaywrightSinglePage(header, definition);
+  }
+
+  private TextExtractionOutcome extractFromPlaywrightSinglePage(
+      ContentHeader header, Definition.PlaywrightArticle definition) {
     try {
       URI requestedUri = URI.create(header.fetchUrl());
       // Keep header.fetchUrl() for extract-rule matching (unchanged semantics).
@@ -373,6 +382,105 @@ public class FullTextExtractionService {
               FailureKind.RENDER,
               header.fetchUrl(),
               "Playwright render failed for " + header.fetchUrl() + ": " + e.getMessage(),
+              e));
+    }
+  }
+
+  /**
+   * Playwright AutoPagerize path: load active rule snapshot once per article, paginate in one
+   * short-lived standard BrowserContext/Page (serialized on {@link PlaywrightHtmlSource}), then
+   * extract text. Failures never produce partial success text. No Infy extension is used.
+   */
+  private TextExtractionOutcome extractFromPlaywrightAutopagerize(
+      ContentHeader header, HtmlExtractor extractor) {
+    final AutoPagerizeRuleSnapshot snapshot;
+    try {
+      Optional<AutoPagerizeRuleSnapshot> active = autoPagerizeRuleCatalog.getActiveSnapshot();
+      if (active.isEmpty()) {
+        return new TextExtractionOutcome.Failed(
+            OperationFailure.of(
+                FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+                FailureKind.INVALID_INPUT,
+                header.fetchUrl(),
+                "No active AutoPagerize dataset; import and activate a local SITEINFO JSON first"));
+      }
+      snapshot = active.get();
+    } catch (AutoPagerizeCatalogException e) {
+      return new TextExtractionOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.MATCH_AUTOPAGERIZE_RULE,
+              FailureKind.UNEXPECTED,
+              header.fetchUrl(),
+              "Failed to load or compile active AutoPagerize rules: " + e.getMessage(),
+              e));
+    } catch (RuntimeException e) {
+      return new TextExtractionOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+              FailureKind.UNEXPECTED,
+              header.fetchUrl(),
+              "Failed to load active AutoPagerize dataset: " + e.getMessage(),
+              e));
+    }
+
+    URI startUri;
+    try {
+      startUri = URI.create(header.fetchUrl());
+    } catch (IllegalArgumentException e) {
+      return new TextExtractionOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.FETCH_ARTICLE_PAGE,
+              FailureKind.INVALID_INPUT,
+              header.fetchUrl(),
+              "Invalid article fetch URL: " + header.fetchUrl(),
+              e));
+    }
+
+    try {
+      return playwrightHtmlSource.withStandardSession(
+          session -> {
+            PaginationResult pagination;
+            try {
+              pagination =
+                  autoPagerizeEngine.paginate(
+                      startUri, session, snapshot, properties.autopagerize().toPaginationPolicy());
+            } catch (RuntimeException e) {
+              throw new PlaywrightSessionFailure(
+                  OperationFailure.of(
+                      FailureStage.MATCH_AUTOPAGERIZE_RULE,
+                      FailureKind.UNEXPECTED,
+                      header.fetchUrl(),
+                      "Playwright AutoPagerize rule matching failed for " + header.fetchUrl(),
+                      e));
+            }
+            if (pagination instanceof PaginationResult.Failed failed) {
+              throw new PlaywrightSessionFailure(failed.failure());
+            }
+            try {
+              return toPaginatedTextOutcome(
+                  (PaginationResult.Succeeded) pagination, snapshot, extractor);
+            } catch (RuntimeException e) {
+              throw new PlaywrightSessionFailure(
+                  OperationFailure.of(
+                      FailureStage.EXTRACT_TEXT,
+                      FailureKind.EXTRACTION,
+                      header.fetchUrl(),
+                      "Playwright AutoPagerize text extraction failed for " + header.fetchUrl(),
+                      e));
+            }
+          });
+    } catch (PlaywrightSessionFailure e) {
+      return new TextExtractionOutcome.Failed(e.failure());
+    } catch (RuntimeException e) {
+      return new TextExtractionOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.RENDER_ARTICLE,
+              FailureKind.RENDER,
+              header.fetchUrl(),
+              "Playwright AutoPagerize extraction failed for "
+                  + header.fetchUrl()
+                  + ": "
+                  + e.getMessage(),
               e));
     }
   }

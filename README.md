@@ -246,12 +246,14 @@ docker compose run --rm app --sreader.scheduler.enabled=false run-once
 - `http_autopagerize_readability`: active AutoPagerize rule で複数ページを追跡し、ページごとに Readability4J、失敗時は pageElement で抽出します。
 - `playwright`: Chromium で JS 実行後の DOM HTML から XPath rule、失敗時 body text で抽出します。
 - `playwright_readability`: Chromium で JS 実行後の DOM HTML を Readability4J で抽出します。
+- `playwright_autopagerize`: Chromium で JS 実行後の DOM を page ごとに capture し、active AutoPagerize rule で複数ページを追跡します。ページごとに XPath rule、失敗時は AutoPagerize の pageElement で抽出します。Infy Scroll 拡張は使いません。
+- `playwright_autopagerize_readability`: 同上の Playwright AutoPagerize 追跡のうえ、ページごとに Readability4J、失敗時は pageElement で抽出します。
 - `playwright_infy_scroll`: Infy Scroll extension を読み込んだ Chromium で scroll 後の DOM HTML から XPath rule、失敗時 body text で抽出します。
 - `playwright_infy_scroll_readability`: Infy Scroll 後の DOM HTML を Readability4J で抽出します。
 
 Playwright 系 method はデフォルトでは無効です。使う場合は `SREADER_PLAYWRIGHT_ENABLED=true` を設定してください。無効時に Playwright 系 method の feed がある場合、その記事の全文取得は warning log を出して skip します。
 
-HTTP AutoPagerize method は、ローカルに import して activate した AutoPagerize dataset を使用します。dataset が active でない場合は記事取得を失敗として扱います。ページネーションの主な環境変数は以下です。
+HTTP / Playwright AutoPagerize method は、ローカルに import して activate した AutoPagerize dataset を使用します。dataset が active でない場合は記事取得を失敗として扱います。Playwright AutoPagerize は short-lived な BrowserContext / Page を 1 記事のページネーションチェーン全体で再利用し、拡張機能や persistent profile には依存しません。ページネーションの主な環境変数は以下です。
 
 - `SREADER_AUTOPAGERIZE_MAX_PAGES=20`
 - `SREADER_AUTOPAGERIZE_MAX_PAGE_BYTES=5242880`
