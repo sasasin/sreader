@@ -33,6 +33,7 @@ class ProbeFeedCliRequestTest {
             null,
             false,
             null,
+            null,
             null);
 
     assertThat(request.feedUrl()).isEqualTo(URI.create("https://example.com/feed.xml"));
@@ -55,6 +56,7 @@ class ProbeFeedCliRequestTest {
                     "//p",
                     false,
                     null,
+                    null,
                     null))
         .isInstanceOf(ParameterException.class)
         .hasMessageContaining("--xpath")
@@ -72,7 +74,8 @@ class ProbeFeedCliRequestTest {
             "//article",
             true,
             "out.txt",
-            20);
+            20,
+            null);
 
     assertThat(request.xpath()).contains("//article");
     assertThat(request.selection()).isEqualTo(FeedEntrySelection.index(1));
@@ -92,6 +95,7 @@ class ProbeFeedCliRequestTest {
             "  ",
             false,
             null,
+            null,
             null);
 
     assertThat(request.xpath()).isEmpty();
@@ -108,6 +112,7 @@ class ProbeFeedCliRequestTest {
                     null,
                     null,
                     false,
+                    null,
                     null,
                     null))
         .isInstanceOf(ParameterException.class)
@@ -126,6 +131,7 @@ class ProbeFeedCliRequestTest {
                     null,
                     false,
                     null,
+                    null,
                     null))
         .isInstanceOf(ParameterException.class)
         .hasMessageContaining("--method");
@@ -142,6 +148,7 @@ class ProbeFeedCliRequestTest {
                     FeedEntrySelection.first(),
                     null,
                     false,
+                    null,
                     null,
                     null))
         .isInstanceOf(ParameterException.class)

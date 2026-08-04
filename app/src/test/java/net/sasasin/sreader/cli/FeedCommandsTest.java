@@ -200,7 +200,7 @@ class FeedCommandsTest {
                 Optional.of("T"),
                 FullTextMethod.HTTP),
             "body text here");
-    when(probeService.probeArticle(any(java.net.URI.class), eq(FullTextMethod.HTTP), any()))
+    when(probeService.probeArticle(any(java.net.URI.class), eq(FullTextMethod.HTTP), any(), any()))
         .thenReturn(result);
 
     ProbeArticleCommand cmd = new ProbeArticleCommand(probeService);
@@ -209,7 +209,8 @@ class FeedCommandsTest {
     int exit = cli.execute("--url", "https://example.com/a", "--method", "http");
 
     assertEquals(0, exit);
-    verify(probeService).probeArticle(any(java.net.URI.class), eq(FullTextMethod.HTTP), any());
+    verify(probeService)
+        .probeArticle(any(java.net.URI.class), eq(FullTextMethod.HTTP), any(), any());
   }
 
   @Test
@@ -247,7 +248,8 @@ class FeedCommandsTest {
                 Optional.of("T"),
                 FullTextMethod.HTTP),
             "body");
-    when(probeService.probeFeed(any(java.net.URI.class), eq(FullTextMethod.HTTP), any(), any()))
+    when(probeService.probeFeed(
+            any(java.net.URI.class), eq(FullTextMethod.HTTP), any(), any(), any()))
         .thenReturn(result);
 
     ProbeFeedCommand cmd = new ProbeFeedCommand(probeService);
@@ -256,7 +258,8 @@ class FeedCommandsTest {
     int exit = cli.execute("--feed-url", "https://example.com/f.xml", "--method", "http");
 
     assertEquals(0, exit);
-    verify(probeService).probeFeed(any(java.net.URI.class), eq(FullTextMethod.HTTP), any(), any());
+    verify(probeService)
+        .probeFeed(any(java.net.URI.class), eq(FullTextMethod.HTTP), any(), any(), any());
   }
 
   @Test

@@ -120,9 +120,9 @@ class OutcomeBranchCoverageExtractionTest {
         .thenReturn(
             new TextExtractionOutcome.Extracted(
                 "two", ExtractionDecision.of(ExtractionSource.BODY_TEXT)));
-    when(writer.saveIfAbsent(eq(noContentWrite), eq("one")))
+    when(writer.saveIfAbsent(eq(noContentWrite), eq(FullTextMethod.HTTP), any()))
         .thenReturn(ContentFullTextWriteOutcome.NO_CONTENT);
-    when(writer.saveIfAbsent(eq(persistFail), eq("two")))
+    when(writer.saveIfAbsent(eq(persistFail), eq(FullTextMethod.HTTP), any()))
         .thenThrow(new RuntimeException("db write failed"));
 
     FullTextExtractionBatchResult result =

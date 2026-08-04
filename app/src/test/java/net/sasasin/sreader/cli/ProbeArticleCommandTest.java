@@ -44,7 +44,9 @@ class ProbeArticleCommandTest {
 
     ArgumentCaptor<URI> uri = ArgumentCaptor.forClass(URI.class);
     ArgumentCaptor<Optional<String>> xpath = ArgumentCaptor.forClass(Optional.class);
-    verify(service).probeArticle(uri.capture(), eq(FullTextMethod.HTTP), xpath.capture());
+    verify(service)
+        .probeArticle(
+            uri.capture(), eq(FullTextMethod.HTTP), xpath.capture(), eq(Optional.empty()));
     assertThat(uri.getValue()).isEqualTo(URI.create("https://example.com/article"));
     assertThat(xpath.getValue()).isEmpty();
   }
@@ -59,7 +61,8 @@ class ProbeArticleCommandTest {
         .probeArticle(
             URI.create("https://example.com/article"),
             FullTextMethod.HTTP,
-            Optional.of("//article"));
+            Optional.of("//article"),
+            Optional.empty());
     assertThat(harness.stdout()).isEqualTo("hit");
   }
 
@@ -71,7 +74,10 @@ class ProbeArticleCommandTest {
     assertThat(harness.execute("--xpath", " \t ")).isZero();
     verify(service)
         .probeArticle(
-            URI.create("https://example.com/article"), FullTextMethod.HTTP, Optional.empty());
+            URI.create("https://example.com/article"),
+            FullTextMethod.HTTP,
+            Optional.empty(),
+            Optional.empty());
   }
 
   @Test
@@ -150,13 +156,13 @@ class ProbeArticleCommandTest {
     assertThat(harness.execute("--verbose")).isEqualTo(4);
     assertThat(harness.stdout()).isEmpty();
     assertThat(harness.stderr())
-        .contains("inputUrl=", "finalUrl=", "method=http", "title=Title", "textLength=0");
+        .contains("input URL:", "first final URL:", "method:", "http", "title:", "Title");
   }
 
   @Test
   void playwrightDisabledMapsToExitFiveWithoutErrorPrefix() {
     FullTextProbeService service = mock(FullTextProbeService.class);
-    when(service.probeArticle(any(), any(), any()))
+    when(service.probeArticle(any(), any(), any(), any()))
         .thenReturn(
             new ProbeOutcome.Skipped(ProbeSkipReason.PLAYWRIGHT_DISABLED, "playwright off"));
     Harness harness = harness(service);
@@ -168,7 +174,7 @@ class ProbeArticleCommandTest {
   @Test
   void invalidRequestMapsToExitTwo() {
     FullTextProbeService service = mock(FullTextProbeService.class);
-    when(service.probeArticle(any(), any(), any()))
+    when(service.probeArticle(any(), any(), any(), any()))
         .thenReturn(ProbeOutcome.InvalidRequest.of("Invalid explicit XPath"));
     Harness harness = harness(service);
 
@@ -179,7 +185,7 @@ class ProbeArticleCommandTest {
   @Test
   void failedMapsToExitOneWithErrorPrefix() {
     FullTextProbeService service = mock(FullTextProbeService.class);
-    when(service.probeArticle(any(), any(), any()))
+    when(service.probeArticle(any(), any(), any(), any()))
         .thenReturn(
             new ProbeOutcome.Failed(
                 OperationFailure.of(
@@ -193,7 +199,7 @@ class ProbeArticleCommandTest {
   @Test
   void interruptedFailureRestoresInterruptFlagAndReturnsOne() {
     FullTextProbeService service = mock(FullTextProbeService.class);
-    when(service.probeArticle(any(), any(), any()))
+    when(service.probeArticle(any(), any(), any(), any()))
         .thenReturn(
             new ProbeOutcome.Failed(
                 OperationFailure.of(
@@ -215,7 +221,7 @@ class ProbeArticleCommandTest {
   @Test
   void noMatchingEntryMapsToExitThree() {
     FullTextProbeService service = mock(FullTextProbeService.class);
-    when(service.probeArticle(any(), any(), any()))
+    when(service.probeArticle(any(), any(), any(), any()))
         .thenReturn(new ProbeOutcome.NoMatchingEntry("none"));
     Harness harness = harness(service);
 
@@ -226,7 +232,7 @@ class ProbeArticleCommandTest {
   @Test
   void genericRuntimeExceptionMapsToExitOneWithErrorPrefix() {
     FullTextProbeService service = mock(FullTextProbeService.class);
-    when(service.probeArticle(any(), any(), any())).thenThrow(new RuntimeException("boom"));
+    when(service.probeArticle(any(), any(), any(), any())).thenThrow(new RuntimeException("boom"));
     Harness harness = harness(service);
 
     assertThat(harness.execute()).isEqualTo(1);
@@ -245,7 +251,7 @@ class ProbeArticleCommandTest {
 
   private FullTextProbeService serviceReturning(ProbeOutcome outcome) {
     FullTextProbeService service = mock(FullTextProbeService.class);
-    when(service.probeArticle(any(), any(), any())).thenReturn(outcome);
+    when(service.probeArticle(any(), any(), any(), any())).thenReturn(outcome);
     return service;
   }
 

@@ -63,6 +63,7 @@ class OutcomeBranchCoverageProbeTest {
     ProbeDocumentFetcher fetcher =
         new ProbeDocumentFetcher(
             http,
+            mock(net.sasasin.sreader.service.http.HttpArticlePageSessionFactory.class),
             playwright,
             properties(true),
             mock(AutoPagerizeRuleCatalog.class),
@@ -72,19 +73,31 @@ class OutcomeBranchCoverageProbeTest {
         .thenThrow(new HttpStatusException(URI.create("https://a"), 500));
     ProbeDocumentFetcher.FetchOutcome.Failed status =
         (ProbeDocumentFetcher.FetchOutcome.Failed)
-            fetcher.fetch(URI.create("https://a"), FullTextMethod.HTTP, "https://a");
+            fetcher.fetch(
+                URI.create("https://a"),
+                FullTextMethod.HTTP,
+                "https://a",
+                java.util.Optional.empty());
     assertThat(status.failure().kind()).isEqualTo(FailureKind.HTTP_STATUS);
 
     when(playwright.renderPage(any(), eq(PlaywrightMode.STANDARD)))
         .thenThrow(new RuntimeException("render"));
     ProbeDocumentFetcher.FetchOutcome.Failed render =
         (ProbeDocumentFetcher.FetchOutcome.Failed)
-            fetcher.fetch(URI.create("https://a"), FullTextMethod.PLAYWRIGHT, "https://a");
+            fetcher.fetch(
+                URI.create("https://a"),
+                FullTextMethod.PLAYWRIGHT,
+                "https://a",
+                java.util.Optional.empty());
     assertThat(render.failure().kind()).isEqualTo(FailureKind.RENDER);
 
     ProbeDocumentFetcher.FetchOutcome.Failed unexpected =
         (ProbeDocumentFetcher.FetchOutcome.Failed)
-            fetcher.fetch(URI.create("https://a"), FullTextMethod.FEED, "https://a");
+            fetcher.fetch(
+                URI.create("https://a"),
+                FullTextMethod.FEED,
+                "https://a",
+                java.util.Optional.empty());
     assertThat(unexpected.failure().kind()).isEqualTo(FailureKind.INVALID_INPUT);
   }
 
@@ -102,6 +115,7 @@ class OutcomeBranchCoverageProbeTest {
             http,
             new ProbeDocumentFetcher(
                 http,
+                mock(net.sasasin.sreader.service.http.HttpArticlePageSessionFactory.class),
                 playwright,
                 properties(true),
                 mock(AutoPagerizeRuleCatalog.class),

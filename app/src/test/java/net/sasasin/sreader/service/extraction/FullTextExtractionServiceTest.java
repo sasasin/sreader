@@ -238,7 +238,7 @@ class FullTextExtractionServiceTest {
     assertThat(result.skipped()).isEqualTo(1);
     assertThat(result.inserted()).isZero();
     assertThat(result.failed()).isZero();
-    verify(writer, never()).saveIfAbsent(any(), any());
+    verify(writer, never()).saveIfAbsent(any(), any(), any());
   }
 
   @Test
@@ -282,9 +282,9 @@ class FullTextExtractionServiceTest {
                 NoContentReason.BODY_TEXT_EMPTY,
                 ExtractionDecision.of(ExtractionSource.BODY_TEXT)));
 
-    when(writer.saveIfAbsent(eq(insertedHeader), eq("one")))
+    when(writer.saveIfAbsent(eq(insertedHeader), eq(FullTextMethod.HTTP), any()))
         .thenReturn(ContentFullTextWriteOutcome.INSERTED);
-    when(writer.saveIfAbsent(eq(existingHeader), eq("two")))
+    when(writer.saveIfAbsent(eq(existingHeader), eq(FullTextMethod.HTTP), any()))
         .thenReturn(ContentFullTextWriteOutcome.ALREADY_EXISTS);
 
     FullTextExtractionService service =
@@ -346,7 +346,7 @@ class FullTextExtractionServiceTest {
     assertThat(result.failed()).isEqualTo(1);
     assertThat(result.stopReason()).contains(BatchStopReason.INTERRUPTED);
     verify(http, times(1)).get(any());
-    verify(writer, never()).saveIfAbsent(any(), any());
+    verify(writer, never()).saveIfAbsent(any(), any(), any());
   }
 
   private ContentHeader header(String sourceUrl, String fetchUrl) {

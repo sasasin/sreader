@@ -89,14 +89,14 @@ class PlaywrightAutopagerizeProbeTest {
     Fixture fixture = fixture();
     when(fixture.catalog.getActiveSnapshot()).thenReturn(Optional.empty());
 
-    ProbeOutcome.Failed result =
-        (ProbeOutcome.Failed)
+    ProbeOutcome.InvalidRequest result =
+        (ProbeOutcome.InvalidRequest)
             fixture
                 .service()
                 .probeArticle(
                     ARTICLE_URL, FullTextMethod.PLAYWRIGHT_AUTOPAGERIZE, Optional.empty());
 
-    assertThat(result.failure().stage()).isEqualTo(FailureStage.LOAD_AUTOPAGERIZE_DATABASE);
+    assertThat(result.message()).contains("No active AutoPagerize dataset");
     verify(fixture.playwright, never()).withStandardSession(any());
   }
 
@@ -165,7 +165,13 @@ class PlaywrightAutopagerizeProbeTest {
     FeedEntryFullTextExtractor feedExtractor = mock(FeedEntryFullTextExtractor.class);
     FeedReaderProperties properties = properties();
     ProbeDocumentFetcher documentFetcher =
-        new ProbeDocumentFetcher(http, playwright, properties, catalog, engine);
+        new ProbeDocumentFetcher(
+            http,
+            mock(net.sasasin.sreader.service.http.HttpArticlePageSessionFactory.class),
+            playwright,
+            properties,
+            catalog,
+            engine);
     FullTextProbeService service =
         new FullTextProbeService(
             http, documentFetcher, extractor, paginatedExtractor, documents, picker, feedExtractor);

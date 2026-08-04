@@ -604,6 +604,7 @@ class FullTextProbeServiceTest {
           http,
           new ProbeDocumentFetcher(
               http,
+              mock(net.sasasin.sreader.service.http.HttpArticlePageSessionFactory.class),
               playwright,
               properties(playwrightEnabled),
               autoPagerizeRuleCatalog,
