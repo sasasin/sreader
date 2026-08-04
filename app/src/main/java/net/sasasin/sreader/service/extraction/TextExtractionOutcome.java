@@ -14,24 +14,39 @@ public sealed interface TextExtractionOutcome
 
   /**
    * Successful extraction. Optional {@link #pagination()} carries AutoPagerize metadata when the
-   * method used multi-page tracking (or single-page fallback after rule miss).
+   * method used multi-page tracking (or single-page fallback after rule miss). {@link
+   * #extractedUrl()} is the first-page final/extracted URL when known.
    */
   record Extracted(
-      String text, ExtractionDecision decision, Optional<PaginationMetadata> pagination)
+      String text,
+      ExtractionDecision decision,
+      Optional<PaginationMetadata> pagination,
+      Optional<String> extractedUrl)
       implements TextExtractionOutcome {
 
     public Extracted(String text, ExtractionDecision decision) {
-      this(text, decision, Optional.empty());
+      this(text, decision, Optional.empty(), Optional.empty());
+    }
+
+    public Extracted(
+        String text, ExtractionDecision decision, Optional<PaginationMetadata> pagination) {
+      this(text, decision, pagination, Optional.empty());
     }
 
     public Extracted {
       text = OutcomePreconditions.requireNonBlank(text, "text");
       Objects.requireNonNull(decision, "decision must not be null");
       Objects.requireNonNull(pagination, "pagination must not be null");
+      Objects.requireNonNull(extractedUrl, "extractedUrl must not be null");
+      extractedUrl = extractedUrl.map(String::trim).filter(s -> !s.isEmpty());
     }
 
     public Extracted withPagination(PaginationMetadata metadata) {
-      return new Extracted(text, decision, Optional.of(metadata));
+      return new Extracted(text, decision, Optional.of(metadata), extractedUrl);
+    }
+
+    public Extracted withExtractedUrl(String url) {
+      return new Extracted(text, decision, pagination, Optional.of(url));
     }
   }
 
@@ -49,9 +64,24 @@ public sealed interface TextExtractionOutcome
     }
   }
 
-  record Failed(OperationFailure failure) implements TextExtractionOutcome {
+  /**
+   * Extraction failure. Optional {@link #pagination()} carries partial page traces when
+   * AutoPagerize failed after loading one or more pages (never used for successful partial text
+   * persistence).
+   */
+  record Failed(OperationFailure failure, Optional<PaginationMetadata> pagination)
+      implements TextExtractionOutcome {
+    public Failed(OperationFailure failure) {
+      this(failure, Optional.empty());
+    }
+
     public Failed {
       Objects.requireNonNull(failure, "failure must not be null");
+      Objects.requireNonNull(pagination, "pagination must not be null");
+    }
+
+    public Failed withPagination(PaginationMetadata metadata) {
+      return new Failed(failure, Optional.of(metadata));
     }
   }
 }

@@ -1,5 +1,7 @@
 package net.sasasin.sreader.service.extraction;
 
+import java.util.Locale;
+
 /** Source that produced extracted full text (or the last attempted source for no-content). */
 public enum ExtractionSource {
   FEED,
@@ -10,5 +12,10 @@ public enum ExtractionSource {
   /** AutoPagerize pageElement text (matched rule path). */
   PAGE_ELEMENT,
   /** Multiple pages used different extraction sources. */
-  MIXED
+  MIXED;
+
+  /** Stable wire value for {@code content_full_text.source_kind}. */
+  public String wireValue() {
+    return name().toLowerCase(Locale.ROOT);
+  }
 }
