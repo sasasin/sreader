@@ -58,7 +58,7 @@ public class ProbeOutputWriter {
     if (outputPath != null) {
       try {
         Files.writeString(Path.of(outputPath), outputText, StandardCharsets.UTF_8);
-        spec.commandLine().getOut().println("Wrote probe output to " + outputPath);
+        spec.commandLine().getErr().println("Wrote probe output to " + outputPath);
       } catch (IOException e) {
         throw new RuntimeException("Failed to write --output file: " + outputPath, e);
       }

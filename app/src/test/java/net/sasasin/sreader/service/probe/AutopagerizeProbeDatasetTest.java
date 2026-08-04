@@ -175,6 +175,8 @@ class AutopagerizeProbeDatasetTest {
     assertThat(result.failure().stage()).isEqualTo(FailureStage.EXTRACT_TEXT);
     assertThat(result.failure().message()).contains("AutoPagerize probe extraction failed");
     assertThat(result.failure().cause()).isPresent();
+    assertThat(result.pagination()).isPresent();
+    assertThat(result.pagination().orElseThrow().pageCount()).isEqualTo(1);
   }
 
   @Test

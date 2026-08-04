@@ -304,7 +304,8 @@ class ProbeFeedCommandTest {
     Harness file = harness(serviceReturning(succeeded("こんにちは")));
     assertThat(file.execute("--output", output.toString())).isZero();
     assertThat(Files.readString(output, StandardCharsets.UTF_8)).isEqualTo("こんにちは");
-    assertThat(file.stdout()).contains("Wrote probe output to " + output).doesNotContain("こんにちは");
+    assertThat(file.stderr()).contains("Wrote probe output to " + output).doesNotContain("こんにちは");
+    assertThat(file.stdout()).isEmpty();
 
     Harness failure = harness(serviceReturning(succeeded("body")));
     assertThat(failure.execute("--output", tempDir.toString())).isEqualTo(1);

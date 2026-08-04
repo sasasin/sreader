@@ -2,6 +2,7 @@ package net.sasasin.sreader.service.probe;
 
 import com.rometools.rome.feed.synd.SyndEntry;
 import java.net.URI;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import net.sasasin.sreader.domain.FeedEntrySelection;
@@ -166,22 +167,10 @@ public class FullTextProbeService {
       }
       case Definition.HttpArticle http ->
           probeLinkedArticle(
-              feedUrl,
-              method,
-              entry,
-              entryTitle,
-              xpathOverride,
-              http.extractor(),
-              autopagerizeDatasetId);
+              feedUrl, method, entry, xpathOverride, http.extractor(), autopagerizeDatasetId);
       case Definition.PlaywrightArticle playwright ->
           probeLinkedArticle(
-              feedUrl,
-              method,
-              entry,
-              entryTitle,
-              xpathOverride,
-              playwright.extractor(),
-              autopagerizeDatasetId);
+              feedUrl, method, entry, xpathOverride, playwright.extractor(), autopagerizeDatasetId);
     };
   }
 
@@ -189,7 +178,6 @@ public class FullTextProbeService {
       URI feedUrl,
       FullTextMethod method,
       SyndEntry entry,
-      String entryTitle,
       Optional<String> xpathOverride,
       HtmlExtractor extractor,
       Optional<Long> autopagerizeDatasetId) {
@@ -219,8 +207,7 @@ public class FullTextProbeService {
 
     ProbeDocumentFetcher.FetchOutcome fetch =
         documentFetcher.fetch(entryLink, method, "entry " + entryLink, autopagerizeDatasetId);
-    Optional<String> title = optionalTitle(entryTitle);
-    return toProbeOutcome(fetch, feedUrl, method, extractor, xpathOverride, title);
+    return toProbeOutcome(fetch, feedUrl, method, extractor, xpathOverride, Optional.empty());
   }
 
   private ProbeOutcome fetchAndExtractArticle(
@@ -290,12 +277,18 @@ public class FullTextProbeService {
         } catch (RuntimeException e) {
           extraction =
               new TextExtractionOutcome.Failed(
-                  OperationFailure.of(
-                      FailureStage.EXTRACT_TEXT,
-                      FailureKind.EXTRACTION,
-                      inputUrl.toString(),
-                      "AutoPagerize probe extraction failed for " + inputUrl,
-                      e));
+                      OperationFailure.of(
+                          FailureStage.EXTRACT_TEXT,
+                          FailureKind.EXTRACTION,
+                          inputUrl.toString(),
+                          "AutoPagerize probe extraction failed for " + inputUrl,
+                          e))
+                  .withPagination(
+                      PaginationMetadataFactory.fromSucceeded(
+                          paginated.pagination(),
+                          paginated.snapshot(),
+                          List.of(),
+                          paginated.explicitDatasetSelection()));
         }
         yield toProbeOutcome(inputUrl, firstPage.finalUri(), title, method, extraction);
       }

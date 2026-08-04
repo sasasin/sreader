@@ -118,7 +118,7 @@ class ProbeOutputWriterTest {
   }
 
   @Test
-  void writesUtf8FileAcknowledgesOutputAndWrapsIoException() throws Exception {
+  void writesUtf8FileAcknowledgesOnStderrAndWrapsIoException() throws Exception {
     Path output = tempDir.resolve("text.txt");
     Harness success = harness();
     assertThat(
@@ -126,8 +126,9 @@ class ProbeOutputWriterTest {
                 succeeded(Optional.of("Title"), "こんにちは"), false, output.toString(), null))
         .isZero();
     assertThat(Files.readString(output, StandardCharsets.UTF_8)).isEqualTo("こんにちは");
-    assertThat(success.stdout())
+    assertThat(success.stderr())
         .isEqualTo("Wrote probe output to " + output + System.lineSeparator());
+    assertThat(success.stdout()).isEmpty();
 
     Harness failure = harness();
     assertThatThrownBy(

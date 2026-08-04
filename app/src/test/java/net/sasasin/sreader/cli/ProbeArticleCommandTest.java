@@ -97,10 +97,10 @@ class ProbeArticleCommandTest {
 
     assertThat(harness.execute("--output", output.toString())).isZero();
     assertThat(Files.readString(output, StandardCharsets.UTF_8)).isEqualTo("こんにちは");
-    assertThat(harness.stdout())
+    assertThat(harness.stderr())
         .contains("Wrote probe output to " + output)
         .doesNotContain("こんにちは");
-    assertThat(harness.stderr()).isEmpty();
+    assertThat(harness.stdout()).isEmpty();
   }
 
   @Test

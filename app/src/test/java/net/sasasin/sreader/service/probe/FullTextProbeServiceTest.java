@@ -322,7 +322,7 @@ class FullTextProbeServiceTest {
   }
 
   @Test
-  void nonFeedHttpUsesRedirectAndEntryTitleInPreferenceToHtmlTitle() throws Exception {
+  void nonFeedHttpUsesFirstPageHtmlTitle() throws Exception {
     Dependencies d = dependencies();
     SyndFeed feed = mock(SyndFeed.class);
     SyndEntry entry = entry("https://entry", "Entry title");
@@ -349,7 +349,7 @@ class FullTextProbeServiceTest {
                 .probeFeed(
                     FEED_URL, FullTextMethod.HTTP, FeedEntrySelection.first(), Optional.empty());
     assertThat(result.document().finalUrl()).isEqualTo(finalUrl);
-    assertThat(result.document().title()).contains("Entry title");
+    assertThat(result.document().title()).contains("HTML title");
     assertThat(result.text()).isEqualTo("body");
   }
 

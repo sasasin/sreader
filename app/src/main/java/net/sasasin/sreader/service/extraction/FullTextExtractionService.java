@@ -409,12 +409,18 @@ public class FullTextExtractionService {
           explicitDatasetSelection);
     } catch (RuntimeException e) {
       return new TextExtractionOutcome.Failed(
-          OperationFailure.of(
-              FailureStage.EXTRACT_TEXT,
-              FailureKind.EXTRACTION,
-              snapshot.datasetId() + "",
-              "AutoPagerize text extraction failed: " + e.getMessage(),
-              e));
+              OperationFailure.of(
+                  FailureStage.EXTRACT_TEXT,
+                  FailureKind.EXTRACTION,
+                  snapshot.datasetId() + "",
+                  "AutoPagerize text extraction failed: " + e.getMessage(),
+                  e))
+          .withPagination(
+              PaginationMetadataFactory.fromSucceeded(
+                  (PaginationResult.Succeeded) pagination,
+                  snapshot,
+                  List.of(),
+                  explicitDatasetSelection));
     }
   }
 
