@@ -26,7 +26,9 @@ final class PlaywrightArticlePageSession implements ArticlePageSession {
   private final BrowserContext context;
   private final Page page;
   private final PlaywrightPageNavigator navigator;
-  private boolean closed;
+  private boolean closeRequested;
+  private boolean pageClosed;
+  private boolean contextClosed;
 
   PlaywrightArticlePageSession(
       BrowserContext context, Page page, PlaywrightPageNavigator navigator) {
@@ -66,7 +68,7 @@ final class PlaywrightArticlePageSession implements ArticlePageSession {
   @Override
   public PageSnapshot load(URI uri) throws PageLoadException {
     Objects.requireNonNull(uri, "uri must not be null");
-    if (closed) {
+    if (closeRequested) {
       throw new PageLoadException(
           FailureKind.INVALID_INPUT, "Playwright article page session is closed");
     }
@@ -90,11 +92,33 @@ final class PlaywrightArticlePageSession implements ArticlePageSession {
 
   @Override
   public void close() {
-    if (closed) {
+    if (contextClosed) {
       return;
     }
-    closed = true;
-    RuntimeException primary = PlaywrightCloseSupport.close(null, context::close);
+    closeRequested = true;
+    RuntimeException primary = null;
+    if (!pageClosed) {
+      try {
+        page.close();
+        pageClosed = true;
+      } catch (RuntimeException e) {
+        primary = e;
+      }
+    }
+    if (!contextClosed) {
+      try {
+        context.close();
+        contextClosed = true;
+        pageClosed = true;
+      } catch (RuntimeException e) {
+        primary =
+            PlaywrightCloseSupport.close(
+                primary,
+                () -> {
+                  throw e;
+                });
+      }
+    }
     PlaywrightCloseSupport.throwIfPresent(primary);
   }
 

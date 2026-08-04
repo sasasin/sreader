@@ -167,7 +167,35 @@ class PlaywrightArticlePageSessionTest {
         PlaywrightArticlePageSession.open(f.runtime, f.settings, f.navigator);
     session.close();
     session.close();
+    verify(f.page, times(1)).close();
     verify(f.context, times(1)).close();
+  }
+
+  @Test
+  void pageCloseFailureStillAttemptsContextClose() {
+    Fixture f = fixture();
+    RuntimeException pageFailure = new RuntimeException("page close failed");
+    doThrow(pageFailure).when(f.page).close();
+    PlaywrightArticlePageSession session =
+        PlaywrightArticlePageSession.open(f.runtime, f.settings, f.navigator);
+
+    assertThatThrownBy(session::close).isSameAs(pageFailure);
+    verify(f.page).close();
+    verify(f.context).close();
+  }
+
+  @Test
+  void contextCloseFailureCanBeRetriedWithoutReclosingPage() {
+    Fixture f = fixture();
+    doThrow(new RuntimeException("first context close")).doNothing().when(f.context).close();
+    PlaywrightArticlePageSession session =
+        PlaywrightArticlePageSession.open(f.runtime, f.settings, f.navigator);
+
+    assertThatThrownBy(session::close).hasMessage("first context close");
+    session.close();
+
+    verify(f.page, times(1)).close();
+    verify(f.context, times(2)).close();
   }
 
   @Test

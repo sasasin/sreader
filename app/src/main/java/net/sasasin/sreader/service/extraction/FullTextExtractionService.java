@@ -20,6 +20,7 @@ import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleSnapshot;
 import net.sasasin.sreader.service.autopagerize.CompiledAutoPagerizeRule;
 import net.sasasin.sreader.service.autopagerize.PaginationResult;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightSessionFailure;
 import net.sasasin.sreader.service.http.HttpArticlePageSessionFactory;
 import net.sasasin.sreader.service.http.HttpFetchService;
 import net.sasasin.sreader.service.http.HttpStatusException;
@@ -444,28 +445,32 @@ public class FullTextExtractionService {
                   autoPagerizeEngine.paginate(
                       startUri, session, snapshot, properties.autopagerize().toPaginationPolicy());
             } catch (RuntimeException e) {
-              return failedOutcome(
-                  header,
-                  FailureStage.MATCH_AUTOPAGERIZE_RULE,
-                  FailureKind.UNEXPECTED,
-                  "Playwright AutoPagerize rule matching failed for " + header.fetchUrl(),
-                  e);
+              throw new PlaywrightSessionFailure(
+                  OperationFailure.of(
+                      FailureStage.MATCH_AUTOPAGERIZE_RULE,
+                      FailureKind.UNEXPECTED,
+                      header.fetchUrl(),
+                      "Playwright AutoPagerize rule matching failed for " + header.fetchUrl(),
+                      e));
             }
             if (pagination instanceof PaginationResult.Failed failed) {
-              return new TextExtractionOutcome.Failed(failed.failure());
+              throw new PlaywrightSessionFailure(failed.failure());
             }
             try {
               return toPaginatedTextOutcome(
                   (PaginationResult.Succeeded) pagination, snapshot, extractor);
             } catch (RuntimeException e) {
-              return failedOutcome(
-                  header,
-                  FailureStage.EXTRACT_TEXT,
-                  FailureKind.EXTRACTION,
-                  "Playwright AutoPagerize text extraction failed for " + header.fetchUrl(),
-                  e);
+              throw new PlaywrightSessionFailure(
+                  OperationFailure.of(
+                      FailureStage.EXTRACT_TEXT,
+                      FailureKind.EXTRACTION,
+                      header.fetchUrl(),
+                      "Playwright AutoPagerize text extraction failed for " + header.fetchUrl(),
+                      e));
             }
           });
+    } catch (PlaywrightSessionFailure e) {
+      return new TextExtractionOutcome.Failed(e.failure());
     } catch (RuntimeException e) {
       return new TextExtractionOutcome.Failed(
           OperationFailure.of(

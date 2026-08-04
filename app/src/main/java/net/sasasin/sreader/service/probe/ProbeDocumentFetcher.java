@@ -15,6 +15,7 @@ import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleCatalog;
 import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleSnapshot;
 import net.sasasin.sreader.service.autopagerize.PaginationResult;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightSessionFailure;
 import net.sasasin.sreader.service.extraction.browser.RenderedPage;
 import net.sasasin.sreader.service.http.HttpFetchService;
 import net.sasasin.sreader.service.http.HttpStatusException;
@@ -186,6 +187,8 @@ final class ProbeDocumentFetcher {
     try {
       return playwrightHtmlSource.withStandardSession(
           session -> paginate(uri, subject, snapshot, session));
+    } catch (PlaywrightSessionFailure e) {
+      return new FetchOutcome.Failed(e.failure());
     } catch (RuntimeException e) {
       return new FetchOutcome.Failed(
           OperationFailure.of(
@@ -204,11 +207,11 @@ final class ProbeDocumentFetcher {
           autoPagerizeEngine.paginate(
               uri, session, snapshot, properties.autopagerize().toPaginationPolicy());
       if (result instanceof PaginationResult.Failed failed) {
-        return new FetchOutcome.Failed(failed.failure());
+        throw new PlaywrightSessionFailure(failed.failure());
       }
       return new FetchOutcome.Paginated((PaginationResult.Succeeded) result);
     } catch (RuntimeException e) {
-      return new FetchOutcome.Failed(
+      throw new PlaywrightSessionFailure(
           OperationFailure.of(
               FailureStage.MATCH_AUTOPAGERIZE_RULE,
               FailureKind.UNEXPECTED,

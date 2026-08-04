@@ -25,6 +25,7 @@ import net.sasasin.sreader.service.autopagerize.PageSnapshot;
 import net.sasasin.sreader.service.autopagerize.PaginationResult;
 import net.sasasin.sreader.service.autopagerize.PaginationStopReason;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
+import net.sasasin.sreader.service.extraction.browser.PlaywrightSessionFailure;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightSessionWork;
 import net.sasasin.sreader.service.http.HttpArticlePageSessionFactory;
 import net.sasasin.sreader.service.http.HttpFetchService;
@@ -292,6 +293,31 @@ class PlaywrightAutopagerizeExtractionUnitTest {
                 header("https://example.test/a"), FullTextMethod.PLAYWRIGHT_AUTOPAGERIZE);
 
     assertThat(failed.failure().message()).contains("page 2 navigation failed");
+  }
+
+  @Test
+  void structuredPaginationFailureSurvivesSessionCloseFailure() {
+    AutoPagerizeRuleCatalog catalog = catalogWithSnapshot();
+    PlaywrightHtmlSource playwright = mock(PlaywrightHtmlSource.class);
+    OperationFailure paginationFailure =
+        OperationFailure.of(
+            FailureStage.FETCH_ARTICLE_PAGE,
+            FailureKind.RENDER,
+            "https://example.test/a",
+            "page 2 navigation failed");
+    PlaywrightSessionFailure primary = new PlaywrightSessionFailure(paginationFailure);
+    primary.addSuppressed(new RuntimeException("context close failed"));
+    when(playwright.withStandardSession(any())).thenThrow(primary);
+    FullTextExtractionService service =
+        service(catalog, mockEngine(), playwright, properties(true));
+
+    TextExtractionOutcome.Failed failed =
+        (TextExtractionOutcome.Failed)
+            service.extract(
+                header("https://example.test/a"), FullTextMethod.PLAYWRIGHT_AUTOPAGERIZE);
+
+    assertThat(failed.failure().stage()).isEqualTo(FailureStage.FETCH_ARTICLE_PAGE);
+    assertThat(failed.failure().message()).isEqualTo("page 2 navigation failed");
   }
 
   @Test
