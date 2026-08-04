@@ -62,7 +62,7 @@ jobs:
           container_change=false
           while IFS= read -r changed_file; do
             case "$changed_file" in
-              .dockerignore|docker-compose.yml|docker/app/*|pom.xml|app/pom.xml|.mvn/*|app/src/main/*|app/src/generated/*)
+              .dockerignore|docker-compose.yml|docker/app/*|pom.xml|app/pom.xml|.mvn/*)
                 container_change=true
                 break
                 ;;
