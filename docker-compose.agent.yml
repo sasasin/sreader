@@ -1,0 +1,12 @@
+services:
+  maven:
+    entrypoint:
+      - sh
+      - /usr/local/bin/agent-maven-entrypoint.sh
+    volumes:
+      - agent-workspace:/workspace
+      - .:/source:ro
+      - ./scripts/agent-maven-entrypoint.sh:/usr/local/bin/agent-maven-entrypoint.sh:ro
+
+volumes:
+  agent-workspace:
