@@ -224,7 +224,7 @@ jobs:
           tags: sreader-app:latest
           load: true
           cache-from: type=gha,scope=sreader-app
-          cache-to: type=gha,mode=max,scope=sreader-app,ignore-error=true
+          cache-to: type=gha,mode=min,scope=sreader-app,ignore-error=true
 
       - name: Start app smoke test
         shell: bash
