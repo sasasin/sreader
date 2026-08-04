@@ -261,7 +261,6 @@ HTTP / Playwright の AutoPagerize method は、利用者が local に用意し�
 - SReader は URL から AutoPagerize DB を自動 download しません。
 - 対象は AutoPagerize の WeData DB です。InfyScroll 独自の `items_all.json` は使いません。
 - active dataset が無い状態で AutoPagerize method を指定すると、該当記事の抽出は configuration failure になります。
-- 参考配布 URL の例: `https://cdn.jsdelivr.net/gh/cdnize/cdnize.github.io/databases/AutoPagerize/items_all.json`（内容固定が必要なら利用者が commit/hash を管理してください）。
 
 ### AutoPagerize の対応範囲
 
