@@ -23,6 +23,28 @@ class V12RemoveInfyScrollMigrationIntegrationTest {
   @Autowired DataSource dataSource;
 
   @Test
+  void migratesFreshSchemaToFinalAutoPagerizeState() throws SQLException {
+    String schema = "phase8_fresh_" + UUID.randomUUID().toString().replace("-", "");
+    Flyway flyway =
+        Flyway.configure()
+            .dataSource(dataSource)
+            .schemas(schema)
+            .defaultSchema(schema)
+            .locations("classpath:db/migration")
+            .cleanDisabled(false)
+            .load();
+    try {
+      flyway.migrate();
+
+      assertThat(countRows(schema, "autopagerize_state")).isEqualTo(1);
+      assertThat(countRows(schema, "autopagerize_dataset")).isZero();
+      assertThat(activeDatasetId(schema)).isNull();
+    } finally {
+      flyway.clean();
+    }
+  }
+
+  @Test
   void migratesLegacyMethodsAndEnforcesFinalConstraint() throws SQLException {
     String schema = "phase7_migration_" + UUID.randomUUID().toString().replace("-", "");
     Flyway flyway =
