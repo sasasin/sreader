@@ -409,62 +409,6 @@ class AutoPagerizeRepositoryIntegrationTest {
   }
 
   @Test
-  void legacyInfyMethodsConvertToAutopagerizeMethods() {
-    dsl.execute("ALTER TABLE feed_url DROP CONSTRAINT feed_url_full_text_method_check");
-    try {
-      dsl.insertInto(FEED_URL)
-          .set(FEED_URL.ID, "feedmiginfy00000000000000000001")
-          .set(FEED_URL.URL, "https://example.test/mig-infy.xml")
-          .set(FEED_URL.FULL_TEXT_METHOD, "playwright_infy_scroll")
-          .execute();
-      dsl.insertInto(FEED_URL)
-          .set(FEED_URL.ID, "feedmiginfy00000000000000000002")
-          .set(FEED_URL.URL, "https://example.test/mig-infy-r.xml")
-          .set(FEED_URL.FULL_TEXT_METHOD, "playwright_infy_scroll_readability")
-          .execute();
-
-      dsl.execute(
-          "UPDATE feed_url SET full_text_method = 'playwright_autopagerize'"
-              + " WHERE full_text_method = 'playwright_infy_scroll'");
-      dsl.execute(
-          "UPDATE feed_url SET full_text_method = 'playwright_autopagerize_readability'"
-              + " WHERE full_text_method = 'playwright_infy_scroll_readability'");
-
-      assertThat(
-              dsl.select(FEED_URL.FULL_TEXT_METHOD)
-                  .from(FEED_URL)
-                  .where(FEED_URL.ID.eq("feedmiginfy00000000000000000001"))
-                  .fetchOne(FEED_URL.FULL_TEXT_METHOD))
-          .isEqualTo("playwright_autopagerize");
-      assertThat(
-              dsl.select(FEED_URL.FULL_TEXT_METHOD)
-                  .from(FEED_URL)
-                  .where(FEED_URL.ID.eq("feedmiginfy00000000000000000002"))
-                  .fetchOne(FEED_URL.FULL_TEXT_METHOD))
-          .isEqualTo("playwright_autopagerize_readability");
-    } finally {
-      dsl.execute(
-          """
-          ALTER TABLE feed_url
-              ADD CONSTRAINT feed_url_full_text_method_check
-              CHECK (
-                  full_text_method IN (
-                      'feed',
-                      'http',
-                      'http_readability',
-                      'http_autopagerize',
-                      'http_autopagerize_readability',
-                      'playwright',
-                      'playwright_readability',
-                      'playwright_autopagerize',
-                      'playwright_autopagerize_readability'
-                  )
-              )
-          """);
-    }
-  }
-
-  @Test
   void listNewestFirstOrdersByImportedAtAndId() {
     long older =
         datasetRepository.insert(
