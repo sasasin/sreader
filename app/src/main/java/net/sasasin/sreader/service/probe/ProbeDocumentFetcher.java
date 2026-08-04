@@ -107,7 +107,7 @@ final class ProbeDocumentFetcher {
       case Definition.PlaywrightArticle playwright ->
           playwright.pagination() == PaginationMode.AUTOPAGERIZE
               ? fetchPlaywrightAutopagerize(requestedUri, failureSubject, autopagerizeDatasetId)
-              : fetchPlaywright(requestedUri, playwright, failureSubject);
+              : fetchPlaywright(requestedUri, failureSubject);
       case Definition.FeedEntry ignored ->
           new FetchOutcome.Failed(
               OperationFailure.of(
@@ -151,15 +151,14 @@ final class ProbeDocumentFetcher {
     }
   }
 
-  private FetchOutcome fetchPlaywright(
-      URI uri, Definition.PlaywrightArticle definition, String subject) {
+  private FetchOutcome fetchPlaywright(URI uri, String subject) {
     if (!properties.playwright().enabled()) {
       return new FetchOutcome.Skipped(
           ProbeSkipReason.PLAYWRIGHT_DISABLED,
           "Playwright is required for method but is disabled or misconfigured");
     }
     try {
-      RenderedPage page = playwrightHtmlSource.renderPage(uri, definition.mode());
+      RenderedPage page = playwrightHtmlSource.renderPage(uri);
       return new FetchOutcome.Fetched(new FetchedProbeDocument(uri, page.finalUri(), page.html()));
     } catch (RuntimeException e) {
       return new FetchOutcome.Failed(
