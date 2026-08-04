@@ -36,6 +36,34 @@
 - Flyway
 - jOOQ code generation
 
+## Agent 向け高速 Maven Compose
+
+`docker-compose.yml` は人間の開発者向けの通常構成として維持します。エージェントが
+Maven を実行するときは、必ず `docker-compose.agent.yml` を追加指定してください。
+この override は `/workspace` を Linux named volume に差し替え、起動時に現在の
+ソースを `/source` から同期してから Maven コマンドを実行します。`target/`、
+`app/bin/`、`app/target/`、`var/`、`.git/` は同期対象外です。
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.agent.yml config
+```
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven mvn -version
+```
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven java -version
+```
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven mvn clean verify
+```
+
+Maven の formatter、Checkstyle、依存関係確認、jOOQ code generation も同じ
+`-f docker-compose.yml -f docker-compose.agent.yml` を付けて実行します。
+`docker-compose.agent.yml` 単独では使用せず、必ずベース Compose と組み合わせてください。
+
 ## 変更前に確認すること
 
 作業前に、現在の構成を確認してください。
@@ -71,15 +99,15 @@ docker compose run --rm flyway migrate
 ```
 
 ```sh
-docker compose run --rm maven mvn -version
+docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven mvn -version
 ```
 
 ```sh
-docker compose run --rm maven java -version
+docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven java -version
 ```
 
 ```sh
-docker compose run --rm maven mvn clean verify
+docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven mvn clean verify
 ```
 
 ```sh
@@ -100,19 +128,19 @@ Java コードを変更した場合は、レビュー前に Spotless と Checkst
 ホスト OS ではなく Docker Compose 経由で Maven を実行します。
 
 ```sh
-docker compose run --rm maven mvn spotless:apply
+docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven mvn spotless:apply
 ```
 
 ```sh
-docker compose run --rm maven mvn spotless:check
+docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven mvn spotless:check
 ```
 
 ```sh
-docker compose run --rm maven mvn checkstyle:check
+docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven mvn checkstyle:check
 ```
 
 ```sh
-docker compose run --rm maven mvn verify
+docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven mvn verify
 ```
 
 実行する Maven goal は以下です。
@@ -163,11 +191,11 @@ docker compose run --rm flyway migrate
 ```
 
 ```sh
-docker compose run --rm maven mvn -Pgenerate-jooq -pl app -am generate-sources
+docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven mvn -Pgenerate-jooq -pl app -am generate-sources
 ```
 
 ```sh
-docker compose run --rm maven mvn clean verify
+docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven mvn clean verify
 ```
 
 jOOQ generated sources は `app/src/generated/java/` に commit 済みです。通常 build では jOOQ code generation は実行されません。`db/migration/*.sql` または jOOQ codegen 設定を変更した場合のみ、上記 `generate-jooq` profile で再生成してください。
@@ -344,7 +372,7 @@ README を変更した場合は、以下を確認してください。
 依存関係を変更した場合は、以下を確認してください。
 
 ```sh
-docker compose run --rm maven mvn dependency:tree
+docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven mvn dependency:tree
 ```
 
 ## renovate.json を変更した場合の検証と修正
@@ -376,7 +404,7 @@ git diff --check
 - `docker compose config` が成功する。
 - `docker compose up -d postgres` が成功する。
 - PostgreSQL 18.x に接続できる。
-- `docker compose run --rm maven mvn clean verify` が成功する。
+- `docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven mvn clean verify` が成功する。
 - `docker compose build app` が成功する。
 - `docker compose up -d app` が成功する。
 - app logs に起動直後の致命的例外がない。
