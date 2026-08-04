@@ -37,33 +37,20 @@ public enum FullTextMethod {
 
   PLAYWRIGHT(
       "playwright",
-      new Definition.PlaywrightArticle(
-          PlaywrightMode.STANDARD, PaginationMode.NONE, HtmlExtractor.XPATH_OR_BODY_TEXT)),
+      new Definition.PlaywrightArticle(PaginationMode.NONE, HtmlExtractor.XPATH_OR_BODY_TEXT)),
 
   PLAYWRIGHT_READABILITY(
       "playwright_readability",
-      new Definition.PlaywrightArticle(
-          PlaywrightMode.STANDARD, PaginationMode.NONE, HtmlExtractor.READABILITY)),
+      new Definition.PlaywrightArticle(PaginationMode.NONE, HtmlExtractor.READABILITY)),
 
   PLAYWRIGHT_AUTOPAGERIZE(
       "playwright_autopagerize",
       new Definition.PlaywrightArticle(
-          PlaywrightMode.STANDARD, PaginationMode.AUTOPAGERIZE, HtmlExtractor.XPATH_OR_BODY_TEXT)),
+          PaginationMode.AUTOPAGERIZE, HtmlExtractor.XPATH_OR_BODY_TEXT)),
 
   PLAYWRIGHT_AUTOPAGERIZE_READABILITY(
       "playwright_autopagerize_readability",
-      new Definition.PlaywrightArticle(
-          PlaywrightMode.STANDARD, PaginationMode.AUTOPAGERIZE, HtmlExtractor.READABILITY)),
-
-  PLAYWRIGHT_INFY_SCROLL(
-      "playwright_infy_scroll",
-      new Definition.PlaywrightArticle(
-          PlaywrightMode.INFY_SCROLL, PaginationMode.NONE, HtmlExtractor.XPATH_OR_BODY_TEXT)),
-
-  PLAYWRIGHT_INFY_SCROLL_READABILITY(
-      "playwright_infy_scroll_readability",
-      new Definition.PlaywrightArticle(
-          PlaywrightMode.INFY_SCROLL, PaginationMode.NONE, HtmlExtractor.READABILITY));
+      new Definition.PlaywrightArticle(PaginationMode.AUTOPAGERIZE, HtmlExtractor.READABILITY));
 
   private static final FullTextMethod DEFAULT = HTTP;
 
@@ -182,15 +169,9 @@ public enum FullTextMethod {
     AUTOPAGERIZE
   }
 
-  /** Playwright page rendering mode (catalog-owned; browser adapters depend on this). */
-  public enum PlaywrightMode {
-    STANDARD,
-    INFY_SCROLL
-  }
-
   /**
    * Sealed runtime definition for a full-text method. Invalid combinations such as FEED +
-   * READABILITY or HTTP + Infy cannot be constructed.
+   * READABILITY cannot be constructed.
    */
   public sealed interface Definition permits Definition.FeedEntry, Definition.ArticleDefinition {
 
@@ -215,21 +196,15 @@ public enum FullTextMethod {
     }
 
     /**
-     * Playwright render of the article URL with a mode, then HTML extraction. {@link
+     * Playwright render of the article URL, then HTML extraction. {@link
      * PaginationMode#AUTOPAGERIZE} tracks multi-page chains through a short-lived standard browser
-     * context (no extension / persistent profile). Infy Scroll cannot combine with AutoPagerize.
+     * context (no browser extension / persistent profile).
      */
-    record PlaywrightArticle(
-        PlaywrightMode mode, PaginationMode pagination, HtmlExtractor extractor)
+    record PlaywrightArticle(PaginationMode pagination, HtmlExtractor extractor)
         implements ArticleDefinition {
       public PlaywrightArticle {
-        Objects.requireNonNull(mode, "mode must not be null");
         Objects.requireNonNull(pagination, "pagination must not be null");
         Objects.requireNonNull(extractor, "extractor must not be null");
-        if (mode == PlaywrightMode.INFY_SCROLL && pagination == PaginationMode.AUTOPAGERIZE) {
-          throw new IllegalArgumentException(
-              "Infy Scroll cannot combine with AutoPagerize pagination");
-        }
       }
     }
   }

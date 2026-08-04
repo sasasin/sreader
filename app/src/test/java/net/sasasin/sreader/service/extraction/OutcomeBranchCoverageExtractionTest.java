@@ -287,17 +287,7 @@ class OutcomeBranchCoverageExtractionTest {
         new FeedReaderProperties.Job(false),
         new FeedReaderProperties.Http("test", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
         new FeedReaderProperties.Playwright(
-            playwrightEnabled,
-            true,
-            1280,
-            1600,
-            Duration.ofSeconds(1),
-            Duration.ofSeconds(1),
-            null,
-            null,
-            1,
-            1,
-            Duration.ofMillis(1)),
+            playwrightEnabled, true, 1280, 1600, Duration.ofSeconds(1), Duration.ofSeconds(1)),
         null,
         null,
         List.of());

@@ -237,7 +237,7 @@ docker compose run --rm app --sreader.scheduler.enabled=false run-once
 
 ## 全文取得 method
 
-`feed_url.full_text_method` は以下を指定できます。省略時は従来通り `http` です。
+`feed_url.full_text_method` は以下の 9 方式を指定できます。省略時は従来通り `http` です。
 
 - `feed`: RSS/Atom entry 本文を保存します。
 - `http`: 記事 URL を HTTP GET し、XPath rule、失敗時 body text で抽出します。
@@ -246,14 +246,38 @@ docker compose run --rm app --sreader.scheduler.enabled=false run-once
 - `http_autopagerize_readability`: active AutoPagerize rule で複数ページを追跡し、ページごとに Readability4J、失敗時は pageElement で抽出します。
 - `playwright`: Chromium で JS 実行後の DOM HTML から XPath rule、失敗時 body text で抽出します。
 - `playwright_readability`: Chromium で JS 実行後の DOM HTML を Readability4J で抽出します。
-- `playwright_autopagerize`: Chromium で JS 実行後の DOM を page ごとに capture し、active AutoPagerize rule で複数ページを追跡します。ページごとに XPath rule、失敗時は AutoPagerize の pageElement で抽出します。Infy Scroll 拡張は使いません。
+- `playwright_autopagerize`: Chromium で JS 実行後の DOM を page ごとに capture し、active AutoPagerize rule で複数ページを追跡します。ページごとに XPath rule、失敗時は AutoPagerize の pageElement で抽出します。
 - `playwright_autopagerize_readability`: 同上の Playwright AutoPagerize 追跡のうえ、ページごとに Readability4J、失敗時は pageElement で抽出します。
-- `playwright_infy_scroll`: Infy Scroll extension を読み込んだ Chromium で scroll 後の DOM HTML から XPath rule、失敗時 body text で抽出します。
-- `playwright_infy_scroll_readability`: Infy Scroll 後の DOM HTML を Readability4J で抽出します。
+
+旧 `playwright_infy_scroll` / `playwright_infy_scroll_readability` は廃止済みです。既存 DB の該当値は migration で `playwright_autopagerize` / `playwright_autopagerize_readability` へ変換されます。
 
 Playwright 系 method はデフォルトでは無効です。使う場合は `SREADER_PLAYWRIGHT_ENABLED=true` を設定してください。無効時に Playwright 系 method の feed がある場合、その記事の全文取得は warning log を出して skip します。
 
-HTTP / Playwright AutoPagerize method は、ローカルに import して activate した AutoPagerize dataset を使用します。dataset が active でない場合は記事取得を失敗として扱います。Playwright AutoPagerize は short-lived な BrowserContext / Page を 1 記事のページネーションチェーン全体で再利用し、拡張機能や persistent profile には依存しません。ページネーションの主な環境変数は以下です。
+### AutoPagerize method の前提
+
+HTTP / Playwright の AutoPagerize method は、利用者が local に用意した AutoPagerize SITEINFO（`items_all.json` 相当）を CLI で import し、active dataset を切替えたうえで動作します。
+
+- SReader は JSON をソースツリーに同梱しません。
+- SReader は URL から AutoPagerize DB を自動 download しません。
+- 対象は AutoPagerize の WeData DB です。InfyScroll 独自の `items_all.json` は使いません。
+- active dataset が無い状態で AutoPagerize method を指定すると、該当記事の抽出は configuration failure になります。
+- 参考配布 URL の例: `https://cdn.jsdelivr.net/gh/cdnize/cdnize.github.io/databases/AutoPagerize/items_all.json`（内容固定が必要なら利用者が commit/hash を管理してください）。
+
+### AutoPagerize の対応範囲
+
+- 通常 URL の next link を追って複数ページを結合します。
+- click / AJAX の「もっと見る」やブラウザ拡張固有の action は対象外です。
+- 途中ページの取得失敗時は部分記事を保存せず strict completion とします。
+- same-origin 制約とページ数 / バイト / 時間の上限があります。
+
+### 再現性
+
+- `--source-uri` は provenance metadata のみで、fetch には使いません。
+- dataset identity は raw file の SHA-256 と importer version で管理します。
+- 記事成功行には dataset / rule / page metadata が保存されます。
+- 旧 dataset を残すことで調査と rollback が可能です。
+
+ページネーションの主な環境変数:
 
 - `SREADER_AUTOPAGERIZE_MAX_PAGES=20`
 - `SREADER_AUTOPAGERIZE_MAX_PAGE_BYTES=5242880`
@@ -261,18 +285,13 @@ HTTP / Playwright AutoPagerize method は、ローカルに import して activa
 - `SREADER_AUTOPAGERIZE_TOTAL_TIMEOUT=120s`
 - `SREADER_AUTOPAGERIZE_SAME_ORIGIN_ONLY=true`
 
-Playwright / Infy Scroll 用の主な環境変数:
+Playwright 用の主な環境変数:
 
 - `SREADER_PLAYWRIGHT_HEADLESS=true`
 - `SREADER_PLAYWRIGHT_VIEWPORT_WIDTH=1280`
 - `SREADER_PLAYWRIGHT_VIEWPORT_HEIGHT=1600`
 - `SREADER_PLAYWRIGHT_NAVIGATION_TIMEOUT=60s`
 - `SREADER_PLAYWRIGHT_NETWORK_IDLE_TIMEOUT=5s`
-- `SREADER_PLAYWRIGHT_INFY_EXTENSION_DIR=/opt/sreader/extensions/infy-scroll`
-- `SREADER_PLAYWRIGHT_INFY_USER_DATA_DIR=/var/lib/sreader/playwright-infy-profile`
-- `SREADER_PLAYWRIGHT_INFY_MAX_SCROLLS=20`
-- `SREADER_PLAYWRIGHT_INFY_STABLE_ROUNDS=3`
-- `SREADER_PLAYWRIGHT_INFY_SCROLL_WAIT=2700ms`
 
 Docker app image は Playwright の bundled Chromium と、その Chromium 専用の OS 依存ライブラリを含みます。ブラウザは `/ms-playwright` に固定して配置され、実行時のブラウザ自動ダウンロードは無効です。Playwright のバージョンを更新した場合は、app image を再ビルドしてください。
 
@@ -281,8 +300,6 @@ Maven service で Playwright の bundled browser を使う場合は、Docker Com
 ```sh
 docker compose run --rm maven mvn -pl app exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install chromium"
 ```
-
-Infy Scroll は実行時に Chrome Web Store からインストールしません。Chromium が load できる unpacked extension directory を用意し、その directory を `SREADER_PLAYWRIGHT_INFY_EXTENSION_DIR` に指定してください。GitHub source tree をそのまま指定して必ず動くとは限らないため、`manifest.json` を含む extension artifact を配置してください。
 
 一度 `content_full_text` に保存された記事は `insertIfAbsent` のため、`full_text_method` を変更しても自動再抽出されません。再抽出が必要な場合は対象行の扱いを別途検討してください。
 
@@ -330,22 +347,22 @@ TITLE: <content_header.title>
 - `SREADER_TEXT_EXPORT_HOST_DIR=./var/sreader/content-text`
 - `SREADER_TEXT_EXPORT_BATCH_SIZE=100`
 
-## AutoPagerize dataset import
+## AutoPagerize dataset import / probe
 
 AutoPagerize の WeData `items_all.json` 相当を、**利用者がローカルに用意した JSON ファイルだけ**から PostgreSQL へ immutable dataset として import します。SReader は AutoPagerize DB を URL から自動取得しません。実データの JSON はソースツリーに同梱しません。
 
 ```sh
-# 検証のみ（DB 変更なし）
+# 1. dry-run（検証のみ、DB 変更なし）
 docker compose run --rm -v ./items_all.json:/tmp/items_all.json:ro app \
   --sreader.scheduler.enabled=false autopagerize import \
   --input /tmp/items_all.json --dry-run
 
-# 通常 import（保存後に active を切替）
+# 2. import and activate（保存後に active を切替）
 docker compose run --rm -v ./items_all.json:/tmp/items_all.json:ro app \
   --sreader.scheduler.enabled=false autopagerize import \
   --input /tmp/items_all.json
 
-# 保存するが active は変えない
+# 3. import without activate（保存するが active は変えない）
 docker compose run --rm -v ./items_all.json:/tmp/items_all.json:ro app \
   --sreader.scheduler.enabled=false autopagerize import \
   --input /tmp/items_all.json --no-activate
@@ -355,9 +372,25 @@ docker compose run --rm -v ./items_all.json:/tmp/items_all.json:ro app \
   --sreader.scheduler.enabled=false autopagerize import \
   --input /tmp/items_all.json --strict
 
-# dataset 一覧 / active 切替
+# 4. dataset list
 docker compose run --rm app --sreader.scheduler.enabled=false autopagerize datasets list
-docker compose run --rm app --sreader.scheduler.enabled=false autopagerize datasets activate --dataset-id 1
+
+# 5. inactive dataset activate
+docker compose run --rm app --sreader.scheduler.enabled=false \
+  autopagerize datasets activate --dataset-id 1
+
+# 6. probe with active dataset
+docker compose run --rm app --sreader.scheduler.enabled=false probe article \
+  --url https://example.com/article/1 \
+  --method http_autopagerize \
+  --verbose
+
+# 7. probe with explicit dataset ID
+docker compose run --rm app --sreader.scheduler.enabled=false probe article \
+  --url https://example.com/article/1 \
+  --method http_autopagerize \
+  --autopagerize-dataset-id 1 \
+  --verbose
 ```
 
 - identity は `format` + ファイル raw bytes の SHA-256 + importer version です。同一 identity の再 import は dataset を重複作成せず、必要なら既存を active にします。

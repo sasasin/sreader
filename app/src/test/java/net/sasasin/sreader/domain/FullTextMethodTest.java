@@ -9,7 +9,6 @@ import java.util.stream.Stream;
 import net.sasasin.sreader.domain.FullTextMethod.Definition;
 import net.sasasin.sreader.domain.FullTextMethod.HtmlExtractor;
 import net.sasasin.sreader.domain.FullTextMethod.PaginationMode;
-import net.sasasin.sreader.domain.FullTextMethod.PlaywrightMode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -30,9 +29,7 @@ class FullTextMethodTest {
             "playwright",
             "playwright_readability",
             "playwright_autopagerize",
-            "playwright_autopagerize_readability",
-            "playwright_infy_scroll",
-            "playwright_infy_scroll_readability");
+            "playwright_autopagerize_readability");
     assertThat(FullTextMethod.wireValues()).isUnmodifiable();
     assertThat(FullTextMethod.supportedValues())
         .isEqualTo(String.join(", ", FullTextMethod.wireValues()));
@@ -52,6 +49,8 @@ class FullTextMethodTest {
     assertThatThrownBy(() -> FullTextMethod.fromValue(null))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> FullTextMethod.fromValue("HTTP"))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> FullTextMethod.fromValue("playwright_infy_scroll"))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -79,29 +78,18 @@ class FullTextMethodTest {
     assertThat(FullTextMethod.PLAYWRIGHT.definition())
         .isEqualTo(
             new Definition.PlaywrightArticle(
-                PlaywrightMode.STANDARD, PaginationMode.NONE, HtmlExtractor.XPATH_OR_BODY_TEXT));
+                PaginationMode.NONE, HtmlExtractor.XPATH_OR_BODY_TEXT));
     assertThat(FullTextMethod.PLAYWRIGHT_READABILITY.definition())
         .isEqualTo(
-            new Definition.PlaywrightArticle(
-                PlaywrightMode.STANDARD, PaginationMode.NONE, HtmlExtractor.READABILITY));
+            new Definition.PlaywrightArticle(PaginationMode.NONE, HtmlExtractor.READABILITY));
     assertThat(FullTextMethod.PLAYWRIGHT_AUTOPAGERIZE.definition())
         .isEqualTo(
             new Definition.PlaywrightArticle(
-                PlaywrightMode.STANDARD,
-                PaginationMode.AUTOPAGERIZE,
-                HtmlExtractor.XPATH_OR_BODY_TEXT));
+                PaginationMode.AUTOPAGERIZE, HtmlExtractor.XPATH_OR_BODY_TEXT));
     assertThat(FullTextMethod.PLAYWRIGHT_AUTOPAGERIZE_READABILITY.definition())
         .isEqualTo(
             new Definition.PlaywrightArticle(
-                PlaywrightMode.STANDARD, PaginationMode.AUTOPAGERIZE, HtmlExtractor.READABILITY));
-    assertThat(FullTextMethod.PLAYWRIGHT_INFY_SCROLL.definition())
-        .isEqualTo(
-            new Definition.PlaywrightArticle(
-                PlaywrightMode.INFY_SCROLL, PaginationMode.NONE, HtmlExtractor.XPATH_OR_BODY_TEXT));
-    assertThat(FullTextMethod.PLAYWRIGHT_INFY_SCROLL_READABILITY.definition())
-        .isEqualTo(
-            new Definition.PlaywrightArticle(
-                PlaywrightMode.INFY_SCROLL, PaginationMode.NONE, HtmlExtractor.READABILITY));
+                PaginationMode.AUTOPAGERIZE, HtmlExtractor.READABILITY));
   }
 
   @Test
@@ -167,10 +155,8 @@ class FullTextMethodTest {
     assertThat(method.definition())
         .isInstanceOfSatisfying(
             Definition.PlaywrightArticle.class,
-            playwright -> {
-              assertThat(playwright.mode()).isEqualTo(PlaywrightMode.STANDARD);
-              assertThat(playwright.pagination()).isEqualTo(PaginationMode.AUTOPAGERIZE);
-            });
+            playwright ->
+                assertThat(playwright.pagination()).isEqualTo(PaginationMode.AUTOPAGERIZE));
   }
 
   @Test
@@ -181,36 +167,12 @@ class FullTextMethodTest {
     assertThatThrownBy(() -> new Definition.HttpArticle(PaginationMode.NONE, null))
         .isInstanceOf(NullPointerException.class)
         .hasMessageContaining("extractor");
-    assertThatThrownBy(
-            () ->
-                new Definition.PlaywrightArticle(
-                    null, PaginationMode.NONE, HtmlExtractor.READABILITY))
-        .isInstanceOf(NullPointerException.class)
-        .hasMessageContaining("mode");
-    assertThatThrownBy(
-            () ->
-                new Definition.PlaywrightArticle(
-                    PlaywrightMode.STANDARD, null, HtmlExtractor.READABILITY))
+    assertThatThrownBy(() -> new Definition.PlaywrightArticle(null, HtmlExtractor.READABILITY))
         .isInstanceOf(NullPointerException.class)
         .hasMessageContaining("pagination");
-    assertThatThrownBy(
-            () ->
-                new Definition.PlaywrightArticle(
-                    PlaywrightMode.STANDARD, PaginationMode.NONE, null))
+    assertThatThrownBy(() -> new Definition.PlaywrightArticle(PaginationMode.NONE, null))
         .isInstanceOf(NullPointerException.class)
         .hasMessageContaining("extractor");
-  }
-
-  @Test
-  void infyScrollCannotCombineWithAutopagerize() {
-    assertThatThrownBy(
-            () ->
-                new Definition.PlaywrightArticle(
-                    PlaywrightMode.INFY_SCROLL,
-                    PaginationMode.AUTOPAGERIZE,
-                    HtmlExtractor.XPATH_OR_BODY_TEXT))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Infy Scroll");
   }
 
   @Test
@@ -245,17 +207,11 @@ class FullTextMethodTest {
         FullTextMethod.PLAYWRIGHT,
         FullTextMethod.PLAYWRIGHT_READABILITY,
         FullTextMethod.PLAYWRIGHT_AUTOPAGERIZE,
-        FullTextMethod.PLAYWRIGHT_AUTOPAGERIZE_READABILITY,
-        FullTextMethod.PLAYWRIGHT_INFY_SCROLL,
-        FullTextMethod.PLAYWRIGHT_INFY_SCROLL_READABILITY);
+        FullTextMethod.PLAYWRIGHT_AUTOPAGERIZE_READABILITY);
   }
 
   static Stream<FullTextMethod> playwrightSinglePageMethods() {
-    return Stream.of(
-        FullTextMethod.PLAYWRIGHT,
-        FullTextMethod.PLAYWRIGHT_READABILITY,
-        FullTextMethod.PLAYWRIGHT_INFY_SCROLL,
-        FullTextMethod.PLAYWRIGHT_INFY_SCROLL_READABILITY);
+    return Stream.of(FullTextMethod.PLAYWRIGHT, FullTextMethod.PLAYWRIGHT_READABILITY);
   }
 
   static Stream<FullTextMethod> playwrightAutopagerizeMethods() {

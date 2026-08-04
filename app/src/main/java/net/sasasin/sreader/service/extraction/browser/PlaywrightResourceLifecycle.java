@@ -6,21 +6,16 @@ import net.sasasin.sreader.config.FeedReaderProperties;
 /**
  * Coordinates start/stop order for Playwright resources.
  *
- * <p>Stop order: Infy persistent context, then regular Browser, then Playwright process.
+ * <p>Stop order: regular Browser, then Playwright process.
  */
 final class PlaywrightResourceLifecycle {
 
   private final FeedReaderProperties.Playwright settings;
   private final PlaywrightRuntime runtime;
-  private final InfyScrollPageRenderer infyRenderer;
 
-  PlaywrightResourceLifecycle(
-      FeedReaderProperties.Playwright settings,
-      PlaywrightRuntime runtime,
-      InfyScrollPageRenderer infyRenderer) {
+  PlaywrightResourceLifecycle(FeedReaderProperties.Playwright settings, PlaywrightRuntime runtime) {
     this.settings = Objects.requireNonNull(settings, "settings must not be null");
     this.runtime = Objects.requireNonNull(runtime, "runtime must not be null");
-    this.infyRenderer = Objects.requireNonNull(infyRenderer, "infyRenderer must not be null");
   }
 
   void start() {
@@ -31,9 +26,7 @@ final class PlaywrightResourceLifecycle {
   }
 
   void stop() {
-    RuntimeException primary = null;
-    primary = PlaywrightCloseSupport.close(primary, infyRenderer::close);
-    primary = PlaywrightCloseSupport.close(primary, runtime::stop);
+    RuntimeException primary = PlaywrightCloseSupport.close(null, runtime::stop);
     PlaywrightCloseSupport.throwIfPresent(primary);
   }
 

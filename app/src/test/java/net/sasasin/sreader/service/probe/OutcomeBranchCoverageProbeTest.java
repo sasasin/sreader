@@ -2,7 +2,6 @@ package net.sasasin.sreader.service.probe;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -14,7 +13,6 @@ import java.util.List;
 import java.util.Optional;
 import net.sasasin.sreader.config.FeedReaderProperties;
 import net.sasasin.sreader.domain.FullTextMethod;
-import net.sasasin.sreader.domain.FullTextMethod.PlaywrightMode;
 import net.sasasin.sreader.service.autopagerize.AutoPagerizeEngine;
 import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleCatalog;
 import net.sasasin.sreader.service.extraction.ExtractionDecision;
@@ -80,8 +78,7 @@ class OutcomeBranchCoverageProbeTest {
                 java.util.Optional.empty());
     assertThat(status.failure().kind()).isEqualTo(FailureKind.HTTP_STATUS);
 
-    when(playwright.renderPage(any(), eq(PlaywrightMode.STANDARD)))
-        .thenThrow(new RuntimeException("render"));
+    when(playwright.renderPage(any())).thenThrow(new RuntimeException("render"));
     ProbeDocumentFetcher.FetchOutcome.Failed render =
         (ProbeDocumentFetcher.FetchOutcome.Failed)
             fetcher.fetch(
@@ -182,17 +179,7 @@ class OutcomeBranchCoverageProbeTest {
         new FeedReaderProperties.Job(false),
         new FeedReaderProperties.Http("test", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
         new FeedReaderProperties.Playwright(
-            playwrightEnabled,
-            true,
-            1280,
-            1600,
-            Duration.ofSeconds(1),
-            Duration.ofSeconds(1),
-            null,
-            null,
-            1,
-            1,
-            Duration.ofMillis(1)),
+            playwrightEnabled, true, 1280, 1600, Duration.ofSeconds(1), Duration.ofSeconds(1)),
         null,
         null,
         List.of());

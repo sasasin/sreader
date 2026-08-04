@@ -92,16 +92,6 @@ class PlaywrightPageNavigatorTest {
 
   private static FeedReaderProperties.Playwright settings() {
     return new FeedReaderProperties.Playwright(
-        true,
-        true,
-        800,
-        600,
-        Duration.ofSeconds(3),
-        Duration.ofSeconds(2),
-        null,
-        null,
-        2,
-        2,
-        Duration.ofMillis(10));
+        true, true, 800, 600, Duration.ofSeconds(3), Duration.ofSeconds(2));
   }
 }

@@ -72,9 +72,9 @@ class FullTextMethodCatalogArchitectureTest {
             "http_autopagerize_readability",
             "playwright_readability",
             "playwright_autopagerize",
-            "playwright_autopagerize_readability",
-            "playwright_infy_scroll",
-            "playwright_infy_scroll_readability");
+            "playwright_autopagerize_readability");
+    assertThat(UNIQUE_WIRE_LITERALS)
+        .doesNotContain("playwright_infy_scroll", "playwright_infy_scroll_readability");
     for (Path file : productionJavaFiles()) {
       if (file.equals(catalog)) {
         continue;
@@ -119,7 +119,7 @@ class FullTextMethodCatalogArchitectureTest {
       assertThat(source)
           .doesNotContain(
               "feed|http|http_readability|playwright|playwright_readability"
-                  + "|playwright_infy_scroll|playwright_infy_scroll_readability");
+                  + "|playwright_autopagerize|playwright_autopagerize_readability");
     }
   }
 

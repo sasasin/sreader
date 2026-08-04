@@ -18,7 +18,6 @@ import java.util.stream.Stream;
 import net.sasasin.sreader.config.FeedReaderProperties;
 import net.sasasin.sreader.domain.FeedEntrySelection;
 import net.sasasin.sreader.domain.FullTextMethod;
-import net.sasasin.sreader.domain.FullTextMethod.PlaywrightMode;
 import net.sasasin.sreader.service.autopagerize.AutoPagerizeEngine;
 import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleCatalog;
 import net.sasasin.sreader.service.extraction.ExtractionDecision;
@@ -59,7 +58,7 @@ class FullTextProbeServiceTest {
         d.service(true).probeArticle(ARTICLE_URL, FullTextMethod.FEED, Optional.empty());
     assertThat(outcome).isInstanceOf(ProbeOutcome.InvalidRequest.class);
     verify(d.http, never()).get(any());
-    verify(d.playwright, never()).renderPage(any(), any());
+    verify(d.playwright, never()).renderPage(any());
     verify(d.extractor, never()).extract(any(), any(), any(), any());
   }
 
@@ -87,7 +86,7 @@ class FullTextProbeServiceTest {
     assertThat(result.document().finalUrl()).isEqualTo(finalUrl);
     assertThat(result.document().title()).contains("Article Title");
     assertThat(result.text()).isEqualTo("text");
-    verify(d.playwright, never()).renderPage(any(), any());
+    verify(d.playwright, never()).renderPage(any());
   }
 
   @Test
@@ -163,12 +162,11 @@ class FullTextProbeServiceTest {
 
   @ParameterizedTest
   @MethodSource("playwrightMethods")
-  void articlePlaywrightMethodsMapScrollAndExtractor(
-      FullTextMethod method, boolean infy, FullTextMethod.HtmlExtractor kind) throws Exception {
+  void articlePlaywrightMethodsMapExtractor(
+      FullTextMethod method, FullTextMethod.HtmlExtractor kind) throws Exception {
     Dependencies d = dependencies();
     URI finalUrl = URI.create("https://final/rendered");
-    when(d.playwright.renderPage(
-            eq(ARTICLE_URL), eq(infy ? PlaywrightMode.INFY_SCROLL : PlaywrightMode.STANDARD)))
+    when(d.playwright.renderPage(ARTICLE_URL))
         .thenReturn(new RenderedPage(finalUrl, "<body>rendered</body>"));
     when(d.extractor.extract(finalUrl.toString(), "<body>rendered</body>", kind, Optional.empty()))
         .thenReturn(
@@ -186,8 +184,7 @@ class FullTextProbeServiceTest {
   @Test
   void articlePlaywrightUsesInputUrlWhenRendererHasNoFinalUrl() {
     Dependencies d = dependencies();
-    when(d.playwright.renderPage(ARTICLE_URL, PlaywrightMode.STANDARD))
-        .thenReturn(new RenderedPage(ARTICLE_URL, "html"));
+    when(d.playwright.renderPage(ARTICLE_URL)).thenReturn(new RenderedPage(ARTICLE_URL, "html"));
     when(d.extractor.extract(
             ARTICLE_URL.toString(),
             "html",
@@ -212,14 +209,13 @@ class FullTextProbeServiceTest {
                 .service(false)
                 .probeArticle(ARTICLE_URL, FullTextMethod.PLAYWRIGHT, Optional.empty());
     assertThat(skipped.reason()).isEqualTo(ProbeSkipReason.PLAYWRIGHT_DISABLED);
-    verify(disabled.playwright, never()).renderPage(any(), any());
+    verify(disabled.playwright, never()).renderPage(any());
   }
 
   @Test
   void playwrightRenderFailureIsFailedRender() {
     Dependencies bad = dependencies();
-    when(bad.playwright.renderPage(any(), any()))
-        .thenThrow(new IllegalStateException("not configured"));
+    when(bad.playwright.renderPage(any())).thenThrow(new IllegalStateException("not configured"));
     ProbeOutcome.Failed failed =
         (ProbeOutcome.Failed)
             bad.service(true)
@@ -242,7 +238,7 @@ class FullTextProbeServiceTest {
                     FEED_URL, FullTextMethod.HTTP, FeedEntrySelection.first(), Optional.empty());
     assertThat(noMatch.message()).contains(FEED_URL.toString());
     verify(d.http, never()).get(any());
-    verify(d.playwright, never()).renderPage(any(), any());
+    verify(d.playwright, never()).renderPage(any());
     verify(d.feedExtractor, never()).extract(any());
   }
 
@@ -448,8 +444,8 @@ class FullTextProbeServiceTest {
 
   @ParameterizedTest
   @MethodSource("feedPlaywrightMethods")
-  void nonFeedPlaywrightMapsScrollReadabilityAndFinalUrlFallback(
-      FullTextMethod method, boolean infy, FullTextMethod.HtmlExtractor kind) {
+  void nonFeedPlaywrightMapsReadabilityAndFinalUrlFallback(
+      FullTextMethod method, FullTextMethod.HtmlExtractor kind) {
     Dependencies d = dependencies();
     SyndFeed feed = mock(SyndFeed.class);
     SyndEntry entry = entry("https://entry", "title");
@@ -457,9 +453,7 @@ class FullTextProbeServiceTest {
     when(d.documents.fetch(FEED_URL)).thenReturn(new FeedDocumentOutcome.Fetched(feed));
     when(d.picker.pick(feed, FeedEntrySelection.first(), true)).thenReturn(Optional.of(entry));
     when(d.http.resolveRedirect(link)).thenReturn(new RedirectResolution.Resolved(link, link));
-    when(d.playwright.renderPage(
-            eq(link), eq(infy ? PlaywrightMode.INFY_SCROLL : PlaywrightMode.STANDARD)))
-        .thenReturn(new RenderedPage(link, "html"));
+    when(d.playwright.renderPage(link)).thenReturn(new RenderedPage(link, "html"));
     when(d.extractor.extract(link.toString(), "html", kind, Optional.empty()))
         .thenReturn(
             new TextExtractionOutcome.Extracted(
@@ -482,8 +476,7 @@ class FullTextProbeServiceTest {
     when(d.documents.fetch(FEED_URL)).thenReturn(new FeedDocumentOutcome.Fetched(feed));
     when(d.picker.pick(feed, FeedEntrySelection.first(), true)).thenReturn(Optional.of(entry));
     when(d.http.resolveRedirect(link)).thenReturn(new RedirectResolution.Resolved(link, link));
-    when(d.playwright.renderPage(link, PlaywrightMode.STANDARD))
-        .thenReturn(new RenderedPage(finalUrl, "html"));
+    when(d.playwright.renderPage(link)).thenReturn(new RenderedPage(finalUrl, "html"));
     when(d.extractor.extract(
             finalUrl.toString(),
             "html",
@@ -526,31 +519,17 @@ class FullTextProbeServiceTest {
   private static Stream<org.junit.jupiter.params.provider.Arguments> playwrightMethods() {
     return Stream.of(
         org.junit.jupiter.params.provider.Arguments.of(
-            FullTextMethod.PLAYWRIGHT, false, FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT),
+            FullTextMethod.PLAYWRIGHT, FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT),
         org.junit.jupiter.params.provider.Arguments.of(
-            FullTextMethod.PLAYWRIGHT_READABILITY, false, FullTextMethod.HtmlExtractor.READABILITY),
-        org.junit.jupiter.params.provider.Arguments.of(
-            FullTextMethod.PLAYWRIGHT_INFY_SCROLL,
-            true,
-            FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT),
-        org.junit.jupiter.params.provider.Arguments.of(
-            FullTextMethod.PLAYWRIGHT_INFY_SCROLL_READABILITY,
-            true,
-            FullTextMethod.HtmlExtractor.READABILITY));
+            FullTextMethod.PLAYWRIGHT_READABILITY, FullTextMethod.HtmlExtractor.READABILITY));
   }
 
   private static Stream<org.junit.jupiter.params.provider.Arguments> feedPlaywrightMethods() {
     return Stream.of(
         org.junit.jupiter.params.provider.Arguments.of(
-            FullTextMethod.PLAYWRIGHT, false, FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT),
+            FullTextMethod.PLAYWRIGHT, FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT),
         org.junit.jupiter.params.provider.Arguments.of(
-            FullTextMethod.PLAYWRIGHT_INFY_SCROLL,
-            true,
-            FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT),
-        org.junit.jupiter.params.provider.Arguments.of(
-            FullTextMethod.PLAYWRIGHT_READABILITY,
-            false,
-            FullTextMethod.HtmlExtractor.READABILITY));
+            FullTextMethod.PLAYWRIGHT_READABILITY, FullTextMethod.HtmlExtractor.READABILITY));
   }
 
   private SyndEntry entry(String link, String title) {
@@ -570,17 +549,7 @@ class FullTextProbeServiceTest {
         null,
         new FeedReaderProperties.Http("ua", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
         new FeedReaderProperties.Playwright(
-            playwrightEnabled,
-            true,
-            10,
-            10,
-            Duration.ofSeconds(1),
-            Duration.ofSeconds(1),
-            null,
-            null,
-            1,
-            1,
-            Duration.ofMillis(10)),
+            playwrightEnabled, true, 10, 10, Duration.ofSeconds(1), Duration.ofSeconds(1)),
         null,
         null,
         java.util.List.of());

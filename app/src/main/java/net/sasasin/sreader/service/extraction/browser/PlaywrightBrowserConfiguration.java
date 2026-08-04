@@ -28,21 +28,6 @@ class PlaywrightBrowserConfiguration {
   }
 
   @Bean
-  InfyScrollDriver infyScrollDriver(
-      FeedReaderProperties properties, PlaywrightPageNavigator navigator) {
-    return new InfyScrollDriver(properties.playwright(), navigator);
-  }
-
-  @Bean
-  InfyScrollPageRenderer infyScrollPageRenderer(
-      FeedReaderProperties properties,
-      PlaywrightRuntime runtime,
-      PlaywrightPageNavigator navigator,
-      InfyScrollDriver driver) {
-    return new InfyScrollPageRenderer(properties.playwright(), runtime, navigator, driver);
-  }
-
-  @Bean
   StandardPlaywrightPageRenderer standardPlaywrightPageRenderer(
       FeedReaderProperties properties,
       PlaywrightRuntime runtime,
@@ -52,9 +37,7 @@ class PlaywrightBrowserConfiguration {
 
   @Bean
   PlaywrightResourceLifecycle playwrightResourceLifecycle(
-      FeedReaderProperties properties,
-      PlaywrightRuntime runtime,
-      InfyScrollPageRenderer infyRenderer) {
-    return new PlaywrightResourceLifecycle(properties.playwright(), runtime, infyRenderer);
+      FeedReaderProperties properties, PlaywrightRuntime runtime) {
+    return new PlaywrightResourceLifecycle(properties.playwright(), runtime);
   }
 }

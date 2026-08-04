@@ -363,7 +363,7 @@ class AutoPagerizeRepositoryIntegrationTest {
   }
 
   @Test
-  void fullTextMethodCheckAcceptsTransitionalValuesAndRejectsUnknown() {
+  void fullTextMethodCheckAcceptsFinalCatalogAndRejectsLegacyInfyAndUnknown() {
     String[] allowed = {
       "feed",
       "http",
@@ -373,9 +373,7 @@ class AutoPagerizeRepositoryIntegrationTest {
       "playwright",
       "playwright_readability",
       "playwright_autopagerize",
-      "playwright_autopagerize_readability",
-      "playwright_infy_scroll",
-      "playwright_infy_scroll_readability"
+      "playwright_autopagerize_readability"
     };
     int index = 0;
     for (String method : allowed) {
@@ -397,6 +395,15 @@ class AutoPagerizeRepositoryIntegrationTest {
                     .set(FEED_URL.ID, "feedapbad0000000000000000000001")
                     .set(FEED_URL.URL, "https://example.test/ap-method-bad.xml")
                     .set(FEED_URL.FULL_TEXT_METHOD, "not_a_method")
+                    .execute())
+        .isInstanceOf(DataIntegrityViolationException.class);
+
+    assertThatThrownBy(
+            () ->
+                dsl.insertInto(FEED_URL)
+                    .set(FEED_URL.ID, "feedapinfy000000000000000000001")
+                    .set(FEED_URL.URL, "https://example.test/ap-method-infy.xml")
+                    .set(FEED_URL.FULL_TEXT_METHOD, "playwright_infy_scroll")
                     .execute())
         .isInstanceOf(DataIntegrityViolationException.class);
   }

@@ -6,7 +6,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import net.sasasin.sreader.domain.FullTextMethod.PlaywrightMode;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
 import net.sasasin.sreader.service.extraction.browser.RenderedPage;
 import org.jsoup.Jsoup;
@@ -33,7 +32,7 @@ public class FeedDiscoveryService {
   }
 
   public DiscoveryResult discoverWithResult(URI siteUrl) {
-    RenderedPage rendered = playwrightHtmlSource.renderPage(siteUrl, PlaywrightMode.STANDARD);
+    RenderedPage rendered = playwrightHtmlSource.renderPage(siteUrl);
     URI finalUri = rendered.finalUri();
     String base = finalUri.toString();
     Document doc = Jsoup.parse(rendered.html(), base);

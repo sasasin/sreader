@@ -41,8 +41,6 @@ class ManagedCollaboratorConstructionTest {
               List.of(
                   "new PlaywrightRuntime(",
                   "new PlaywrightPageNavigator(",
-                  "new InfyScrollDriver(",
-                  "new InfyScrollPageRenderer(",
                   "new StandardPlaywrightPageRenderer(",
                   "new PlaywrightResourceLifecycle(",
                   "buildCollaborators(")),

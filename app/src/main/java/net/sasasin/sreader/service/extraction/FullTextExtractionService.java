@@ -505,7 +505,7 @@ public class FullTextExtractionService {
     try {
       URI requestedUri = URI.create(header.fetchUrl());
       // Keep header.fetchUrl() for extract-rule matching (unchanged semantics).
-      String html = playwrightHtmlSource.render(requestedUri, definition.mode());
+      String html = playwrightHtmlSource.render(requestedUri);
       TextExtractionOutcome outcome =
           htmlTextExtractor.extract(header.fetchUrl(), html, definition.extractor());
       return attachExtractedUrl(outcome, header.fetchUrl());
@@ -522,7 +522,7 @@ public class FullTextExtractionService {
 
   /**
    * Playwright AutoPagerize path: use the batch-frozen snapshot when provided, otherwise load
-   * active. Failures never produce partial success text. No Infy extension is used.
+   * active. Failures never produce partial success text.
    */
   private TextExtractionOutcome extractFromPlaywrightAutopagerize(
       ContentHeader header,

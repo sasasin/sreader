@@ -40,13 +40,56 @@ class PlaywrightRuntimeTest {
   }
 
   @Test
-  void browserAndChromiumLazyStart() {
+  void browserLazyStarts() {
     Fixture f = fixture();
     PlaywrightRuntime runtime = f.runtime();
 
     assertThat(runtime.browser()).isSameAs(f.browser());
-    assertThat(runtime.chromium()).isSameAs(f.chromium());
     verify(f.factory()).create();
+  }
+
+  @Test
+  void browserDoesNotRestartWhenAlreadyRunning() {
+    Fixture f = fixture();
+    PlaywrightRuntime runtime = f.runtime();
+    runtime.start();
+
+    assertThat(runtime.browser()).isSameAs(f.browser());
+    assertThat(runtime.browser()).isSameAs(f.browser());
+    verify(f.factory()).create();
+  }
+
+  @Test
+  void stopClosesRemainingPlaywrightWhenBrowserAlreadyNull() throws Exception {
+    Fixture f = fixture();
+    PlaywrightRuntime runtime = f.runtime();
+    runtime.start();
+    java.lang.reflect.Field browserField = PlaywrightRuntime.class.getDeclaredField("browser");
+    browserField.setAccessible(true);
+    browserField.set(runtime, null);
+
+    runtime.stop();
+
+    verify(f.playwright()).close();
+    verify(f.browser(), never()).close();
+    assertThat(runtime.isRunning()).isFalse();
+  }
+
+  @Test
+  void stopClosesRemainingBrowserWhenPlaywrightAlreadyNull() throws Exception {
+    Fixture f = fixture();
+    PlaywrightRuntime runtime = f.runtime();
+    runtime.start();
+    java.lang.reflect.Field playwrightField =
+        PlaywrightRuntime.class.getDeclaredField("playwright");
+    playwrightField.setAccessible(true);
+    playwrightField.set(runtime, null);
+
+    runtime.stop();
+
+    verify(f.browser()).close();
+    verify(f.playwright(), never()).close();
+    assertThat(runtime.isRunning()).isFalse();
   }
 
   @Test
@@ -130,17 +173,7 @@ class PlaywrightRuntimeTest {
 
   private static FeedReaderProperties.Playwright settings(boolean headless) {
     return new FeedReaderProperties.Playwright(
-        true,
-        headless,
-        800,
-        600,
-        Duration.ofSeconds(3),
-        Duration.ofSeconds(2),
-        null,
-        null,
-        2,
-        2,
-        Duration.ofMillis(10));
+        true, headless, 800, 600, Duration.ofSeconds(3), Duration.ofSeconds(2));
   }
 
   private Fixture fixture() {
