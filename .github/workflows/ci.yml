@@ -18,41 +18,128 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_DB: sreader
+          POSTGRES_USER: sreader
+          POSTGRES_PASSWORD: sreader
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sreader -d sreader"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
-      - name: Validate Docker Compose config
-        run: docker compose config
-
-      - name: Start PostgreSQL
+      - name: Decide whether to validate app container
+        id: container_changes
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
 
-          docker compose up -d postgres
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            # master image creation is owned by publish-container.yml.
+            echo "required=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          container_change=false
+          while IFS= read -r changed_file; do
+            case "$changed_file" in
+              .dockerignore|docker-compose.yml|docker/app/*|pom.xml|app/pom.xml|.mvn/*)
+                container_change=true
+                break
+                ;;
+            esac
+          done < <(git diff --name-only "${BASE_SHA}...HEAD")
+
+          echo "required=$container_change" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare PostgreSQL databases
+        shell: bash
+        env:
+          PGPASSWORD: sreader
+        run: |
+          set -euo pipefail
+
+          ready=false
           for i in {1..60}; do
-            if docker compose exec -T postgres pg_isready -U sreader -d sreader; then
-              exit 0
+            if pg_isready -h 127.0.0.1 -p 5432 -U sreader -d sreader; then
+              ready=true
+              break
             fi
             sleep 2
           done
 
-          docker compose ps
-          docker compose logs --tail=200 postgres
-          exit 1
+          if [[ "$ready" != true ]]; then
+            echo "PostgreSQL service did not become ready" >&2
+            exit 1
+          fi
+
+          psql -h 127.0.0.1 -p 5432 -U sreader -d sreader -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+              IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'sreadertest') THEN
+                  CREATE ROLE sreadertest WITH LOGIN PASSWORD 'sreadertest';
+              END IF;
+          END
+          $$;
+
+          SELECT 'CREATE DATABASE sreadertest OWNER sreadertest'
+          WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'sreadertest')\gexec
+
+          GRANT ALL PRIVILEGES ON DATABASE sreadertest TO sreadertest;
+          SQL
 
       - name: Show PostgreSQL version
-        run: docker compose exec -T postgres psql -U sreader -d sreader -c "SELECT version();"
+        env:
+          PGPASSWORD: sreader
+        run: psql -h 127.0.0.1 -p 5432 -U sreader -d sreader -c "SELECT version();"
 
       - name: Apply database migrations with Flyway
         # Integration tests need the migrated schema in PostgreSQL.
-        run: docker compose run --rm flyway migrate
+        run: >-
+          docker run --rm --network host
+          --volume "$GITHUB_WORKSPACE/db/migration:/flyway/migrations:ro"
+          --env FLYWAY_URL=jdbc:postgresql://127.0.0.1:5432/sreader
+          --env FLYWAY_USER=sreader
+          --env FLYWAY_PASSWORD=sreader
+          --env FLYWAY_LOCATIONS=filesystem:/flyway/migrations
+          redgate/flyway:13.1.0 migrate
 
-      - name: Maven verify through Docker Compose
-        run: docker compose run --rm maven mvn -B -V clean verify
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Maven verify on GitHub Actions runner
+        env:
+          SREADER_JOOQ_JDBC_URL: jdbc:postgresql://127.0.0.1:5432/sreader
+          SREADER_JOOQ_JDBC_USERNAME: sreader
+          SREADER_JOOQ_JDBC_PASSWORD: sreader
+          SREADER_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5432/sreadertest
+          SREADER_DATASOURCE_USERNAME: sreadertest
+          SREADER_DATASOURCE_PASSWORD: sreadertest
+          SREADER_SCHEDULER_ENABLED: 'false'
+        run: mvn -B -V clean verify
 
       - name: Upload test and coverage reports
         id: reports
@@ -201,33 +288,39 @@ jobs:
           } >> "$summary"
 
       - name: Build app image
-        run: docker compose build app
+        if: steps.container_changes.outputs.required == 'true'
+        run: docker build --tag sreader-app:ci --file docker/app/Dockerfile .
 
       - name: Start app smoke test
+        if: steps.container_changes.outputs.required == 'true'
         shell: bash
         run: |
           set -euo pipefail
 
-          SREADER_SCHEDULER_ENABLED=false docker compose up -d app
+          docker run --detach --name sreader-app-ci --network host \
+            --env SREADER_SCHEDULER_ENABLED=false \
+            --env SREADER_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:5432/sreader \
+            --env SREADER_DATASOURCE_USERNAME=sreader \
+            --env SREADER_DATASOURCE_PASSWORD=sreader \
+            sreader-app:ci
 
           sleep 20
 
-          app_container="$(docker compose ps -q app)"
-          if [ -z "$app_container" ]; then
+          if ! docker container inspect sreader-app-ci >/dev/null 2>&1; then
             echo "::error::app container was not created"
-            docker compose ps
-            docker compose logs --tail=200 app
+            docker ps -a
+            docker logs --tail=200 sreader-app-ci 2>&1 || true
             exit 1
           fi
 
-          if [ "$(docker inspect -f '{{.State.Running}}' "$app_container")" != "true" ]; then
+          if [ "$(docker inspect -f '{{.State.Running}}' sreader-app-ci)" != "true" ]; then
             echo "::error::app container is not running"
-            docker compose ps
-            docker compose logs --tail=200 app
+            docker ps -a
+            docker logs --tail=200 sreader-app-ci 2>&1 || true
             exit 1
           fi
 
-          docker compose logs --tail=200 app
+          docker logs --tail=200 sreader-app-ci
 
       - name: Validate coverage site for GitHub Pages
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
@@ -254,17 +347,17 @@ jobs:
         with:
           path: app/target/site/jacoco
 
-      - name: Show compose status
-        if: always()
-        run: docker compose ps
+      - name: Show Docker status
+        if: always() && steps.container_changes.outputs.required == 'true'
+        run: docker ps -a
 
-      - name: Show compose logs
-        if: always()
-        run: docker compose logs --tail=300
+      - name: Show app logs
+        if: always() && steps.container_changes.outputs.required == 'true'
+        run: docker logs --tail=300 sreader-app-ci 2>&1 || true
 
       - name: Cleanup
-        if: always()
-        run: docker compose down -v
+        if: always() && steps.container_changes.outputs.required == 'true'
+        run: docker rm --force sreader-app-ci 2>/dev/null || true
 
   deploy-coverage:
     name: Deploy coverage report to GitHub Pages
