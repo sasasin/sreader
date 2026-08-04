@@ -15,10 +15,13 @@ import java.util.Optional;
 import net.sasasin.sreader.config.FeedReaderProperties;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.domain.FullTextMethod.PlaywrightMode;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeEngine;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleCatalog;
 import net.sasasin.sreader.service.extraction.ExtractionDecision;
 import net.sasasin.sreader.service.extraction.ExtractionSource;
 import net.sasasin.sreader.service.extraction.FeedEntryFullTextExtractor;
 import net.sasasin.sreader.service.extraction.HtmlTextExtractor;
+import net.sasasin.sreader.service.extraction.PaginatedHtmlTextExtractor;
 import net.sasasin.sreader.service.extraction.TextExtractionOutcome;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentOutcome;
@@ -57,7 +60,13 @@ class OutcomeBranchCoverageProbeTest {
   void probeDocumentFetcherCoversHttpStatusPlaywrightAndUnexpectedSource() throws Exception {
     HttpFetchService http = mock(HttpFetchService.class);
     PlaywrightHtmlSource playwright = mock(PlaywrightHtmlSource.class);
-    ProbeDocumentFetcher fetcher = new ProbeDocumentFetcher(http, playwright, properties(true));
+    ProbeDocumentFetcher fetcher =
+        new ProbeDocumentFetcher(
+            http,
+            playwright,
+            properties(true),
+            mock(AutoPagerizeRuleCatalog.class),
+            mock(AutoPagerizeEngine.class));
 
     when(http.get(URI.create("https://a")))
         .thenThrow(new HttpStatusException(URI.create("https://a"), 500));
@@ -87,11 +96,18 @@ class OutcomeBranchCoverageProbeTest {
     FeedDocumentService documents = mock(FeedDocumentService.class);
     FeedEntryPicker picker = mock(FeedEntryPicker.class);
     FeedEntryFullTextExtractor feedExtractor = mock(FeedEntryFullTextExtractor.class);
+    PaginatedHtmlTextExtractor paginatedExtractor = mock(PaginatedHtmlTextExtractor.class);
     FullTextProbeService service =
         new FullTextProbeService(
             http,
-            new ProbeDocumentFetcher(http, playwright, properties(true)),
+            new ProbeDocumentFetcher(
+                http,
+                playwright,
+                properties(true),
+                mock(AutoPagerizeRuleCatalog.class),
+                mock(AutoPagerizeEngine.class)),
             extractor,
+            paginatedExtractor,
             documents,
             picker,
             feedExtractor);

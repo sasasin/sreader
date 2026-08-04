@@ -19,11 +19,14 @@ import net.sasasin.sreader.config.FeedReaderProperties;
 import net.sasasin.sreader.domain.FeedEntrySelection;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.domain.FullTextMethod.PlaywrightMode;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeEngine;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleCatalog;
 import net.sasasin.sreader.service.extraction.ExtractionDecision;
 import net.sasasin.sreader.service.extraction.ExtractionSource;
 import net.sasasin.sreader.service.extraction.FeedEntryFullTextExtractor;
 import net.sasasin.sreader.service.extraction.HtmlTextExtractor;
 import net.sasasin.sreader.service.extraction.NoContentReason;
+import net.sasasin.sreader.service.extraction.PaginatedHtmlTextExtractor;
 import net.sasasin.sreader.service.extraction.TextExtractionOutcome;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
 import net.sasasin.sreader.service.extraction.browser.RenderedPage;
@@ -590,12 +593,23 @@ class FullTextProbeServiceTest {
     private final FeedDocumentService documents = mock(FeedDocumentService.class);
     private final FeedEntryPicker picker = mock(FeedEntryPicker.class);
     private final FeedEntryFullTextExtractor feedExtractor = mock(FeedEntryFullTextExtractor.class);
+    private final PaginatedHtmlTextExtractor paginatedExtractor =
+        mock(PaginatedHtmlTextExtractor.class);
+    private final AutoPagerizeRuleCatalog autoPagerizeRuleCatalog =
+        mock(AutoPagerizeRuleCatalog.class);
+    private final AutoPagerizeEngine autoPagerizeEngine = mock(AutoPagerizeEngine.class);
 
     private FullTextProbeService service(boolean playwrightEnabled) {
       return new FullTextProbeService(
           http,
-          new ProbeDocumentFetcher(http, playwright, properties(playwrightEnabled)),
+          new ProbeDocumentFetcher(
+              http,
+              playwright,
+              properties(playwrightEnabled),
+              autoPagerizeRuleCatalog,
+              autoPagerizeEngine),
           extractor,
+          paginatedExtractor,
           documents,
           picker,
           feedExtractor);
