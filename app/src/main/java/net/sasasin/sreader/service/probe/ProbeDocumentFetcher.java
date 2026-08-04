@@ -14,9 +14,12 @@ import net.sasasin.sreader.service.autopagerize.AutoPagerizeEngine;
 import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleCatalog;
 import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleSnapshot;
 import net.sasasin.sreader.service.autopagerize.PaginationResult;
+import net.sasasin.sreader.service.extraction.PaginationMetadata;
+import net.sasasin.sreader.service.extraction.PaginationMetadataFactory;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightSessionFailure;
 import net.sasasin.sreader.service.extraction.browser.RenderedPage;
+import net.sasasin.sreader.service.http.HttpArticlePageSessionFactory;
 import net.sasasin.sreader.service.http.HttpFetchService;
 import net.sasasin.sreader.service.http.HttpStatusException;
 import net.sasasin.sreader.service.outcome.FailureKind;
@@ -27,6 +30,7 @@ import net.sasasin.sreader.service.outcome.OutcomePreconditions;
 /** Common HTTP/Playwright document acquisition for article and feed-entry probes. */
 final class ProbeDocumentFetcher {
   private final HttpFetchService httpFetchService;
+  private final HttpArticlePageSessionFactory httpArticlePageSessionFactory;
   private final PlaywrightHtmlSource playwrightHtmlSource;
   private final FeedReaderProperties properties;
   private final AutoPagerizeRuleCatalog autoPagerizeRuleCatalog;
@@ -34,11 +38,13 @@ final class ProbeDocumentFetcher {
 
   ProbeDocumentFetcher(
       HttpFetchService httpFetchService,
+      HttpArticlePageSessionFactory httpArticlePageSessionFactory,
       PlaywrightHtmlSource playwrightHtmlSource,
       FeedReaderProperties properties,
       AutoPagerizeRuleCatalog autoPagerizeRuleCatalog,
       AutoPagerizeEngine autoPagerizeEngine) {
     this.httpFetchService = httpFetchService;
+    this.httpArticlePageSessionFactory = httpArticlePageSessionFactory;
     this.playwrightHtmlSource = playwrightHtmlSource;
     this.properties = properties;
     this.autoPagerizeRuleCatalog = autoPagerizeRuleCatalog;
@@ -56,9 +62,14 @@ final class ProbeDocumentFetcher {
       }
     }
 
-    record Paginated(PaginationResult.Succeeded pagination) implements FetchOutcome {
+    record Paginated(
+        PaginationResult.Succeeded pagination,
+        AutoPagerizeRuleSnapshot snapshot,
+        boolean explicitDatasetSelection)
+        implements FetchOutcome {
       public Paginated {
         Objects.requireNonNull(pagination, "pagination must not be null");
+        Objects.requireNonNull(snapshot, "snapshot must not be null");
       }
     }
 
@@ -69,19 +80,33 @@ final class ProbeDocumentFetcher {
       }
     }
 
-    record Failed(OperationFailure failure) implements FetchOutcome {
+    record Failed(OperationFailure failure, Optional<PaginationMetadata> pagination)
+        implements FetchOutcome {
+      Failed(OperationFailure failure) {
+        this(failure, Optional.empty());
+      }
+
       public Failed {
         Objects.requireNonNull(failure, "failure must not be null");
+        Objects.requireNonNull(pagination, "pagination must not be null");
       }
     }
   }
 
-  FetchOutcome fetch(URI requestedUri, FullTextMethod method, String failureSubject) {
+  FetchOutcome fetch(
+      URI requestedUri,
+      FullTextMethod method,
+      String failureSubject,
+      Optional<Long> autopagerizeDatasetId) {
+    Objects.requireNonNull(autopagerizeDatasetId, "autopagerizeDatasetId must not be null");
     return switch (method.definition()) {
-      case Definition.HttpArticle ignored -> fetchHttp(requestedUri, failureSubject);
+      case Definition.HttpArticle http ->
+          http.pagination() == PaginationMode.AUTOPAGERIZE
+              ? fetchHttpAutopagerize(requestedUri, failureSubject, autopagerizeDatasetId)
+              : fetchHttp(requestedUri, failureSubject);
       case Definition.PlaywrightArticle playwright ->
           playwright.pagination() == PaginationMode.AUTOPAGERIZE
-              ? fetchPlaywrightAutopagerize(requestedUri, failureSubject)
+              ? fetchPlaywrightAutopagerize(requestedUri, failureSubject, autopagerizeDatasetId)
               : fetchPlaywright(requestedUri, playwright, failureSubject);
       case Definition.FeedEntry ignored ->
           new FetchOutcome.Failed(
@@ -147,46 +172,45 @@ final class ProbeDocumentFetcher {
     }
   }
 
-  private FetchOutcome fetchPlaywrightAutopagerize(URI uri, String subject) {
+  private FetchOutcome fetchHttpAutopagerize(URI uri, String subject, Optional<Long> datasetId) {
+    SnapshotResolution resolution = resolveSnapshot(subject, datasetId);
+    if (resolution instanceof SnapshotResolution.Failed failed) {
+      return new FetchOutcome.Failed(failed.failure());
+    }
+    AutoPagerizeRuleSnapshot snapshot = ((SnapshotResolution.Ready) resolution).snapshot();
+    boolean explicit = ((SnapshotResolution.Ready) resolution).explicitSelection();
+
+    try (ArticlePageSession session = httpArticlePageSessionFactory.open()) {
+      return paginate(uri, subject, snapshot, session, explicit);
+    } catch (RuntimeException e) {
+      return new FetchOutcome.Failed(
+          OperationFailure.of(
+              FailureStage.FETCH_ARTICLE_PAGE,
+              FailureKind.UNEXPECTED,
+              subject,
+              "HTTP AutoPagerize probe failed for " + subject + ": " + e.getMessage(),
+              e));
+    }
+  }
+
+  private FetchOutcome fetchPlaywrightAutopagerize(
+      URI uri, String subject, Optional<Long> datasetId) {
     if (!properties.playwright().enabled()) {
       return new FetchOutcome.Skipped(
           ProbeSkipReason.PLAYWRIGHT_DISABLED,
           "Playwright is required for method but is disabled or misconfigured");
     }
 
-    final AutoPagerizeRuleSnapshot snapshot;
-    try {
-      Optional<AutoPagerizeRuleSnapshot> active = autoPagerizeRuleCatalog.getActiveSnapshot();
-      if (active.isEmpty()) {
-        return new FetchOutcome.Failed(
-            OperationFailure.of(
-                FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
-                FailureKind.INVALID_INPUT,
-                subject,
-                "No active AutoPagerize dataset; import and activate a local SITEINFO JSON first"));
-      }
-      snapshot = active.get();
-    } catch (AutoPagerizeCatalogException e) {
-      return new FetchOutcome.Failed(
-          OperationFailure.of(
-              FailureStage.MATCH_AUTOPAGERIZE_RULE,
-              FailureKind.UNEXPECTED,
-              subject,
-              "Failed to load or compile active AutoPagerize rules: " + e.getMessage(),
-              e));
-    } catch (RuntimeException e) {
-      return new FetchOutcome.Failed(
-          OperationFailure.of(
-              FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
-              FailureKind.UNEXPECTED,
-              subject,
-              "Failed to load active AutoPagerize dataset: " + e.getMessage(),
-              e));
+    SnapshotResolution resolution = resolveSnapshot(subject, datasetId);
+    if (resolution instanceof SnapshotResolution.Failed failed) {
+      return new FetchOutcome.Failed(failed.failure());
     }
+    AutoPagerizeRuleSnapshot snapshot = ((SnapshotResolution.Ready) resolution).snapshot();
+    boolean explicit = ((SnapshotResolution.Ready) resolution).explicitSelection();
 
     try {
       return playwrightHtmlSource.withStandardSession(
-          session -> paginate(uri, subject, snapshot, session));
+          session -> paginate(uri, subject, snapshot, session, explicit));
     } catch (PlaywrightSessionFailure e) {
       return new FetchOutcome.Failed(e.failure());
     } catch (RuntimeException e) {
@@ -201,23 +225,113 @@ final class ProbeDocumentFetcher {
   }
 
   private FetchOutcome paginate(
-      URI uri, String subject, AutoPagerizeRuleSnapshot snapshot, ArticlePageSession session) {
+      URI uri,
+      String subject,
+      AutoPagerizeRuleSnapshot snapshot,
+      ArticlePageSession session,
+      boolean explicitSelection) {
     try {
       PaginationResult result =
           autoPagerizeEngine.paginate(
               uri, session, snapshot, properties.autopagerize().toPaginationPolicy());
       if (result instanceof PaginationResult.Failed failed) {
-        throw new PlaywrightSessionFailure(failed.failure());
+        PaginationMetadata meta =
+            PaginationMetadataFactory.fromFailed(failed, snapshot, explicitSelection);
+        // Prefer returning Failed with diagnostics over throwing so probe can print page traces.
+        return new FetchOutcome.Failed(failed.failure(), Optional.of(meta));
       }
-      return new FetchOutcome.Paginated((PaginationResult.Succeeded) result);
+      return new FetchOutcome.Paginated(
+          (PaginationResult.Succeeded) result, snapshot, explicitSelection);
     } catch (RuntimeException e) {
-      throw new PlaywrightSessionFailure(
+      return new FetchOutcome.Failed(
           OperationFailure.of(
               FailureStage.MATCH_AUTOPAGERIZE_RULE,
               FailureKind.UNEXPECTED,
               subject,
-              "Playwright AutoPagerize rule matching failed for " + subject + ": " + e.getMessage(),
+              "AutoPagerize rule matching failed for " + subject + ": " + e.getMessage(),
               e));
+    }
+  }
+
+  private SnapshotResolution resolveSnapshot(String subject, Optional<Long> datasetId) {
+    if (datasetId.isPresent()) {
+      try {
+        AutoPagerizeRuleSnapshot snapshot = autoPagerizeRuleCatalog.getSnapshot(datasetId.get());
+        return new SnapshotResolution.Ready(snapshot, true);
+      } catch (AutoPagerizeCatalogException e) {
+        String message = e.getMessage() == null ? "" : e.getMessage();
+        if (message.contains("not found")) {
+          return new SnapshotResolution.Failed(
+              OperationFailure.of(
+                  FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+                  FailureKind.INVALID_INPUT,
+                  subject,
+                  "AutoPagerize dataset not found: " + datasetId.get()));
+        }
+        return new SnapshotResolution.Failed(
+            OperationFailure.of(
+                FailureStage.MATCH_AUTOPAGERIZE_RULE,
+                FailureKind.UNEXPECTED,
+                subject,
+                "Failed to load or compile AutoPagerize dataset "
+                    + datasetId.get()
+                    + ": "
+                    + e.getMessage(),
+                e));
+      } catch (RuntimeException e) {
+        return new SnapshotResolution.Failed(
+            OperationFailure.of(
+                FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+                FailureKind.UNEXPECTED,
+                subject,
+                "Failed to load AutoPagerize dataset " + datasetId.get() + ": " + e.getMessage(),
+                e));
+      }
+    }
+
+    try {
+      Optional<AutoPagerizeRuleSnapshot> active = autoPagerizeRuleCatalog.getActiveSnapshot();
+      if (active.isEmpty()) {
+        return new SnapshotResolution.Failed(
+            OperationFailure.of(
+                FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+                FailureKind.INVALID_INPUT,
+                subject,
+                "No active AutoPagerize dataset; import and activate a local SITEINFO JSON first"));
+      }
+      return new SnapshotResolution.Ready(active.get(), false);
+    } catch (AutoPagerizeCatalogException e) {
+      return new SnapshotResolution.Failed(
+          OperationFailure.of(
+              FailureStage.MATCH_AUTOPAGERIZE_RULE,
+              FailureKind.UNEXPECTED,
+              subject,
+              "Failed to load or compile active AutoPagerize rules: " + e.getMessage(),
+              e));
+    } catch (RuntimeException e) {
+      return new SnapshotResolution.Failed(
+          OperationFailure.of(
+              FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+              FailureKind.UNEXPECTED,
+              subject,
+              "Failed to load active AutoPagerize dataset: " + e.getMessage(),
+              e));
+    }
+  }
+
+  private sealed interface SnapshotResolution
+      permits SnapshotResolution.Ready, SnapshotResolution.Failed {
+    record Ready(AutoPagerizeRuleSnapshot snapshot, boolean explicitSelection)
+        implements SnapshotResolution {
+      public Ready {
+        Objects.requireNonNull(snapshot, "snapshot must not be null");
+      }
+    }
+
+    record Failed(OperationFailure failure) implements SnapshotResolution {
+      public Failed {
+        Objects.requireNonNull(failure, "failure must not be null");
+      }
     }
   }
 

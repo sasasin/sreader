@@ -2,6 +2,7 @@ package net.sasasin.sreader.cli;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.stream.Stream;
 import net.sasasin.sreader.domain.FeedEntrySelection;
@@ -22,6 +23,7 @@ import picocli.CommandLine.Spec;
       "Choose at most one entry selector; default is first entry.",
       "For --method feed: uses feed entry content/desc (no article fetch). --xpath invalid with"
           + " feed method.",
+      "Use --autopagerize-dataset-id with AutoPagerize methods to select a non-active dataset.",
       "STDOUT: body text. --verbose: diagnostics to STDERR."
     },
     mixinStandardHelpOptions = true,
@@ -57,6 +59,13 @@ public class ProbeFeedCommand implements Callable<Integer> {
       description = "XPath override (not for feed method)")
   private String xpath;
 
+  @Option(
+      names = "--autopagerize-dataset-id",
+      paramLabel = "<ID>",
+      description =
+          "AutoPagerize dataset id (active when omitted). Only valid with AutoPagerize methods.")
+  private Long autopagerizeDatasetId;
+
   @ArgGroup(
       exclusive = true,
       multiplicity = "0..1",
@@ -84,11 +93,23 @@ public class ProbeFeedCommand implements Callable<Integer> {
     try {
       ProbeFeedCliRequest request =
           ProbeFeedCliRequest.create(
-              spec, feedUrl, method, selection(), xpath, verbose, output, maxChars);
+              spec,
+              feedUrl,
+              method,
+              selection(),
+              xpath,
+              verbose,
+              output,
+              maxChars,
+              autopagerizeDatasetId);
 
       ProbeOutcome outcome =
           fullTextProbeService.probeFeed(
-              request.feedUrl(), request.method(), request.selection(), request.xpath());
+              request.feedUrl(),
+              request.method(),
+              request.selection(),
+              request.xpath(),
+              request.autopagerizeDatasetId());
       return mapOutcome(outcome, request);
     } catch (picocli.CommandLine.ParameterException pe) {
       throw pe;
@@ -107,14 +128,13 @@ public class ProbeFeedCommand implements Callable<Integer> {
     return switch (outcome) {
       case ProbeOutcome.Succeeded succeeded ->
           writer.writeSucceeded(
-              succeeded.document(),
-              succeeded.text(),
+              succeeded,
               request.verbose(),
               request.output().orElse(null),
               request.maxChars().orElse(null));
       case ProbeOutcome.NoContent noContent -> {
         if (request.verbose()) {
-          writer.writeNoContentDiagnostics(noContent.document());
+          writer.writeNoContentDiagnostics(noContent.document(), noContent.pagination());
         }
         yield CliExitCodes.EMPTY_RESULT;
       }
@@ -133,6 +153,10 @@ public class ProbeFeedCommand implements Callable<Integer> {
       case ProbeOutcome.Failed failed -> {
         if (failed.failure().interrupted()) {
           Thread.currentThread().interrupt();
+        }
+        if (request.verbose()) {
+          writer.writeFailureDiagnostics(
+              null, failed.pagination(), Optional.of(failed.failure().message()));
         }
         spec.commandLine().getErr().println("Error: " + failed.failure().message());
         yield CliExitCodes.EXECUTION_ERROR;

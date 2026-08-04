@@ -2,6 +2,7 @@ package net.sasasin.sreader.service.probe;
 
 import com.rometools.rome.feed.synd.SyndEntry;
 import java.net.URI;
+import java.util.Objects;
 import java.util.Optional;
 import net.sasasin.sreader.domain.FeedEntrySelection;
 import net.sasasin.sreader.domain.FullTextMethod;
@@ -10,7 +11,10 @@ import net.sasasin.sreader.domain.FullTextMethod.HtmlExtractor;
 import net.sasasin.sreader.service.autopagerize.PageSnapshot;
 import net.sasasin.sreader.service.extraction.FeedEntryFullTextExtractor;
 import net.sasasin.sreader.service.extraction.HtmlTextExtractor;
+import net.sasasin.sreader.service.extraction.PaginatedExtractionResult;
 import net.sasasin.sreader.service.extraction.PaginatedHtmlTextExtractor;
+import net.sasasin.sreader.service.extraction.PaginationMetadata;
+import net.sasasin.sreader.service.extraction.PaginationMetadataFactory;
 import net.sasasin.sreader.service.extraction.TextExtractionOutcome;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentOutcome;
 import net.sasasin.sreader.service.feed.ingestion.FeedDocumentService;
@@ -53,10 +57,23 @@ public class FullTextProbeService {
 
   public ProbeOutcome probeArticle(
       URI articleUrl, FullTextMethod method, Optional<String> xpathOverride) {
+    return probeArticle(articleUrl, method, xpathOverride, Optional.empty());
+  }
+
+  public ProbeOutcome probeArticle(
+      URI articleUrl,
+      FullTextMethod method,
+      Optional<String> xpathOverride,
+      Optional<Long> autopagerizeDatasetId) {
+    Objects.requireNonNull(autopagerizeDatasetId, "autopagerizeDatasetId must not be null");
     if (!method.supportsArticleProbe()) {
       return ProbeOutcome.InvalidRequest.of("--method feed is not supported for probe article");
     }
-    // Article-capable methods always expose an ArticleDefinition (sealed hierarchy).
+    Optional<ProbeOutcome> datasetOptionError =
+        validateDatasetOption(method, autopagerizeDatasetId);
+    if (datasetOptionError.isPresent()) {
+      return datasetOptionError.get();
+    }
     Definition.ArticleDefinition article =
         method
             .articleDefinition()
@@ -64,7 +81,8 @@ public class FullTextProbeService {
                 () ->
                     new IllegalStateException(
                         "Article-capable method missing article definition: " + method.value()));
-    return fetchAndExtractArticle(articleUrl, method, article.extractor(), xpathOverride);
+    return fetchAndExtractArticle(
+        articleUrl, method, article.extractor(), xpathOverride, autopagerizeDatasetId);
   }
 
   public ProbeOutcome probeFeed(
@@ -72,12 +90,38 @@ public class FullTextProbeService {
       FullTextMethod method,
       FeedEntrySelection selection,
       Optional<String> xpathOverride) {
+    return probeFeed(feedUrl, method, selection, xpathOverride, Optional.empty());
+  }
+
+  public ProbeOutcome probeFeed(
+      URI feedUrl,
+      FullTextMethod method,
+      FeedEntrySelection selection,
+      Optional<String> xpathOverride,
+      Optional<Long> autopagerizeDatasetId) {
+    Objects.requireNonNull(autopagerizeDatasetId, "autopagerizeDatasetId must not be null");
+    Optional<ProbeOutcome> datasetOptionError =
+        validateDatasetOption(method, autopagerizeDatasetId);
+    if (datasetOptionError.isPresent()) {
+      return datasetOptionError.get();
+    }
     FeedDocumentOutcome documentOutcome = feedDocumentService.fetch(feedUrl);
     return switch (documentOutcome) {
       case FeedDocumentOutcome.Failed failed -> new ProbeOutcome.Failed(failed.failure());
       case FeedDocumentOutcome.Fetched fetched ->
-          probeSelectedEntry(feedUrl, method, selection, xpathOverride, fetched);
+          probeSelectedEntry(
+              feedUrl, method, selection, xpathOverride, fetched, autopagerizeDatasetId);
     };
+  }
+
+  private static Optional<ProbeOutcome> validateDatasetOption(
+      FullTextMethod method, Optional<Long> datasetId) {
+    if (datasetId.isPresent() && !method.usesAutopagerize()) {
+      return Optional.of(
+          ProbeOutcome.InvalidRequest.of(
+              "--autopagerize-dataset-id is only valid with AutoPagerize methods"));
+    }
+    return Optional.empty();
   }
 
   private ProbeOutcome probeSelectedEntry(
@@ -85,7 +129,8 @@ public class FullTextProbeService {
       FullTextMethod method,
       FeedEntrySelection selection,
       Optional<String> xpathOverride,
-      FeedDocumentOutcome.Fetched fetched) {
+      FeedDocumentOutcome.Fetched fetched,
+      Optional<Long> autopagerizeDatasetId) {
     boolean requireEntryLink = method.requiresEntryLink();
     Optional<SyndEntry> picked = feedEntryPicker.pick(fetched.feed(), selection, requireEntryLink);
     if (picked.isEmpty()) {
@@ -105,7 +150,9 @@ public class FullTextProbeService {
           case TextExtractionOutcome.Extracted extracted ->
               new ProbeOutcome.Succeeded(
                   new ProbeDocument(feedUrl, finalForResult, optionalTitle(entryTitle), method),
-                  extracted.text());
+                  extracted.text(),
+                  extracted.decision(),
+                  Optional.empty());
           case TextExtractionOutcome.NoContent noContent ->
               new ProbeOutcome.NoContent(
                   new ProbeDocument(feedUrl, finalForResult, optionalTitle(entryTitle), method),
@@ -113,14 +160,28 @@ public class FullTextProbeService {
           case TextExtractionOutcome.Skipped skipped ->
               new ProbeOutcome.Skipped(
                   ProbeSkipReason.PLAYWRIGHT_DISABLED, skipped.reason().name());
-          case TextExtractionOutcome.Failed failed -> new ProbeOutcome.Failed(failed.failure());
+          case TextExtractionOutcome.Failed failed ->
+              new ProbeOutcome.Failed(failed.failure(), failed.pagination());
         };
       }
       case Definition.HttpArticle http ->
-          probeLinkedArticle(feedUrl, method, entry, entryTitle, xpathOverride, http.extractor());
+          probeLinkedArticle(
+              feedUrl,
+              method,
+              entry,
+              entryTitle,
+              xpathOverride,
+              http.extractor(),
+              autopagerizeDatasetId);
       case Definition.PlaywrightArticle playwright ->
           probeLinkedArticle(
-              feedUrl, method, entry, entryTitle, xpathOverride, playwright.extractor());
+              feedUrl,
+              method,
+              entry,
+              entryTitle,
+              xpathOverride,
+              playwright.extractor(),
+              autopagerizeDatasetId);
     };
   }
 
@@ -130,7 +191,8 @@ public class FullTextProbeService {
       SyndEntry entry,
       String entryTitle,
       Optional<String> xpathOverride,
-      HtmlExtractor extractor) {
+      HtmlExtractor extractor,
+      Optional<Long> autopagerizeDatasetId) {
     if (entry.getLink() == null || entry.getLink().isBlank()) {
       return new ProbeOutcome.NoMatchingEntry("Selected entry has no link for " + feedUrl);
     }
@@ -156,7 +218,7 @@ public class FullTextProbeService {
     URI entryLink = redirect.effectiveUri();
 
     ProbeDocumentFetcher.FetchOutcome fetch =
-        documentFetcher.fetch(entryLink, method, "entry " + entryLink);
+        documentFetcher.fetch(entryLink, method, "entry " + entryLink, autopagerizeDatasetId);
     Optional<String> title = optionalTitle(entryTitle);
     return toProbeOutcome(fetch, feedUrl, method, extractor, xpathOverride, title);
   }
@@ -165,9 +227,10 @@ public class FullTextProbeService {
       URI articleUrl,
       FullTextMethod method,
       HtmlExtractor extractor,
-      Optional<String> xpathOverride) {
+      Optional<String> xpathOverride,
+      Optional<Long> autopagerizeDatasetId) {
     ProbeDocumentFetcher.FetchOutcome fetch =
-        documentFetcher.fetch(articleUrl, method, articleUrl.toString());
+        documentFetcher.fetch(articleUrl, method, articleUrl.toString(), autopagerizeDatasetId);
     return toProbeOutcome(fetch, articleUrl, method, extractor, xpathOverride, Optional.empty());
   }
 
@@ -182,30 +245,47 @@ public class FullTextProbeService {
       case ProbeDocumentFetcher.FetchOutcome.Skipped skipped ->
           new ProbeOutcome.Skipped(skipped.reason(), skipped.message());
       case ProbeDocumentFetcher.FetchOutcome.Failed failed ->
-          new ProbeOutcome.Failed(failed.failure());
+          mapFetchFailure(failed.failure(), failed.pagination());
       case ProbeDocumentFetcher.FetchOutcome.Fetched fetched -> {
         Optional<String> title =
             preferredTitle.or(() -> extractTitleFromHtml(fetched.document().html()));
+        TextExtractionOutcome extraction =
+            htmlTextExtractor.extract(
+                fetched.document().finalUri().toString(),
+                fetched.document().html(),
+                extractor,
+                xpathOverride);
         yield toProbeOutcome(
             inputUrl,
             fetched.document().finalUri(),
             title,
             method,
-            htmlTextExtractor.extract(
-                fetched.document().finalUri().toString(),
-                fetched.document().html(),
-                extractor,
-                xpathOverride));
+            extraction instanceof TextExtractionOutcome.Extracted extracted
+                ? extracted.withExtractedUrl(fetched.document().finalUri().toString())
+                : extraction);
       }
       case ProbeDocumentFetcher.FetchOutcome.Paginated paginated -> {
         PageSnapshot firstPage = paginated.pagination().firstPage();
         Optional<String> title = preferredTitle.or(() -> extractTitleFromHtml(firstPage.html()));
         TextExtractionOutcome extraction;
         try {
+          PaginatedExtractionResult result =
+              paginatedHtmlTextExtractor.extract(paginated.pagination(), extractor, xpathOverride);
+          PaginationMetadata metadata =
+              PaginationMetadataFactory.fromSucceeded(
+                  paginated.pagination(),
+                  paginated.snapshot(),
+                  result.contributions(),
+                  paginated.explicitDatasetSelection());
+          String firstFinalUrl = firstPage.finalUri().toString();
           extraction =
-              paginatedHtmlTextExtractor
-                  .extract(paginated.pagination(), extractor, xpathOverride)
-                  .outcome();
+              switch (result.outcome()) {
+                case TextExtractionOutcome.Extracted extracted ->
+                    extracted.withPagination(metadata).withExtractedUrl(firstFinalUrl);
+                case TextExtractionOutcome.NoContent noContent -> noContent;
+                case TextExtractionOutcome.Skipped skipped -> skipped;
+                case TextExtractionOutcome.Failed failed -> failed;
+              };
         } catch (RuntimeException e) {
           extraction =
               new TextExtractionOutcome.Failed(
@@ -213,7 +293,7 @@ public class FullTextProbeService {
                       FailureStage.EXTRACT_TEXT,
                       FailureKind.EXTRACTION,
                       inputUrl.toString(),
-                      "Playwright AutoPagerize probe extraction failed for " + inputUrl,
+                      "AutoPagerize probe extraction failed for " + inputUrl,
                       e));
         }
         yield toProbeOutcome(inputUrl, firstPage.finalUri(), title, method, extraction);
@@ -230,9 +310,10 @@ public class FullTextProbeService {
     ProbeDocument document = new ProbeDocument(inputUrl, finalUrl, title, method);
     return switch (extraction) {
       case TextExtractionOutcome.Extracted extracted ->
-          new ProbeOutcome.Succeeded(document, extracted.text());
+          new ProbeOutcome.Succeeded(
+              document, extracted.text(), extracted.decision(), extracted.pagination());
       case TextExtractionOutcome.NoContent noContent ->
-          new ProbeOutcome.NoContent(document, noContent.reason());
+          new ProbeOutcome.NoContent(document, noContent.reason(), Optional.empty());
       case TextExtractionOutcome.Skipped skipped ->
           new ProbeOutcome.Skipped(
               ProbeSkipReason.PLAYWRIGHT_DISABLED,
@@ -243,9 +324,25 @@ public class FullTextProbeService {
           yield new ProbeOutcome.InvalidRequest(
               failed.failure().message(), failed.failure().cause());
         }
-        yield new ProbeOutcome.Failed(failed.failure());
+        // Missing dataset is a configuration/usage-style failure for probe UX.
+        if (failed.failure().kind() == FailureKind.INVALID_INPUT
+            && failed.failure().stage() == FailureStage.LOAD_AUTOPAGERIZE_DATABASE) {
+          yield new ProbeOutcome.InvalidRequest(
+              failed.failure().message(), failed.failure().cause());
+        }
+        yield new ProbeOutcome.Failed(failed.failure(), failed.pagination());
       }
     };
+  }
+
+  private static ProbeOutcome mapFetchFailure(
+      OperationFailure failure, Optional<PaginationMetadata> pagination) {
+    // Missing/unknown dataset is a configuration/usage error for probe CLI exit code mapping.
+    if (failure.kind() == FailureKind.INVALID_INPUT
+        && failure.stage() == FailureStage.LOAD_AUTOPAGERIZE_DATABASE) {
+      return new ProbeOutcome.InvalidRequest(failure.message(), failure.cause());
+    }
+    return new ProbeOutcome.Failed(failure, pagination);
   }
 
   private Optional<String> extractTitleFromHtml(String html) {

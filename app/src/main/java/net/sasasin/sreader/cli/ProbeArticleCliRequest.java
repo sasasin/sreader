@@ -8,8 +8,8 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParameterException;
 
 /**
- * Validated immutable CLI boundary for {@code probe article}. Invalid method/xpath combinations
- * cannot be constructed.
+ * Validated immutable CLI boundary for {@code probe article}. Invalid method/xpath/dataset
+ * combinations cannot be constructed.
  */
 final class ProbeArticleCliRequest {
 
@@ -19,6 +19,7 @@ final class ProbeArticleCliRequest {
   private final boolean verbose;
   private final Optional<String> output;
   private final Optional<Integer> maxChars;
+  private final Optional<Long> autopagerizeDatasetId;
 
   private ProbeArticleCliRequest(
       URI url,
@@ -26,13 +27,16 @@ final class ProbeArticleCliRequest {
       Optional<String> xpath,
       boolean verbose,
       Optional<String> output,
-      Optional<Integer> maxChars) {
+      Optional<Integer> maxChars,
+      Optional<Long> autopagerizeDatasetId) {
     this.url = Objects.requireNonNull(url, "url");
     this.method = Objects.requireNonNull(method, "method");
     this.xpath = Objects.requireNonNull(xpath, "xpath");
     this.verbose = verbose;
     this.output = Objects.requireNonNull(output, "output");
     this.maxChars = Objects.requireNonNull(maxChars, "maxChars");
+    this.autopagerizeDatasetId =
+        Objects.requireNonNull(autopagerizeDatasetId, "autopagerizeDatasetId");
   }
 
   static ProbeArticleCliRequest create(
@@ -42,7 +46,8 @@ final class ProbeArticleCliRequest {
       String xpath,
       boolean verbose,
       String output,
-      Integer maxChars) {
+      Integer maxChars,
+      Long autopagerizeDatasetId) {
     Objects.requireNonNull(spec, "spec");
     if (method == null) {
       throw new ParameterException(spec.commandLine(), "--method is required");
@@ -57,13 +62,26 @@ final class ProbeArticleCliRequest {
       throw new ParameterException(
           spec.commandLine(), "--xpath cannot be used with --method " + method.value());
     }
+    Optional<Long> datasetId = Optional.ofNullable(autopagerizeDatasetId);
+    if (datasetId.isPresent()) {
+      if (datasetId.get() < 1) {
+        throw new ParameterException(
+            spec.commandLine(), "--autopagerize-dataset-id must be a positive integer");
+      }
+      if (!method.usesAutopagerize()) {
+        throw new ParameterException(
+            spec.commandLine(),
+            "--autopagerize-dataset-id is only valid with AutoPagerize methods");
+      }
+    }
     return new ProbeArticleCliRequest(
         validatedUrl,
         method,
         normalizedXpath,
         verbose,
         Optional.ofNullable(output),
-        Optional.ofNullable(maxChars));
+        Optional.ofNullable(maxChars),
+        datasetId);
   }
 
   URI url() {
@@ -88,6 +106,10 @@ final class ProbeArticleCliRequest {
 
   Optional<Integer> maxChars() {
     return maxChars;
+  }
+
+  Optional<Long> autopagerizeDatasetId() {
+    return autopagerizeDatasetId;
   }
 
   private static Optional<String> normalizeXpath(String xpath) {

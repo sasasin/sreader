@@ -9,8 +9,8 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParameterException;
 
 /**
- * Validated immutable CLI boundary for {@code probe feed}. Invalid method/xpath combinations and
- * missing selection cannot be constructed.
+ * Validated immutable CLI boundary for {@code probe feed}. Invalid method/xpath/dataset
+ * combinations and missing selection cannot be constructed.
  */
 final class ProbeFeedCliRequest {
 
@@ -21,6 +21,7 @@ final class ProbeFeedCliRequest {
   private final boolean verbose;
   private final Optional<String> output;
   private final Optional<Integer> maxChars;
+  private final Optional<Long> autopagerizeDatasetId;
 
   private ProbeFeedCliRequest(
       URI feedUrl,
@@ -29,7 +30,8 @@ final class ProbeFeedCliRequest {
       Optional<String> xpath,
       boolean verbose,
       Optional<String> output,
-      Optional<Integer> maxChars) {
+      Optional<Integer> maxChars,
+      Optional<Long> autopagerizeDatasetId) {
     this.feedUrl = Objects.requireNonNull(feedUrl, "feedUrl");
     this.method = Objects.requireNonNull(method, "method");
     this.selection = Objects.requireNonNull(selection, "selection");
@@ -37,6 +39,8 @@ final class ProbeFeedCliRequest {
     this.verbose = verbose;
     this.output = Objects.requireNonNull(output, "output");
     this.maxChars = Objects.requireNonNull(maxChars, "maxChars");
+    this.autopagerizeDatasetId =
+        Objects.requireNonNull(autopagerizeDatasetId, "autopagerizeDatasetId");
   }
 
   static ProbeFeedCliRequest create(
@@ -47,7 +51,8 @@ final class ProbeFeedCliRequest {
       String xpath,
       boolean verbose,
       String output,
-      Integer maxChars) {
+      Integer maxChars,
+      Long autopagerizeDatasetId) {
     Objects.requireNonNull(spec, "spec");
     if (method == null) {
       throw new ParameterException(spec.commandLine(), "--method is required");
@@ -60,6 +65,18 @@ final class ProbeFeedCliRequest {
     if (normalizedXpath.isPresent() && !method.supportsXpathOverride()) {
       throw new ParameterException(spec.commandLine(), "--xpath cannot be used with --method feed");
     }
+    Optional<Long> datasetId = Optional.ofNullable(autopagerizeDatasetId);
+    if (datasetId.isPresent()) {
+      if (datasetId.get() < 1) {
+        throw new ParameterException(
+            spec.commandLine(), "--autopagerize-dataset-id must be a positive integer");
+      }
+      if (!method.usesAutopagerize()) {
+        throw new ParameterException(
+            spec.commandLine(),
+            "--autopagerize-dataset-id is only valid with AutoPagerize methods");
+      }
+    }
     return new ProbeFeedCliRequest(
         validatedUrl,
         method,
@@ -67,7 +84,8 @@ final class ProbeFeedCliRequest {
         normalizedXpath,
         verbose,
         Optional.ofNullable(output),
-        Optional.ofNullable(maxChars));
+        Optional.ofNullable(maxChars),
+        datasetId);
   }
 
   URI feedUrl() {
@@ -96,6 +114,10 @@ final class ProbeFeedCliRequest {
 
   Optional<Integer> maxChars() {
     return maxChars;
+  }
+
+  Optional<Long> autopagerizeDatasetId() {
+    return autopagerizeDatasetId;
   }
 
   private static Optional<String> normalizeXpath(String xpath) {
