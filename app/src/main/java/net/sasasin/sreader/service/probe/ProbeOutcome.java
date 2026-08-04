@@ -2,7 +2,9 @@ package net.sasasin.sreader.service.probe;
 
 import java.util.Objects;
 import java.util.Optional;
+import net.sasasin.sreader.service.extraction.ExtractionDecision;
 import net.sasasin.sreader.service.extraction.NoContentReason;
+import net.sasasin.sreader.service.extraction.PaginationMetadata;
 import net.sasasin.sreader.service.outcome.OperationFailure;
 import net.sasasin.sreader.service.outcome.OutcomePreconditions;
 
@@ -15,17 +17,39 @@ public sealed interface ProbeOutcome
         ProbeOutcome.InvalidRequest,
         ProbeOutcome.Failed {
 
-  record Succeeded(ProbeDocument document, String text) implements ProbeOutcome {
+  record Succeeded(
+      ProbeDocument document,
+      String text,
+      ExtractionDecision decision,
+      Optional<PaginationMetadata> pagination)
+      implements ProbeOutcome {
+    public Succeeded(ProbeDocument document, String text) {
+      this(
+          document,
+          text,
+          ExtractionDecision.of(net.sasasin.sreader.service.extraction.ExtractionSource.BODY_TEXT),
+          Optional.empty());
+    }
+
     public Succeeded {
       Objects.requireNonNull(document, "document must not be null");
       text = OutcomePreconditions.requireNonBlank(text, "text");
+      Objects.requireNonNull(decision, "decision must not be null");
+      Objects.requireNonNull(pagination, "pagination must not be null");
     }
   }
 
-  record NoContent(ProbeDocument document, NoContentReason reason) implements ProbeOutcome {
+  record NoContent(
+      ProbeDocument document, NoContentReason reason, Optional<PaginationMetadata> pagination)
+      implements ProbeOutcome {
+    public NoContent(ProbeDocument document, NoContentReason reason) {
+      this(document, reason, Optional.empty());
+    }
+
     public NoContent {
       Objects.requireNonNull(document, "document must not be null");
       Objects.requireNonNull(reason, "reason must not be null");
+      Objects.requireNonNull(pagination, "pagination must not be null");
     }
   }
 
@@ -53,9 +77,15 @@ public sealed interface ProbeOutcome
     }
   }
 
-  record Failed(OperationFailure failure) implements ProbeOutcome {
+  record Failed(OperationFailure failure, Optional<PaginationMetadata> pagination)
+      implements ProbeOutcome {
+    public Failed(OperationFailure failure) {
+      this(failure, Optional.empty());
+    }
+
     public Failed {
       Objects.requireNonNull(failure, "failure must not be null");
+      Objects.requireNonNull(pagination, "pagination must not be null");
     }
   }
 }

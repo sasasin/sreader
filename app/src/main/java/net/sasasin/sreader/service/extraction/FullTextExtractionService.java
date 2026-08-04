@@ -17,7 +17,6 @@ import net.sasasin.sreader.service.autopagerize.AutoPagerizeCatalogException;
 import net.sasasin.sreader.service.autopagerize.AutoPagerizeEngine;
 import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleCatalog;
 import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleSnapshot;
-import net.sasasin.sreader.service.autopagerize.CompiledAutoPagerizeRule;
 import net.sasasin.sreader.service.autopagerize.PaginationResult;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightSessionFailure;
@@ -82,20 +81,38 @@ public class FullTextExtractionService {
     int failed = 0;
     Optional<BatchStopReason> stopReason = Optional.empty();
 
+    // Freeze one AutoPagerize snapshot for the whole batch so active switches mid-batch do not
+    // change rule selection for later items in this run.
+    BatchAutopagerizeState batchAp = resolveBatchAutopagerizeState(targets);
+
     for (PendingFullTextTarget target : targets) {
       if (Thread.currentThread().isInterrupted()) {
         stopReason = Optional.of(BatchStopReason.INTERRUPTED);
         break;
       }
       try {
-        TextExtractionOutcome outcome = extract(target.header(), target.method());
+        TextExtractionOutcome outcome;
+        if (target.method().usesAutopagerize()) {
+          Optional<TextExtractionOutcome> batchFailure =
+              batchAp.failureFor(target.header().fetchUrl());
+          if (batchFailure.isPresent()) {
+            outcome = batchFailure.get();
+          } else {
+            outcome = extract(target.header(), target.method(), batchAp.snapshot());
+          }
+        } else {
+          outcome = extract(target.header(), target.method(), Optional.empty());
+        }
         switch (outcome) {
           case TextExtractionOutcome.Extracted extracted -> {
             try {
               ContentFullTextWriteOutcome write =
-                  contentFullTextWriter.saveIfAbsent(target.header(), extracted.text());
+                  contentFullTextWriter.saveIfAbsent(target.header(), target.method(), extracted);
               switch (write) {
-                case INSERTED -> inserted++;
+                case INSERTED -> {
+                  inserted++;
+                  logExtractionSuccess(target, extracted);
+                }
                 case ALREADY_EXISTS -> alreadyPresent++;
                 case NO_CONTENT -> noContent++;
               }
@@ -168,11 +185,84 @@ public class FullTextExtractionService {
   }
 
   public TextExtractionOutcome extract(ContentHeader header, FullTextMethod method) {
+    return extract(header, method, Optional.empty());
+  }
+
+  /**
+   * @param batchSnapshot when present and method uses AutoPagerize, use this immutable snapshot
+   *     instead of loading active again. Empty means load active (single-article / probe path).
+   */
+  public TextExtractionOutcome extract(
+      ContentHeader header,
+      FullTextMethod method,
+      Optional<AutoPagerizeRuleSnapshot> batchSnapshot) {
     return switch (method.definition()) {
       case Definition.FeedEntry ignored -> extractFromFeed(header);
-      case Definition.HttpArticle http -> extractFromHttp(header, http);
-      case Definition.PlaywrightArticle playwright -> extractFromPlaywright(header, playwright);
+      case Definition.HttpArticle http -> extractFromHttp(header, http, batchSnapshot);
+      case Definition.PlaywrightArticle playwright ->
+          extractFromPlaywright(header, playwright, batchSnapshot);
     };
+  }
+
+  private void logExtractionSuccess(
+      PendingFullTextTarget target, TextExtractionOutcome.Extracted extracted) {
+    if (extracted.pagination().isPresent()) {
+      PaginationMetadata meta = extracted.pagination().get();
+      logger.info(
+          "Persisted full text for {} method={} source={} pages={} stop={} dataset={}",
+          target.header().fetchUrl(),
+          target.method().value(),
+          extracted.decision().source().wireValue(),
+          meta.pageCount(),
+          meta.stopReason(),
+          meta.datasetId());
+    } else {
+      logger.debug(
+          "Persisted full text for {} method={} source={}",
+          target.header().fetchUrl(),
+          target.method().value(),
+          extracted.decision().source().wireValue());
+    }
+  }
+
+  private BatchAutopagerizeState resolveBatchAutopagerizeState(
+      List<PendingFullTextTarget> targets) {
+    boolean needsAutopagerize =
+        targets.stream().anyMatch(target -> target.method().usesAutopagerize());
+    if (!needsAutopagerize) {
+      return BatchAutopagerizeState.notNeeded();
+    }
+    try {
+      return BatchAutopagerizeState.loaded(autoPagerizeRuleCatalog.getActiveSnapshot());
+    } catch (AutoPagerizeCatalogException e) {
+      logger.error(
+          "Failed to load batch AutoPagerize snapshot stage={} kind={} message={}",
+          FailureStage.MATCH_AUTOPAGERIZE_RULE,
+          FailureKind.UNEXPECTED,
+          e.getMessage(),
+          e);
+      return BatchAutopagerizeState.failed(
+          OperationFailure.of(
+              FailureStage.MATCH_AUTOPAGERIZE_RULE,
+              FailureKind.UNEXPECTED,
+              "batch",
+              "Failed to load or compile active AutoPagerize rules: " + e.getMessage(),
+              e));
+    } catch (RuntimeException e) {
+      logger.error(
+          "Failed to load batch AutoPagerize snapshot stage={} kind={} message={}",
+          FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+          FailureKind.UNEXPECTED,
+          e.getMessage(),
+          e);
+      return BatchAutopagerizeState.failed(
+          OperationFailure.of(
+              FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+              FailureKind.UNEXPECTED,
+              "batch",
+              "Failed to load active AutoPagerize dataset: " + e.getMessage(),
+              e));
+    }
   }
 
   private TextExtractionOutcome extractFromFeed(ContentHeader header) {
@@ -186,12 +276,19 @@ public class FullTextExtractionService {
       return new TextExtractionOutcome.NoContent(
           NoContentReason.FEED_CONTENT_MISSING, ExtractionDecision.of(ExtractionSource.FEED));
     }
-    return new TextExtractionOutcome.Extracted(text, ExtractionDecision.of(ExtractionSource.FEED));
+    return new TextExtractionOutcome.Extracted(
+        text,
+        ExtractionDecision.of(ExtractionSource.FEED),
+        Optional.empty(),
+        Optional.of(header.canonicalUrl()));
   }
 
-  private TextExtractionOutcome extractFromHttp(ContentHeader header, Definition.HttpArticle http) {
+  private TextExtractionOutcome extractFromHttp(
+      ContentHeader header,
+      Definition.HttpArticle http,
+      Optional<AutoPagerizeRuleSnapshot> batchSnapshot) {
     if (http.pagination() == PaginationMode.AUTOPAGERIZE) {
-      return extractFromHttpAutopagerize(header, http.extractor());
+      return extractFromHttpAutopagerize(header, http.extractor(), batchSnapshot);
     }
     return extractFromHttpSinglePage(header, http.extractor());
   }
@@ -201,7 +298,9 @@ public class FullTextExtractionService {
     try {
       HttpFetchService.FetchedResource resource =
           httpFetchService.get(URI.create(header.fetchUrl()));
-      return htmlTextExtractor.extract(resource.uri().toString(), resource.body(), extractor);
+      TextExtractionOutcome outcome =
+          htmlTextExtractor.extract(resource.uri().toString(), resource.body(), extractor);
+      return attachExtractedUrl(outcome, resource.uri().toString());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return new TextExtractionOutcome.Failed(
@@ -231,40 +330,18 @@ public class FullTextExtractionService {
   }
 
   /**
-   * HTTP AutoPagerize path: load active rule snapshot once per article, paginate in a cookie
-   * isolated session, then extract text. Failures never produce partial success text.
+   * HTTP AutoPagerize path: use the batch-frozen snapshot when provided, otherwise load active.
+   * Failures never produce partial success text.
    */
   private TextExtractionOutcome extractFromHttpAutopagerize(
-      ContentHeader header, HtmlExtractor extractor) {
-    final AutoPagerizeRuleSnapshot snapshot;
-    try {
-      Optional<AutoPagerizeRuleSnapshot> active = autoPagerizeRuleCatalog.getActiveSnapshot();
-      if (active.isEmpty()) {
-        return new TextExtractionOutcome.Failed(
-            OperationFailure.of(
-                FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
-                FailureKind.INVALID_INPUT,
-                header.fetchUrl(),
-                "No active AutoPagerize dataset; import and activate a local SITEINFO JSON first"));
-      }
-      snapshot = active.get();
-    } catch (AutoPagerizeCatalogException e) {
-      return new TextExtractionOutcome.Failed(
-          OperationFailure.of(
-              FailureStage.MATCH_AUTOPAGERIZE_RULE,
-              FailureKind.UNEXPECTED,
-              header.fetchUrl(),
-              "Failed to load or compile active AutoPagerize rules: " + e.getMessage(),
-              e));
-    } catch (RuntimeException e) {
-      return new TextExtractionOutcome.Failed(
-          OperationFailure.of(
-              FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
-              FailureKind.UNEXPECTED,
-              header.fetchUrl(),
-              "Failed to load active AutoPagerize dataset: " + e.getMessage(),
-              e));
+      ContentHeader header,
+      HtmlExtractor extractor,
+      Optional<AutoPagerizeRuleSnapshot> batchSnapshot) {
+    SnapshotResolution snapshotResolution = resolveSnapshot(header.fetchUrl(), batchSnapshot);
+    if (snapshotResolution instanceof SnapshotResolution.Failed failed) {
+      return new TextExtractionOutcome.Failed(failed.failure());
     }
+    AutoPagerizeRuleSnapshot snapshot = ((SnapshotResolution.Ready) snapshotResolution).snapshot();
 
     URI startUri;
     try {
@@ -293,19 +370,7 @@ public class FullTextExtractionService {
             "HTTP AutoPagerize rule matching failed for " + header.fetchUrl(),
             e);
       }
-      if (pagination instanceof PaginationResult.Failed failed) {
-        return new TextExtractionOutcome.Failed(failed.failure());
-      }
-      try {
-        return toPaginatedTextOutcome((PaginationResult.Succeeded) pagination, snapshot, extractor);
-      } catch (RuntimeException e) {
-        return failedOutcome(
-            header,
-            FailureStage.EXTRACT_TEXT,
-            FailureKind.EXTRACTION,
-            "HTTP AutoPagerize text extraction failed for " + header.fetchUrl(),
-            e);
-      }
+      return toPaginationTextOutcome(pagination, snapshot, extractor, Optional.empty(), false);
     } catch (RuntimeException e) {
       return new TextExtractionOutcome.Failed(
           OperationFailure.of(
@@ -320,6 +385,45 @@ public class FullTextExtractionService {
     }
   }
 
+  /**
+   * Shared AutoPagerize pagination → text extraction used by production HTTP/Playwright paths and
+   * probe (via the same helpers). Partial text is never returned as success.
+   */
+  TextExtractionOutcome toPaginationTextOutcome(
+      PaginationResult pagination,
+      AutoPagerizeRuleSnapshot snapshot,
+      HtmlExtractor extractor,
+      Optional<String> xpathOverride,
+      boolean explicitDatasetSelection) {
+    if (pagination instanceof PaginationResult.Failed failed) {
+      return new TextExtractionOutcome.Failed(failed.failure())
+          .withPagination(
+              PaginationMetadataFactory.fromFailed(failed, snapshot, explicitDatasetSelection));
+    }
+    try {
+      return toPaginatedTextOutcome(
+          (PaginationResult.Succeeded) pagination,
+          snapshot,
+          extractor,
+          xpathOverride,
+          explicitDatasetSelection);
+    } catch (RuntimeException e) {
+      return new TextExtractionOutcome.Failed(
+              OperationFailure.of(
+                  FailureStage.EXTRACT_TEXT,
+                  FailureKind.EXTRACTION,
+                  snapshot.datasetId() + "",
+                  "AutoPagerize text extraction failed: " + e.getMessage(),
+                  e))
+          .withPagination(
+              PaginationMetadataFactory.fromSucceeded(
+                  (PaginationResult.Succeeded) pagination,
+                  snapshot,
+                  List.of(),
+                  explicitDatasetSelection));
+    }
+  }
+
   private static TextExtractionOutcome.Failed failedOutcome(
       ContentHeader header, FailureStage stage, FailureKind kind, String message, Throwable cause) {
     return new TextExtractionOutcome.Failed(
@@ -330,40 +434,68 @@ public class FullTextExtractionService {
   private TextExtractionOutcome toPaginatedTextOutcome(
       PaginationResult.Succeeded pagination,
       AutoPagerizeRuleSnapshot snapshot,
-      HtmlExtractor extractor) {
+      HtmlExtractor extractor,
+      Optional<String> xpathOverride,
+      boolean explicitDatasetSelection) {
     PaginatedExtractionResult result =
-        paginatedHtmlTextExtractor.extract(pagination, extractor, Optional.empty());
-    PaginationMetadata metadata = paginationMetadata(pagination, snapshot, result.contributions());
+        paginatedHtmlTextExtractor.extract(pagination, extractor, xpathOverride);
+    PaginationMetadata metadata =
+        PaginationMetadataFactory.fromSucceeded(
+            pagination, snapshot, result.contributions(), explicitDatasetSelection);
+    String firstFinalUrl = pagination.firstPage().finalUri().toString();
     return switch (result.outcome()) {
-      case TextExtractionOutcome.Extracted extracted -> extracted.withPagination(metadata);
-      case TextExtractionOutcome.NoContent noContent -> noContent;
+      case TextExtractionOutcome.Extracted extracted ->
+          extracted.withPagination(metadata).withExtractedUrl(firstFinalUrl);
+      case TextExtractionOutcome.NoContent noContent -> noContent.withPagination(metadata);
       case TextExtractionOutcome.Skipped skipped -> skipped;
-      case TextExtractionOutcome.Failed failed -> failed;
+      case TextExtractionOutcome.Failed failed -> failed.withPagination(metadata);
     };
   }
 
-  private static PaginationMetadata paginationMetadata(
-      PaginationResult.Succeeded pagination,
-      AutoPagerizeRuleSnapshot snapshot,
-      List<PageTextContribution> contributions) {
-    Optional<CompiledAutoPagerizeRule> rule = pagination.matchedRule();
-    return PaginationMetadata.of(
-        snapshot.datasetId(),
-        rule.map(CompiledAutoPagerizeRule::ordinal),
-        rule.map(CompiledAutoPagerizeRule::name),
-        pagination.pages().size(),
-        pagination.stopReason(),
-        true,
-        contributions);
+  private SnapshotResolution resolveSnapshot(
+      String subject, Optional<AutoPagerizeRuleSnapshot> batchSnapshot) {
+    if (batchSnapshot.isPresent()) {
+      return new SnapshotResolution.Ready(batchSnapshot.get());
+    }
+    try {
+      Optional<AutoPagerizeRuleSnapshot> active = autoPagerizeRuleCatalog.getActiveSnapshot();
+      if (active.isEmpty()) {
+        return new SnapshotResolution.Failed(
+            OperationFailure.of(
+                FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+                FailureKind.INVALID_INPUT,
+                subject,
+                "No active AutoPagerize dataset; import and activate a local SITEINFO JSON first"));
+      }
+      return new SnapshotResolution.Ready(active.get());
+    } catch (AutoPagerizeCatalogException e) {
+      return new SnapshotResolution.Failed(
+          OperationFailure.of(
+              FailureStage.MATCH_AUTOPAGERIZE_RULE,
+              FailureKind.UNEXPECTED,
+              subject,
+              "Failed to load or compile active AutoPagerize rules: " + e.getMessage(),
+              e));
+    } catch (RuntimeException e) {
+      return new SnapshotResolution.Failed(
+          OperationFailure.of(
+              FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+              FailureKind.UNEXPECTED,
+              subject,
+              "Failed to load active AutoPagerize dataset: " + e.getMessage(),
+              e));
+    }
   }
 
   private TextExtractionOutcome extractFromPlaywright(
-      ContentHeader header, Definition.PlaywrightArticle definition) {
+      ContentHeader header,
+      Definition.PlaywrightArticle definition,
+      Optional<AutoPagerizeRuleSnapshot> batchSnapshot) {
     if (!properties.playwright().enabled()) {
       return new TextExtractionOutcome.Skipped(TextExtractionSkipReason.PLAYWRIGHT_DISABLED);
     }
     if (definition.pagination() == PaginationMode.AUTOPAGERIZE) {
-      return extractFromPlaywrightAutopagerize(header, definition.extractor());
+      return extractFromPlaywrightAutopagerize(header, definition.extractor(), batchSnapshot);
     }
     return extractFromPlaywrightSinglePage(header, definition);
   }
@@ -374,7 +506,9 @@ public class FullTextExtractionService {
       URI requestedUri = URI.create(header.fetchUrl());
       // Keep header.fetchUrl() for extract-rule matching (unchanged semantics).
       String html = playwrightHtmlSource.render(requestedUri, definition.mode());
-      return htmlTextExtractor.extract(header.fetchUrl(), html, definition.extractor());
+      TextExtractionOutcome outcome =
+          htmlTextExtractor.extract(header.fetchUrl(), html, definition.extractor());
+      return attachExtractedUrl(outcome, header.fetchUrl());
     } catch (RuntimeException e) {
       return new TextExtractionOutcome.Failed(
           OperationFailure.of(
@@ -387,41 +521,18 @@ public class FullTextExtractionService {
   }
 
   /**
-   * Playwright AutoPagerize path: load active rule snapshot once per article, paginate in one
-   * short-lived standard BrowserContext/Page (serialized on {@link PlaywrightHtmlSource}), then
-   * extract text. Failures never produce partial success text. No Infy extension is used.
+   * Playwright AutoPagerize path: use the batch-frozen snapshot when provided, otherwise load
+   * active. Failures never produce partial success text. No Infy extension is used.
    */
   private TextExtractionOutcome extractFromPlaywrightAutopagerize(
-      ContentHeader header, HtmlExtractor extractor) {
-    final AutoPagerizeRuleSnapshot snapshot;
-    try {
-      Optional<AutoPagerizeRuleSnapshot> active = autoPagerizeRuleCatalog.getActiveSnapshot();
-      if (active.isEmpty()) {
-        return new TextExtractionOutcome.Failed(
-            OperationFailure.of(
-                FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
-                FailureKind.INVALID_INPUT,
-                header.fetchUrl(),
-                "No active AutoPagerize dataset; import and activate a local SITEINFO JSON first"));
-      }
-      snapshot = active.get();
-    } catch (AutoPagerizeCatalogException e) {
-      return new TextExtractionOutcome.Failed(
-          OperationFailure.of(
-              FailureStage.MATCH_AUTOPAGERIZE_RULE,
-              FailureKind.UNEXPECTED,
-              header.fetchUrl(),
-              "Failed to load or compile active AutoPagerize rules: " + e.getMessage(),
-              e));
-    } catch (RuntimeException e) {
-      return new TextExtractionOutcome.Failed(
-          OperationFailure.of(
-              FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
-              FailureKind.UNEXPECTED,
-              header.fetchUrl(),
-              "Failed to load active AutoPagerize dataset: " + e.getMessage(),
-              e));
+      ContentHeader header,
+      HtmlExtractor extractor,
+      Optional<AutoPagerizeRuleSnapshot> batchSnapshot) {
+    SnapshotResolution snapshotResolution = resolveSnapshot(header.fetchUrl(), batchSnapshot);
+    if (snapshotResolution instanceof SnapshotResolution.Failed failed) {
+      return new TextExtractionOutcome.Failed(failed.failure());
     }
+    AutoPagerizeRuleSnapshot snapshot = ((SnapshotResolution.Ready) snapshotResolution).snapshot();
 
     URI startUri;
     try {
@@ -453,21 +564,10 @@ public class FullTextExtractionService {
                       "Playwright AutoPagerize rule matching failed for " + header.fetchUrl(),
                       e));
             }
-            if (pagination instanceof PaginationResult.Failed failed) {
-              throw new PlaywrightSessionFailure(failed.failure());
-            }
-            try {
-              return toPaginatedTextOutcome(
-                  (PaginationResult.Succeeded) pagination, snapshot, extractor);
-            } catch (RuntimeException e) {
-              throw new PlaywrightSessionFailure(
-                  OperationFailure.of(
-                      FailureStage.EXTRACT_TEXT,
-                      FailureKind.EXTRACTION,
-                      header.fetchUrl(),
-                      "Playwright AutoPagerize text extraction failed for " + header.fetchUrl(),
-                      e));
-            }
+            // Return Failed (with optional pagination diagnostics) without wrapping so metadata is
+            // not lost; session cleanup still runs after the work lambda returns.
+            return toPaginationTextOutcome(
+                pagination, snapshot, extractor, Optional.empty(), false);
           });
     } catch (PlaywrightSessionFailure e) {
       return new TextExtractionOutcome.Failed(e.failure());
@@ -482,6 +582,69 @@ public class FullTextExtractionService {
                   + ": "
                   + e.getMessage(),
               e));
+    }
+  }
+
+  private static TextExtractionOutcome attachExtractedUrl(
+      TextExtractionOutcome outcome, String url) {
+    if (outcome instanceof TextExtractionOutcome.Extracted extracted) {
+      return extracted.withExtractedUrl(url);
+    }
+    return outcome;
+  }
+
+  private sealed interface SnapshotResolution
+      permits SnapshotResolution.Ready, SnapshotResolution.Failed {
+    record Ready(AutoPagerizeRuleSnapshot snapshot) implements SnapshotResolution {
+      public Ready {
+        java.util.Objects.requireNonNull(snapshot, "snapshot must not be null");
+      }
+    }
+
+    record Failed(OperationFailure failure) implements SnapshotResolution {
+      public Failed {
+        java.util.Objects.requireNonNull(failure, "failure must not be null");
+      }
+    }
+  }
+
+  /**
+   * Batch-scoped AutoPagerize snapshot. Catalog load is skipped when no target needs AutoPagerize.
+   */
+  private record BatchAutopagerizeState(
+      Optional<AutoPagerizeRuleSnapshot> snapshot, Optional<OperationFailure> loadFailure) {
+
+    static BatchAutopagerizeState notNeeded() {
+      return new BatchAutopagerizeState(Optional.empty(), Optional.empty());
+    }
+
+    static BatchAutopagerizeState loaded(Optional<AutoPagerizeRuleSnapshot> active) {
+      return new BatchAutopagerizeState(active, Optional.empty());
+    }
+
+    static BatchAutopagerizeState failed(OperationFailure failure) {
+      return new BatchAutopagerizeState(Optional.empty(), Optional.of(failure));
+    }
+
+    Optional<TextExtractionOutcome> failureFor(String subject) {
+      if (loadFailure.isPresent()) {
+        OperationFailure failure = loadFailure.get();
+        return Optional.of(
+            new TextExtractionOutcome.Failed(
+                new OperationFailure(
+                    failure.stage(), failure.kind(), subject, failure.message(), failure.cause())));
+      }
+      if (snapshot.isEmpty()) {
+        return Optional.of(
+            new TextExtractionOutcome.Failed(
+                OperationFailure.of(
+                    FailureStage.LOAD_AUTOPAGERIZE_DATABASE,
+                    FailureKind.INVALID_INPUT,
+                    subject,
+                    "No active AutoPagerize dataset; import and activate a local SITEINFO JSON"
+                        + " first")));
+      }
+      return Optional.empty();
     }
   }
 }

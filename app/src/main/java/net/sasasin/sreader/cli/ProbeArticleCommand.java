@@ -1,5 +1,6 @@
 package net.sasasin.sreader.cli;
 
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import net.sasasin.sreader.domain.FullTextMethod;
 import net.sasasin.sreader.service.probe.FullTextProbeService;
@@ -18,6 +19,7 @@ import picocli.CommandLine.Spec;
           + " --verbose.",
       "Use --xpath to override extraction to a specific XPath (disables rule lookup and"
           + " readability).",
+      "Use --autopagerize-dataset-id with AutoPagerize methods to select a non-active dataset.",
     },
     mixinStandardHelpOptions = true,
     usageHelpWidth = 100)
@@ -51,8 +53,15 @@ public class ProbeArticleCommand implements Callable<Integer> {
   private String xpath;
 
   @Option(
+      names = "--autopagerize-dataset-id",
+      paramLabel = "<ID>",
+      description =
+          "AutoPagerize dataset id (active when omitted). Only valid with AutoPagerize methods.")
+  private Long autopagerizeDatasetId;
+
+  @Option(
       names = "--verbose",
-      description = "Print diagnostic info (input/final URL, title, lengths) to STDERR")
+      description = "Print diagnostic info (method, URLs, AutoPagerize page trace) to STDERR")
   private boolean verbose;
 
   @Option(
@@ -75,10 +84,12 @@ public class ProbeArticleCommand implements Callable<Integer> {
   public Integer call() {
     try {
       ProbeArticleCliRequest request =
-          ProbeArticleCliRequest.create(spec, url, method, xpath, verbose, output, maxChars);
+          ProbeArticleCliRequest.create(
+              spec, url, method, xpath, verbose, output, maxChars, autopagerizeDatasetId);
 
       ProbeOutcome outcome =
-          fullTextProbeService.probeArticle(request.url(), request.method(), request.xpath());
+          fullTextProbeService.probeArticle(
+              request.url(), request.method(), request.xpath(), request.autopagerizeDatasetId());
       return mapOutcome(outcome, request);
     } catch (picocli.CommandLine.ParameterException pe) {
       throw pe;
@@ -93,14 +104,13 @@ public class ProbeArticleCommand implements Callable<Integer> {
     return switch (outcome) {
       case ProbeOutcome.Succeeded succeeded ->
           writer.writeSucceeded(
-              succeeded.document(),
-              succeeded.text(),
+              succeeded,
               request.verbose(),
               request.output().orElse(null),
               request.maxChars().orElse(null));
       case ProbeOutcome.NoContent noContent -> {
         if (request.verbose()) {
-          writer.writeNoContentDiagnostics(noContent.document());
+          writer.writeNoContentDiagnostics(noContent.document(), noContent.pagination());
         }
         yield CliExitCodes.EMPTY_RESULT;
       }
@@ -119,6 +129,10 @@ public class ProbeArticleCommand implements Callable<Integer> {
       case ProbeOutcome.Failed failed -> {
         if (failed.failure().interrupted()) {
           Thread.currentThread().interrupt();
+        }
+        if (request.verbose()) {
+          writer.writeFailureDiagnostics(
+              null, failed.pagination(), Optional.of(failed.failure().message()));
         }
         spec.commandLine().getErr().println("Error: " + failed.failure().message());
         yield CliExitCodes.EXECUTION_ERROR;

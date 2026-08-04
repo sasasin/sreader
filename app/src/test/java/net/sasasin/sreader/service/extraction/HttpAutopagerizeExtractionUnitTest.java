@@ -266,13 +266,21 @@ class HttpAutopagerizeExtractionUnitTest {
             org.junit.jupiter.api.Assertions.assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                    PaginationMetadata.of(
+                    new PaginationMetadata(
                         1L,
+                        "a".repeat(64),
+                        1,
+                        false,
                         Optional.empty(),
                         Optional.empty(),
-                        0,
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        -1,
                         PaginationStopReason.NO_MATCHING_RULE,
                         true,
+                        List.of(),
+                        Optional.empty(),
                         List.of())))
         .hasMessageContaining("pageCount");
   }

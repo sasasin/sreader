@@ -28,13 +28,14 @@ class ProbeArticleCliRequestTest {
   void acceptsArticleCapableMethods(FullTextMethod method) {
     ProbeArticleCliRequest request =
         ProbeArticleCliRequest.create(
-            spec, "https://example.com/a", method, null, false, null, null);
+            spec, "https://example.com/a", method, null, false, null, null, null);
 
     assertThat(request.url()).isEqualTo(URI.create("https://example.com/a"));
     assertThat(request.method()).isEqualTo(method);
     assertThat(request.xpath()).isEmpty();
     assertThat(request.output()).isEmpty();
     assertThat(request.maxChars()).isEmpty();
+    assertThat(request.autopagerizeDatasetId()).isEmpty();
   }
 
   @Test
@@ -42,7 +43,14 @@ class ProbeArticleCliRequestTest {
     assertThatThrownBy(
             () ->
                 ProbeArticleCliRequest.create(
-                    spec, "https://example.com/a", FullTextMethod.FEED, null, false, null, null))
+                    spec,
+                    "https://example.com/a",
+                    FullTextMethod.FEED,
+                    null,
+                    false,
+                    null,
+                    null,
+                    null))
         .isInstanceOf(ParameterException.class)
         .hasMessageContaining("--method feed");
   }
@@ -52,7 +60,7 @@ class ProbeArticleCliRequestTest {
     assertThatThrownBy(
             () ->
                 ProbeArticleCliRequest.create(
-                    spec, "https://example.com/a", null, null, false, null, null))
+                    spec, "https://example.com/a", null, null, false, null, null, null))
         .isInstanceOf(ParameterException.class)
         .hasMessageContaining("--method");
   }
@@ -61,7 +69,7 @@ class ProbeArticleCliRequestTest {
   void blankXpathIsAbsence() {
     ProbeArticleCliRequest request =
         ProbeArticleCliRequest.create(
-            spec, "https://example.com/a", FullTextMethod.HTTP, " \t ", true, "out.txt", 10);
+            spec, "https://example.com/a", FullTextMethod.HTTP, " \t ", true, "out.txt", 10, null);
 
     assertThat(request.xpath()).isEmpty();
     assertThat(request.verbose()).isTrue();
@@ -73,9 +81,66 @@ class ProbeArticleCliRequestTest {
   void nonblankXpathIsKeptForSupportingMethods() {
     ProbeArticleCliRequest request =
         ProbeArticleCliRequest.create(
-            spec, "https://example.com/a", FullTextMethod.HTTP, "//article", false, null, null);
+            spec,
+            "https://example.com/a",
+            FullTextMethod.HTTP,
+            "//article",
+            false,
+            null,
+            null,
+            null);
 
     assertThat(request.xpath()).contains("//article");
+  }
+
+  @Test
+  void acceptsAutopagerizeDatasetIdWithAutopagerizeMethod() {
+    ProbeArticleCliRequest request =
+        ProbeArticleCliRequest.create(
+            spec,
+            "https://example.com/a",
+            FullTextMethod.HTTP_AUTOPAGERIZE,
+            null,
+            false,
+            null,
+            null,
+            42L);
+
+    assertThat(request.autopagerizeDatasetId()).contains(42L);
+  }
+
+  @Test
+  void rejectsAutopagerizeDatasetIdWithNonAutopagerizeMethod() {
+    assertThatThrownBy(
+            () ->
+                ProbeArticleCliRequest.create(
+                    spec,
+                    "https://example.com/a",
+                    FullTextMethod.HTTP,
+                    null,
+                    false,
+                    null,
+                    null,
+                    42L))
+        .isInstanceOf(ParameterException.class)
+        .hasMessageContaining("--autopagerize-dataset-id");
+  }
+
+  @Test
+  void rejectsNonPositiveDatasetId() {
+    assertThatThrownBy(
+            () ->
+                ProbeArticleCliRequest.create(
+                    spec,
+                    "https://example.com/a",
+                    FullTextMethod.HTTP_AUTOPAGERIZE,
+                    null,
+                    false,
+                    null,
+                    null,
+                    0L))
+        .isInstanceOf(ParameterException.class)
+        .hasMessageContaining("positive");
   }
 
   @Test
@@ -83,7 +148,7 @@ class ProbeArticleCliRequestTest {
     assertThatThrownBy(
             () ->
                 ProbeArticleCliRequest.create(
-                    spec, "not-a-url", FullTextMethod.HTTP, null, false, null, null))
+                    spec, "not-a-url", FullTextMethod.HTTP, null, false, null, null, null))
         .isInstanceOf(ParameterException.class)
         .satisfies(
             ex -> {
@@ -97,7 +162,7 @@ class ProbeArticleCliRequestTest {
   void parameterExceptionUsesInjectedCommandLine() {
     try {
       ProbeArticleCliRequest.create(
-          spec, "https://example.com/a", FullTextMethod.FEED, null, false, null, null);
+          spec, "https://example.com/a", FullTextMethod.FEED, null, false, null, null, null);
     } catch (ParameterException pe) {
       assertThat(pe.getCommandLine()).isSameAs(spec.commandLine());
       return;

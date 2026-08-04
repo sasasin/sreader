@@ -50,6 +50,11 @@ class ContentFullTextWriterTest {
     assertThat(saved.id()).isEqualTo(HashIds.md5(header.canonicalUrl()));
     assertThat(saved.contentHeaderId()).isEqualTo("header-id");
     assertThat(saved.fullText()).isEqualTo("body text");
+    assertThat(saved.extractionMethod()).isEqualTo("feed");
+    assertThat(saved.sourceKind()).isEqualTo("feed");
+    assertThat(saved.extractedUrl()).isEqualTo(header.canonicalUrl());
+    assertThat(saved.autopagerizeDatasetId()).isNull();
+    assertThat(saved.paginationPageCount()).isNull();
   }
 
   @Test

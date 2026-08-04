@@ -168,8 +168,13 @@ class RepositoryIntegrationTest {
     assertThat(contentHeaderRepository.findWithoutFullText(10)).hasSize(1);
 
     ContentFullText fullText =
-        new ContentFullText(
-            "text0000000000000000000000000001", "head0000000000000000000000000001", "Hello body");
+        ContentFullText.success(
+            "text0000000000000000000000000001",
+            "head0000000000000000000000000001",
+            "Hello body",
+            "http",
+            "body_text",
+            "https://example.test/a");
     assertThat(contentFullTextRepository.insertIfAbsent(fullText)).isTrue();
     assertThat(contentFullTextRepository.insertIfAbsent(fullText)).isFalse();
     assertThat(contentHeaderRepository.findWithoutFullText(10)).isEmpty();
@@ -446,6 +451,8 @@ class RepositoryIntegrationTest {
       String headerId, String fullTextId, String url, String title, String fullText) {
     contentHeaderRepository.insertOrRefreshFetchUrl(
         new ContentHeader(headerId, "feed0000000000000000000000000020", url, title, null));
-    contentFullTextRepository.insertIfAbsent(new ContentFullText(fullTextId, headerId, fullText));
+    contentFullTextRepository.insertIfAbsent(
+        ContentFullText.success(
+            fullTextId, headerId, fullText, "http", "body_text", "https://example.test/x"));
   }
 }

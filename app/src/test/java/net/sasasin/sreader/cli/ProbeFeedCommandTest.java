@@ -52,7 +52,8 @@ class ProbeFeedCommandTest {
             eq(URI.create("https://example.com/feed.xml")),
             eq(FullTextMethod.HTTP),
             selection.capture(),
-            xpath.capture());
+            xpath.capture(),
+            eq(Optional.empty()));
     assertThat(selection.getValue()).isEqualTo(FeedEntrySelection.first());
     assertThat(xpath.getValue()).contains("//article");
     assertThat(harness.stdout()).isEqualTo("body");
@@ -134,6 +135,7 @@ class ProbeFeedCommandTest {
             URI.create("https://example.com/feed.xml"),
             FullTextMethod.HTTP,
             FeedEntrySelection.first(),
+            Optional.empty(),
             Optional.empty());
   }
 
@@ -249,21 +251,21 @@ class ProbeFeedCommandTest {
   @Test
   void mapsServiceOutcomesToDocumentedExitCodes() {
     FullTextProbeService noMatch = mock(FullTextProbeService.class);
-    when(noMatch.probeFeed(any(), any(), any(), any()))
+    when(noMatch.probeFeed(any(), any(), any(), any(), any()))
         .thenReturn(new ProbeOutcome.NoMatchingEntry("details"));
     Harness noMatchHarness = harness(noMatch);
     assertThat(noMatchHarness.execute()).isEqualTo(3);
     assertThat(noMatchHarness.stderr()).contains("No matching feed entry: details");
 
     FullTextProbeService disabled = mock(FullTextProbeService.class);
-    when(disabled.probeFeed(any(), any(), any(), any()))
+    when(disabled.probeFeed(any(), any(), any(), any(), any()))
         .thenReturn(new ProbeOutcome.Skipped(ProbeSkipReason.PLAYWRIGHT_DISABLED, "disabled"));
     Harness disabledHarness = harness(disabled);
     assertThat(disabledHarness.execute()).isEqualTo(5);
     assertThat(disabledHarness.stderr()).contains("disabled").doesNotContain("Error:");
 
     FullTextProbeService failing = mock(FullTextProbeService.class);
-    when(failing.probeFeed(any(), any(), any(), any()))
+    when(failing.probeFeed(any(), any(), any(), any(), any()))
         .thenReturn(
             new ProbeOutcome.Failed(
                 OperationFailure.of(
@@ -289,7 +291,7 @@ class ProbeFeedCommandTest {
     assertThat(verbose.execute("--verbose")).isEqualTo(4);
     assertThat(verbose.stdout()).isEmpty();
     assertThat(verbose.stderr())
-        .contains("inputUrl=", "finalUrl=", "method=http", "title=Title", "textLength=0");
+        .contains("input URL:", "first final URL:", "method:", "http", "title:", "Title");
   }
 
   @Test
@@ -302,7 +304,8 @@ class ProbeFeedCommandTest {
     Harness file = harness(serviceReturning(succeeded("こんにちは")));
     assertThat(file.execute("--output", output.toString())).isZero();
     assertThat(Files.readString(output, StandardCharsets.UTF_8)).isEqualTo("こんにちは");
-    assertThat(file.stdout()).contains("Wrote probe output to " + output).doesNotContain("こんにちは");
+    assertThat(file.stderr()).contains("Wrote probe output to " + output).doesNotContain("こんにちは");
+    assertThat(file.stdout()).isEmpty();
 
     Harness failure = harness(serviceReturning(succeeded("body")));
     assertThat(failure.execute("--output", tempDir.toString())).isEqualTo(1);
@@ -318,12 +321,13 @@ class ProbeFeedCommandTest {
             URI.create("https://example.com/feed.xml"),
             FullTextMethod.HTTP,
             expected,
+            Optional.empty(),
             Optional.empty());
   }
 
   private FullTextProbeService serviceReturning(ProbeOutcome outcome) {
     FullTextProbeService service = mock(FullTextProbeService.class);
-    when(service.probeFeed(any(), any(), any(), any())).thenReturn(outcome);
+    when(service.probeFeed(any(), any(), any(), any(), any())).thenReturn(outcome);
     return service;
   }
 

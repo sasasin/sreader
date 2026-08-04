@@ -10,10 +10,17 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import net.sasasin.sreader.domain.FullTextMethod;
+import net.sasasin.sreader.service.autopagerize.PaginationStopReason;
+import net.sasasin.sreader.service.extraction.ExtractionDecision;
+import net.sasasin.sreader.service.extraction.ExtractionSource;
+import net.sasasin.sreader.service.extraction.PaginationMetadata;
+import net.sasasin.sreader.service.extraction.PaginationPageTrace;
 import net.sasasin.sreader.service.probe.FullTextProbeService;
 import net.sasasin.sreader.service.probe.ProbeDocument;
+import net.sasasin.sreader.service.probe.ProbeOutcome;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
@@ -33,46 +40,101 @@ class ProbeOutputWriterTest {
   }
 
   @Test
-  void writesVerboseDiagnosticsUsingOriginalTextLengthAndOptionalTitle() {
+  void writesVerboseDiagnosticsWithMethodAndSource() {
     Harness titled = harness();
     assertThat(
-            titled.writer.writeSucceeded(document(Optional.of("Title")), "abcdef", true, null, 3))
+            titled.writer.writeSucceeded(succeeded(Optional.of("Title"), "abcdef"), true, null, 3))
         .isZero();
     assertThat(titled.stderr())
-        .contains("inputUrl=https://example.com/input", "finalUrl=https://example.com/final")
-        .contains("method=http", "title=Title", "textLength=6");
+        .contains("method:", "http")
+        .contains("input URL:", "https://example.com/input")
+        .contains("first final URL:", "https://example.com/final")
+        .contains("extractor source:", "body_text")
+        .contains("title:", "Title");
     assertThat(titled.stdout()).isEqualTo("abc");
 
     Harness untitled = harness();
-    untitled.writer.writeSucceeded(document(Optional.empty()), "x", true, null, null);
-    assertThat(untitled.stderr()).doesNotContain("title=").contains("textLength=1");
+    untitled.writer.writeSucceeded(succeeded(Optional.empty(), "x"), true, null, null);
+    assertThat(untitled.stderr()).doesNotContain("title:").contains("extractor source:");
   }
 
   @Test
-  void writesNoContentDiagnosticsWithZeroLength() {
+  void writesVerboseAutopagerizePageTrace() {
+    PaginationMetadata meta =
+        new PaginationMetadata(
+            9L,
+            "a".repeat(64),
+            1,
+            true,
+            Optional.of(3),
+            Optional.of("Example"),
+            Optional.of("^https://example\\.com/"),
+            Optional.of("//a[@rel='next']"),
+            Optional.of("//div[@class='body']"),
+            2,
+            PaginationStopReason.NO_NEXT_LINK,
+            true,
+            List.of(
+                new PaginationPageTrace(
+                    1,
+                    URI.create("https://example.com/1"),
+                    URI.create("https://example.com/1"),
+                    10),
+                new PaginationPageTrace(
+                    2,
+                    URI.create("https://example.com/2"),
+                    URI.create("https://example.com/2"),
+                    20)),
+            Optional.empty(),
+            List.of());
+    ProbeOutcome.Succeeded outcome =
+        new ProbeOutcome.Succeeded(
+            document(Optional.of("Title")),
+            "page one\n\npage two",
+            ExtractionDecision.of(ExtractionSource.PAGE_ELEMENT),
+            Optional.of(meta));
     Harness harness = harness();
-    harness.writer.writeNoContentDiagnostics(document(Optional.of("Title")));
-    assertThat(harness.stderr()).contains("textLength=0", "title=Title");
+    harness.writer.writeSucceeded(outcome, true, null, null);
+    assertThat(harness.stderr())
+        .contains("AutoPagerize dataset:")
+        .contains("id: 9")
+        .contains("explicit")
+        .contains("Matched rule:")
+        .contains("ordinal: 3")
+        .contains("Pages:")
+        .contains("requested=https://example.com/1")
+        .contains("Pagination:")
+        .contains("stop reason: NO_NEXT_LINK")
+        .contains("complete: true");
+    assertThat(harness.stdout()).isEqualTo("page one\n\npage two");
+  }
+
+  @Test
+  void writesNoContentDiagnostics() {
+    Harness harness = harness();
+    harness.writer.writeNoContentDiagnostics(document(Optional.of("Title")), Optional.empty());
+    assertThat(harness.stderr()).contains("title:", "Title").contains("method:");
     assertThat(harness.stdout()).isEmpty();
   }
 
   @Test
-  void writesUtf8FileAcknowledgesOutputAndWrapsIoException() throws Exception {
+  void writesUtf8FileAcknowledgesOnStderrAndWrapsIoException() throws Exception {
     Path output = tempDir.resolve("text.txt");
     Harness success = harness();
     assertThat(
             success.writer.writeSucceeded(
-                document(Optional.of("Title")), "こんにちは", false, output.toString(), null))
+                succeeded(Optional.of("Title"), "こんにちは"), false, output.toString(), null))
         .isZero();
     assertThat(Files.readString(output, StandardCharsets.UTF_8)).isEqualTo("こんにちは");
-    assertThat(success.stdout())
+    assertThat(success.stderr())
         .isEqualTo("Wrote probe output to " + output + System.lineSeparator());
+    assertThat(success.stdout()).isEmpty();
 
     Harness failure = harness();
     assertThatThrownBy(
             () ->
                 failure.writer.writeSucceeded(
-                    document(Optional.of("Title")), "body", false, tempDir.toString(), null))
+                    succeeded(Optional.of("Title"), "body"), false, tempDir.toString(), null))
         .isInstanceOf(RuntimeException.class)
         .hasMessage("Failed to write --output file: " + tempDir)
         .hasCauseInstanceOf(java.io.IOException.class);
@@ -82,10 +144,15 @@ class ProbeOutputWriterTest {
     Harness harness = harness();
     assertThat(
             harness.writer.writeSucceeded(
-                document(Optional.of("Title")), text, false, null, maxChars))
+                succeeded(Optional.of("Title"), text), false, null, maxChars))
         .isZero();
     assertThat(harness.stdout()).isEqualTo(expected);
     assertThat(harness.stderr()).isEmpty();
+  }
+
+  private ProbeOutcome.Succeeded succeeded(Optional<String> title, String text) {
+    return new ProbeOutcome.Succeeded(
+        document(title), text, ExtractionDecision.of(ExtractionSource.BODY_TEXT), Optional.empty());
   }
 
   private ProbeDocument document(Optional<String> title) {
