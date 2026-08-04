@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Validate Docker Compose config
-        run: docker compose config
+        run: docker compose -f docker-compose.yml -f docker-compose.agent.yml config
 
       - name: Start PostgreSQL
         shell: bash
@@ -52,7 +52,20 @@ jobs:
         run: docker compose run --rm flyway migrate
 
       - name: Maven verify through Docker Compose
-        run: docker compose run --rm maven mvn -B -V clean verify
+        run: docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven mvn -B -V clean verify
+
+      - name: Export Maven reports from Linux named volume
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p app/target
+          docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven sh -c '
+            if [ -d /workspace/app/target ]; then
+              cp -a /workspace/app/target/. /agent-reports/
+            fi
+          '
 
       - name: Upload test and coverage reports
         id: reports

@@ -6,6 +6,7 @@ services:
     volumes:
       - agent-workspace:/workspace
       - .:/source:ro
+      - ./app/target:/agent-reports
       - ./scripts/agent-maven-entrypoint.sh:/usr/local/bin/agent-maven-entrypoint.sh:ro
 
 volumes:
