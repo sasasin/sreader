@@ -61,7 +61,7 @@ jobs:
           set -euo pipefail
 
           mkdir -p app/target
-          docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven sh -c '
+          docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm --entrypoint sh maven -c '
             if [ -d /workspace/app/target ]; then
               cp -a /workspace/app/target/. /agent-reports/
             fi
