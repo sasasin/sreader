@@ -1,7 +1,6 @@
 package net.sasasin.sreader.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.file.Path;
@@ -37,11 +36,6 @@ class FeedReaderPropertiesBindingTest {
     values.put("sreader.playwright.viewport-height", "768");
     values.put("sreader.playwright.navigation-timeout", "30s");
     values.put("sreader.playwright.network-idle-timeout", "2500ms");
-    values.put("sreader.playwright.infy-extension-dir", "/tmp/extension");
-    values.put("sreader.playwright.infy-user-data-dir", "/tmp/profile");
-    values.put("sreader.playwright.infy-max-scrolls", "7");
-    values.put("sreader.playwright.infy-stable-rounds", "2");
-    values.put("sreader.playwright.infy-scroll-wait", "900ms");
     values.put("sreader.text-export.enabled", "true");
     values.put("sreader.text-export.output-dir", "/tmp/export");
     values.put("sreader.text-export.batch-size", "25");
@@ -68,11 +62,6 @@ class FeedReaderPropertiesBindingTest {
     assertEquals(768, properties.playwright().viewportHeight());
     assertEquals(Duration.ofSeconds(30), properties.playwright().navigationTimeout());
     assertEquals(Duration.ofMillis(2500), properties.playwright().networkIdleTimeout());
-    assertEquals(Path.of("/tmp/extension"), properties.playwright().infyExtensionDir());
-    assertEquals(Path.of("/tmp/profile"), properties.playwright().infyUserDataDir());
-    assertEquals(7, properties.playwright().infyMaxScrolls());
-    assertEquals(2, properties.playwright().infyStableRounds());
-    assertEquals(Duration.ofMillis(900), properties.playwright().infyScrollWait());
     assertEquals(true, properties.textExport().enabled());
     assertEquals(Path.of("/tmp/export"), properties.textExport().outputDir());
     assertEquals(25, properties.textExport().batchSize());
@@ -93,9 +82,6 @@ class FeedReaderPropertiesBindingTest {
     values.put("sreader.playwright.viewport-height", "-1");
     values.put("sreader.playwright.navigation-timeout", "0s");
     values.put("sreader.playwright.network-idle-timeout", "-1ms");
-    values.put("sreader.playwright.infy-max-scrolls", "0");
-    values.put("sreader.playwright.infy-stable-rounds", "-1");
-    values.put("sreader.playwright.infy-scroll-wait", "0ms");
     values.put("sreader.text-export.batch-size", "0");
 
     BindException exception = assertThrows(BindException.class, () -> bind(values));
@@ -115,19 +101,19 @@ class FeedReaderPropertiesBindingTest {
   }
 
   @Test
-  void bindingConvertsEmptyOptionalInfyPathToNull() {
+  void bindingIgnoresUnknownInfyProperties() {
     FeedReaderProperties properties =
         bind(
             Map.of(
                 "sreader.playwright.enabled",
                 "false",
                 "sreader.playwright.infy-extension-dir",
-                "",
+                "/tmp/extension",
                 "sreader.playwright.infy-user-data-dir",
-                ""));
+                "/tmp/profile"));
 
-    assertNull(properties.playwright().infyExtensionDir());
-    assertNull(properties.playwright().infyUserDataDir());
+    assertEquals(false, properties.playwright().enabled());
+    assertEquals(1280, properties.playwright().viewportWidth());
   }
 
   @Test

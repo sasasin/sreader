@@ -487,17 +487,7 @@ class PersistenceDiagnosticsCoverageTest {
         new FeedReaderProperties.Job(false),
         new FeedReaderProperties.Http("test", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
         new FeedReaderProperties.Playwright(
-            true,
-            true,
-            1280,
-            1600,
-            Duration.ofSeconds(1),
-            Duration.ofSeconds(1),
-            null,
-            null,
-            1,
-            1,
-            Duration.ofMillis(1)),
+            true, true, 1280, 1600, Duration.ofSeconds(1), Duration.ofSeconds(1)),
         null,
         new FeedReaderProperties.Autopagerize(
             20, 5L * 1024 * 1024, 20L * 1024 * 1024, Duration.ofSeconds(30), true),

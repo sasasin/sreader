@@ -268,17 +268,7 @@ class PlaywrightArticlePageSessionTest {
   private Fixture fixture() {
     FeedReaderProperties.Playwright settings =
         new FeedReaderProperties.Playwright(
-            true,
-            true,
-            800,
-            600,
-            Duration.ofSeconds(3),
-            Duration.ofSeconds(2),
-            null,
-            null,
-            2,
-            2,
-            Duration.ofMillis(10));
+            true, true, 800, 600, Duration.ofSeconds(3), Duration.ofSeconds(2));
     PlaywrightRuntime runtime = mock(PlaywrightRuntime.class);
     Browser browser = mock(Browser.class);
     BrowserContext context = mock(BrowserContext.class);

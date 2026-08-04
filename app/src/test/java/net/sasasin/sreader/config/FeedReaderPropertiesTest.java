@@ -18,7 +18,7 @@ class FeedReaderPropertiesTest {
     assertThat(properties.http().userAgent()).isEqualTo("SReader/0.1");
     assertThat(properties.http().connectTimeout()).isEqualTo(Duration.ofSeconds(5));
     assertThat(properties.playwright().viewportWidth()).isEqualTo(1280);
-    assertThat(properties.playwright().infyScrollWait()).isEqualTo(Duration.ofMillis(2700));
+    assertThat(properties.playwright().networkIdleTimeout()).isEqualTo(Duration.ofSeconds(5));
     assertThat(properties.textExport().outputDir())
         .isEqualTo(Path.of("/var/lib/sreader/content-text"));
     assertThat(properties.autopagerize().maxPages()).isEqualTo(20);
@@ -31,13 +31,18 @@ class FeedReaderPropertiesTest {
   @Test
   void nullNestedValuesUseDefaultsWhileValidValuesArePreserved() {
     FeedReaderProperties.Playwright playwright =
-        new FeedReaderProperties.Playwright(
-            null, null, null, null, null, null, null, null, null, null, null);
+        new FeedReaderProperties.Playwright(null, null, null, null, null, null);
 
     assertThat(playwright.enabled()).isFalse();
     assertThat(playwright.headless()).isTrue();
     assertThat(playwright.viewportHeight()).isEqualTo(1600);
     assertThat(new FeedReaderProperties.Http("Test/1.0", null, null, 0).retryCount()).isZero();
+    assertThat(new FeedReaderProperties.Job(null).runOnce()).isFalse();
+    FeedReaderProperties.TextExport textExport =
+        new FeedReaderProperties.TextExport(null, null, null);
+    assertThat(textExport.enabled()).isFalse();
+    assertThat(textExport.outputDir()).isEqualTo(Path.of("/var/lib/sreader/content-text"));
+    assertThat(textExport.batchSize()).isEqualTo(100);
   }
 
   @Test
@@ -47,17 +52,7 @@ class FeedReaderPropertiesTest {
     assertThatThrownBy(
             () ->
                 new FeedReaderProperties.Playwright(
-                    true,
-                    true,
-                    0,
-                    1,
-                    Duration.ofSeconds(1),
-                    Duration.ofSeconds(1),
-                    null,
-                    null,
-                    1,
-                    1,
-                    Duration.ofMillis(1)))
+                    true, true, 0, 1, Duration.ofSeconds(1), Duration.ofSeconds(1)))
         .hasMessage("sreader.playwright.viewport-width must be positive");
     assertThatThrownBy(
             () -> new FeedReaderProperties.Http(" ", Duration.ZERO, Duration.ofSeconds(1), -1))

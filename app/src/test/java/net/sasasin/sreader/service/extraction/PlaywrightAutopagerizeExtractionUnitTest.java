@@ -14,7 +14,6 @@ import java.util.Optional;
 import net.sasasin.sreader.config.FeedReaderProperties;
 import net.sasasin.sreader.domain.ContentHeader;
 import net.sasasin.sreader.domain.FullTextMethod;
-import net.sasasin.sreader.domain.FullTextMethod.PlaywrightMode;
 import net.sasasin.sreader.repository.ContentHeaderRepository;
 import net.sasasin.sreader.service.autopagerize.ArticlePageSession;
 import net.sasasin.sreader.service.autopagerize.AutoPagerizeCatalogException;
@@ -340,7 +339,7 @@ class PlaywrightAutopagerizeExtractionUnitTest {
   @Test
   void existingStandardPlaywrightStillUsesRender() {
     PlaywrightHtmlSource playwright = mock(PlaywrightHtmlSource.class);
-    when(playwright.render(any(), any())).thenReturn("<html><body>solo</body></html>");
+    when(playwright.render(any())).thenReturn("<html><body>solo</body></html>");
     HtmlTextExtractor extractor = mock(HtmlTextExtractor.class);
     when(extractor.extract(any(), any(), any()))
         .thenReturn(
@@ -364,7 +363,7 @@ class PlaywrightAutopagerizeExtractionUnitTest {
             service.extract(header("https://example.test/a"), FullTextMethod.PLAYWRIGHT);
 
     assertThat(extracted.text()).isEqualTo("solo");
-    verify(playwright).render(URI.create("https://example.test/a"), PlaywrightMode.STANDARD);
+    verify(playwright).render(URI.create("https://example.test/a"));
     verify(playwright, never()).withStandardSession(any());
   }
 
@@ -482,17 +481,7 @@ class PlaywrightAutopagerizeExtractionUnitTest {
         null,
         new FeedReaderProperties.Http("t", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
         new FeedReaderProperties.Playwright(
-            playwrightEnabled,
-            true,
-            800,
-            600,
-            Duration.ofSeconds(3),
-            Duration.ofSeconds(2),
-            null,
-            null,
-            2,
-            2,
-            Duration.ofMillis(10)),
+            playwrightEnabled, true, 800, 600, Duration.ofSeconds(3), Duration.ofSeconds(2)),
         null,
         new FeedReaderProperties.Autopagerize(
             20, 5L * 1024 * 1024, 20L * 1024 * 1024, Duration.ofSeconds(30), true),

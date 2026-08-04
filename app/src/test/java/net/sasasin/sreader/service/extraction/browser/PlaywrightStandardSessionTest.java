@@ -92,8 +92,7 @@ class PlaywrightStandardSessionTest {
         new PlaywrightHtmlSource(
             properties(false),
             mock(PlaywrightResourceLifecycle.class),
-            mock(StandardPlaywrightPageRenderer.class),
-            mock(InfyScrollPageRenderer.class));
+            mock(StandardPlaywrightPageRenderer.class));
 
     assertThatIllegalStateException()
         .isThrownBy(() -> source.withStandardSession(session -> "x"))
@@ -164,10 +163,7 @@ class PlaywrightStandardSessionTest {
 
     PlaywrightHtmlSource source =
         new PlaywrightHtmlSource(
-            properties(true),
-            mock(PlaywrightResourceLifecycle.class),
-            standard,
-            mock(InfyScrollPageRenderer.class));
+            properties(true), mock(PlaywrightResourceLifecycle.class), standard);
 
     ExecutorService executor = Executors.newFixedThreadPool(2);
     try {
@@ -178,9 +174,7 @@ class PlaywrightStandardSessionTest {
           executor.submit(
               () -> {
                 renderRequested.countDown();
-                return source.renderPage(
-                    URI.create("https://example.test/"),
-                    net.sasasin.sreader.domain.FullTextMethod.PlaywrightMode.STANDARD);
+                return source.renderPage(URI.create("https://example.test/"));
               });
       assertThat(renderRequested.await(5, TimeUnit.SECONDS)).isTrue();
       assertThat(renderEntered.await(100, TimeUnit.MILLISECONDS)).isFalse();
@@ -232,17 +226,7 @@ class PlaywrightStandardSessionTest {
 
   private static FeedReaderProperties.Playwright settings(boolean enabled) {
     return new FeedReaderProperties.Playwright(
-        enabled,
-        true,
-        800,
-        600,
-        Duration.ofSeconds(3),
-        Duration.ofSeconds(2),
-        null,
-        null,
-        2,
-        2,
-        Duration.ofMillis(10));
+        enabled, true, 800, 600, Duration.ofSeconds(3), Duration.ofSeconds(2));
   }
 
   private Fixture fixture() {
@@ -259,10 +243,7 @@ class PlaywrightStandardSessionTest {
         new StandardPlaywrightPageRenderer(playwrightSettings, runtime, navigator);
     PlaywrightHtmlSource source =
         new PlaywrightHtmlSource(
-            properties(true),
-            mock(PlaywrightResourceLifecycle.class),
-            standard,
-            mock(InfyScrollPageRenderer.class));
+            properties(true), mock(PlaywrightResourceLifecycle.class), standard);
     return new Fixture(source, browser, context, page);
   }
 
