@@ -40,17 +40,17 @@ public final class PaginationMetadataFactory {
       boolean explicitDatasetSelection) {
     Objects.requireNonNull(failed, "failed must not be null");
     Objects.requireNonNull(snapshot, "snapshot must not be null");
-    Optional<URI> failedRequested =
-        failed.failure().subject() == null || failed.failure().subject().isBlank()
-            ? Optional.empty()
-            : tryUri(failed.failure().subject());
+    List<PageSlice> completedPages = failed.completedPages();
+    if (completedPages.isEmpty() && failed.firstPage().isPresent()) {
+      completedPages = List.of(PageSlice.withoutPageElement(1, failed.firstPage().get()));
+    }
     return build(
         snapshot,
         failed.matchedRule(),
-        failed.completedPages(),
+        completedPages,
         failed.stopReason(),
         false,
-        failedRequested,
+        failed.failedRequestedUri(),
         List.of(),
         explicitDatasetSelection);
   }
@@ -88,13 +88,5 @@ public final class PaginationMetadataFactory {
         traces,
         failedRequestedUrl,
         contributions);
-  }
-
-  private static Optional<URI> tryUri(String value) {
-    try {
-      return Optional.of(URI.create(value));
-    } catch (IllegalArgumentException e) {
-      return Optional.empty();
-    }
   }
 }

@@ -210,7 +210,7 @@ class PersistenceDiagnosticsCoverageTest {
   }
 
   @Test
-  void paginationMetadataFactoryFromFailedUsesSubjectWhenUriLike() {
+  void paginationMetadataFactoryFromFailedUsesExplicitRequestedUriAndFirstPageTrace() {
     AutoPagerizeRuleSnapshot snapshot =
         new AutoPagerizeRuleSnapshot(3L, "b".repeat(64), 1, List.of());
     PageSnapshot first =
@@ -223,12 +223,14 @@ class PersistenceDiagnosticsCoverageTest {
             List.of(PageSlice.withoutPageElement(1, first)),
             PaginationStopReason.FETCH_FAILED,
             OperationFailure.of(
-                FailureStage.FETCH_ARTICLE_PAGE, FailureKind.IO, "https://example.test/2", "boom"));
+                FailureStage.FETCH_ARTICLE_PAGE, FailureKind.IO, "https://example.test/1", "boom"),
+            Optional.of(URI.create("https://example.test/2")));
     PaginationMetadata meta = PaginationMetadataFactory.fromFailed(failed, snapshot, true);
     assertThat(meta.complete()).isFalse();
     assertThat(meta.explicitDatasetSelection()).isTrue();
     assertThat(meta.pageCount()).isEqualTo(1);
     assertThat(meta.failedRequestedUrl()).contains(URI.create("https://example.test/2"));
+    assertThat(meta.pages()).hasSize(1);
 
     PaginationResult.Failed badSubject =
         new PaginationResult.Failed(
@@ -240,6 +242,22 @@ class PersistenceDiagnosticsCoverageTest {
                 FailureStage.FETCH_ARTICLE_PAGE, FailureKind.IO, "not a uri ://", "boom"));
     PaginationMetadata meta2 = PaginationMetadataFactory.fromFailed(badSubject, snapshot, false);
     assertThat(meta2.failedRequestedUrl()).isEmpty();
+
+    PaginationResult.Failed firstPageOnly =
+        new PaginationResult.Failed(
+            Optional.of(first),
+            Optional.empty(),
+            List.of(),
+            PaginationStopReason.TIMEOUT,
+            OperationFailure.of(
+                FailureStage.FETCH_ARTICLE_PAGE,
+                FailureKind.IO,
+                "https://example.test/1",
+                "timeout"));
+    PaginationMetadata firstPageMeta =
+        PaginationMetadataFactory.fromFailed(firstPageOnly, snapshot, false);
+    assertThat(firstPageMeta.pageCount()).isEqualTo(1);
+    assertThat(firstPageMeta.lastPageFinalUrl()).contains(URI.create("https://example.test/1"));
   }
 
   @Test

@@ -82,7 +82,8 @@ public class AutoPagerizeEngine {
               FailureStage.FETCH_ARTICLE_PAGE,
               FailureKind.IO,
               firstPage.finalUri().toString(),
-              "Pagination timed out after loading the first page"));
+              "Pagination timed out after loading the first page"),
+          Optional.of(firstPage.requestedUri()));
     }
 
     long totalBytes = firstPage.byteSize();
@@ -93,7 +94,12 @@ public class AutoPagerizeEngine {
               ? PaginationStopReason.MAX_PAGE_BYTES
               : PaginationStopReason.MAX_TOTAL_BYTES;
       return new PaginationResult.Failed(
-          Optional.of(firstPage), Optional.empty(), List.of(), reason, sizeFailure.get());
+          Optional.of(firstPage),
+          Optional.empty(),
+          List.of(),
+          reason,
+          sizeFailure.get(),
+          Optional.of(firstPage.requestedUri()));
     }
 
     AutoPagerizeRuleMatchResult matchResult =
@@ -258,6 +264,7 @@ public class AutoPagerizeEngine {
             firstPage,
             rule,
             pages,
+            next,
             PaginationStopReason.TIMEOUT,
             FailureKind.IO,
             "Pagination timed out before loading page " + (pageNumber + 1));
@@ -267,6 +274,7 @@ public class AutoPagerizeEngine {
             firstPage,
             rule,
             pages,
+            next,
             PaginationStopReason.INTERRUPTED,
             FailureKind.INTERRUPTED,
             "Pagination interrupted before loading page " + (pageNumber + 1));
@@ -282,6 +290,7 @@ public class AutoPagerizeEngine {
               firstPage,
               rule,
               pages,
+              next,
               PaginationStopReason.INTERRUPTED,
               FailureKind.INTERRUPTED,
               "Pagination interrupted while loading page " + (pageNumber + 1),
@@ -291,6 +300,7 @@ public class AutoPagerizeEngine {
             firstPage,
             rule,
             pages,
+            next,
             PaginationStopReason.FETCH_FAILED,
             e.kind(),
             "Failed to load page " + (pageNumber + 1) + ": " + message(e),
@@ -302,6 +312,7 @@ public class AutoPagerizeEngine {
             firstPage,
             rule,
             pages,
+            nextPage.requestedUri(),
             PaginationStopReason.TIMEOUT,
             FailureKind.IO,
             "Pagination timed out after loading page " + (pageNumber + 1));
@@ -315,7 +326,12 @@ public class AutoPagerizeEngine {
                 ? PaginationStopReason.MAX_PAGE_BYTES
                 : PaginationStopReason.MAX_TOTAL_BYTES;
         return new PaginationResult.Failed(
-            Optional.of(firstPage), Optional.of(rule), pages, reason, nextSizeFailure.get());
+            Optional.of(firstPage),
+            Optional.of(rule),
+            pages,
+            reason,
+            nextSizeFailure.get(),
+            Optional.of(nextPage.requestedUri()));
       }
 
       if (policy.sameOriginOnly()
@@ -440,7 +456,18 @@ public class AutoPagerizeEngine {
       PaginationStopReason reason,
       FailureKind kind,
       String message) {
-    return fail(firstPage, rule, pages, reason, kind, message, null);
+    return fail(firstPage, rule, pages, firstPage.finalUri(), reason, kind, message, null);
+  }
+
+  private static PaginationResult.Failed fail(
+      PageSnapshot firstPage,
+      CompiledAutoPagerizeRule rule,
+      List<PageSlice> pages,
+      URI failedRequestedUri,
+      PaginationStopReason reason,
+      FailureKind kind,
+      String message) {
+    return fail(firstPage, rule, pages, failedRequestedUri, reason, kind, message, null);
   }
 
   private static PaginationResult.Failed fail(
@@ -451,13 +478,30 @@ public class AutoPagerizeEngine {
       FailureKind kind,
       String message,
       Throwable cause) {
+    return fail(firstPage, rule, pages, firstPage.finalUri(), reason, kind, message, cause);
+  }
+
+  private static PaginationResult.Failed fail(
+      PageSnapshot firstPage,
+      CompiledAutoPagerizeRule rule,
+      List<PageSlice> pages,
+      URI failedRequestedUri,
+      PaginationStopReason reason,
+      FailureKind kind,
+      String message,
+      Throwable cause) {
     FailureStage stage = stageFor(reason);
     OperationFailure failure =
         cause == null
             ? OperationFailure.of(stage, kind, firstPage.finalUri().toString(), message)
             : OperationFailure.of(stage, kind, firstPage.finalUri().toString(), message, cause);
     return new PaginationResult.Failed(
-        Optional.of(firstPage), Optional.of(rule), pages, reason, failure);
+        Optional.of(firstPage),
+        Optional.of(rule),
+        pages,
+        reason,
+        failure,
+        Optional.of(failedRequestedUri));
   }
 
   private static FailureStage stageFor(PaginationStopReason reason) {

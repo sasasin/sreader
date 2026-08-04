@@ -1,5 +1,6 @@
 package net.sasasin.sreader.service.autopagerize;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -62,8 +63,19 @@ public sealed interface PaginationResult
       Optional<CompiledAutoPagerizeRule> matchedRule,
       List<PageSlice> completedPages,
       PaginationStopReason stopReason,
-      OperationFailure failure)
+      OperationFailure failure,
+      Optional<URI> failedRequestedUri)
       implements PaginationResult {
+
+    public Failed(
+        Optional<PageSnapshot> firstPage,
+        Optional<CompiledAutoPagerizeRule> matchedRule,
+        List<PageSlice> completedPages,
+        PaginationStopReason stopReason,
+        OperationFailure failure) {
+      this(
+          firstPage, matchedRule, completedPages, stopReason, failure, parseUri(failure.subject()));
+    }
 
     public Failed {
       Objects.requireNonNull(firstPage, "firstPage must not be null");
@@ -71,11 +83,23 @@ public sealed interface PaginationResult
       Objects.requireNonNull(completedPages, "completedPages must not be null");
       Objects.requireNonNull(stopReason, "stopReason must not be null");
       Objects.requireNonNull(failure, "failure must not be null");
+      Objects.requireNonNull(failedRequestedUri, "failedRequestedUri must not be null");
       if (stopReason.isSuccess()) {
         throw new IllegalArgumentException(
             "Failed stopReason must not be a success reason: " + stopReason);
       }
       completedPages = List.copyOf(completedPages);
+    }
+
+    private static Optional<URI> parseUri(String value) {
+      if (value == null || value.isBlank()) {
+        return Optional.empty();
+      }
+      try {
+        return Optional.of(URI.create(value));
+      } catch (IllegalArgumentException e) {
+        return Optional.empty();
+      }
     }
 
     @Override

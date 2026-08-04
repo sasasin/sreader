@@ -22,12 +22,18 @@ import net.sasasin.sreader.domain.PendingFullTextTarget;
 import net.sasasin.sreader.repository.ContentHeaderRepository;
 import net.sasasin.sreader.service.autopagerize.AutoPagerizeEngine;
 import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleCatalog;
+import net.sasasin.sreader.service.autopagerize.AutoPagerizeRuleSnapshot;
+import net.sasasin.sreader.service.autopagerize.PageSlice;
+import net.sasasin.sreader.service.autopagerize.PageSnapshot;
+import net.sasasin.sreader.service.autopagerize.PaginationResult;
+import net.sasasin.sreader.service.autopagerize.PaginationStopReason;
 import net.sasasin.sreader.service.extraction.browser.PlaywrightHtmlSource;
 import net.sasasin.sreader.service.http.HttpArticlePageSessionFactory;
 import net.sasasin.sreader.service.http.HttpFetchService;
 import net.sasasin.sreader.service.outcome.BatchStopReason;
 import net.sasasin.sreader.service.outcome.FailureKind;
 import net.sasasin.sreader.service.outcome.FailureStage;
+import net.sasasin.sreader.service.outcome.OperationFailure;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -175,6 +181,57 @@ class FullTextExtractionServiceTest {
                 .extract(header, FullTextMethod.HTTP);
     assertThat(failed.failure().kind()).isEqualTo(FailureKind.INTERRUPTED);
     assertThat(Thread.currentThread().isInterrupted()).isTrue();
+  }
+
+  @Test
+  void paginatedTextFailureRetainsPaginationMetadata() {
+    PaginatedHtmlTextExtractor paginated = mock(PaginatedHtmlTextExtractor.class);
+    PageSnapshot first =
+        PageSnapshot.ofUtf8(
+            URI.create("https://example.test/1"),
+            URI.create("https://example.test/1"),
+            "<html><body>page</body></html>");
+    PaginationResult.Succeeded pagination =
+        new PaginationResult.Succeeded(
+            first,
+            Optional.empty(),
+            List.of(PageSlice.withoutPageElement(1, first)),
+            PaginationStopReason.NO_MATCHING_RULE);
+    when(paginated.extract(any(), any(), any()))
+        .thenReturn(
+            new PaginatedExtractionResult(
+                new TextExtractionOutcome.Failed(
+                    OperationFailure.of(
+                        FailureStage.EXTRACT_TEXT,
+                        FailureKind.EXTRACTION,
+                        "https://example.test/1",
+                        "xpath failed")),
+                List.of()));
+
+    FullTextExtractionService service =
+        new FullTextExtractionService(
+            mock(ContentHeaderRepository.class),
+            mock(ContentFullTextWriter.class),
+            mock(HtmlTextExtractor.class),
+            paginated,
+            mock(HttpFetchService.class),
+            mock(HttpArticlePageSessionFactory.class),
+            mock(AutoPagerizeRuleCatalog.class),
+            mock(AutoPagerizeEngine.class),
+            mock(PlaywrightHtmlSource.class),
+            properties(true));
+
+    TextExtractionOutcome.Failed failed =
+        (TextExtractionOutcome.Failed)
+            service.toPaginationTextOutcome(
+                pagination,
+                new AutoPagerizeRuleSnapshot(7L, "a".repeat(64), 1, List.of()),
+                FullTextMethod.HtmlExtractor.XPATH_OR_BODY_TEXT,
+                Optional.empty(),
+                false);
+
+    assertThat(failed.pagination()).isPresent();
+    assertThat(failed.pagination().orElseThrow().pageCount()).isEqualTo(1);
   }
 
   @Test

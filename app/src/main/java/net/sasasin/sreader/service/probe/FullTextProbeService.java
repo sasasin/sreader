@@ -282,9 +282,10 @@ public class FullTextProbeService {
               switch (result.outcome()) {
                 case TextExtractionOutcome.Extracted extracted ->
                     extracted.withPagination(metadata).withExtractedUrl(firstFinalUrl);
-                case TextExtractionOutcome.NoContent noContent -> noContent;
+                case TextExtractionOutcome.NoContent noContent ->
+                    noContent.withPagination(metadata);
                 case TextExtractionOutcome.Skipped skipped -> skipped;
-                case TextExtractionOutcome.Failed failed -> failed;
+                case TextExtractionOutcome.Failed failed -> failed.withPagination(metadata);
               };
         } catch (RuntimeException e) {
           extraction =
@@ -313,7 +314,7 @@ public class FullTextProbeService {
           new ProbeOutcome.Succeeded(
               document, extracted.text(), extracted.decision(), extracted.pagination());
       case TextExtractionOutcome.NoContent noContent ->
-          new ProbeOutcome.NoContent(document, noContent.reason(), Optional.empty());
+          new ProbeOutcome.NoContent(document, noContent.reason(), noContent.pagination());
       case TextExtractionOutcome.Skipped skipped ->
           new ProbeOutcome.Skipped(
               ProbeSkipReason.PLAYWRIGHT_DISABLED,

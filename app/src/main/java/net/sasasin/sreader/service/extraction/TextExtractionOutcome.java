@@ -50,11 +50,22 @@ public sealed interface TextExtractionOutcome
     }
   }
 
-  record NoContent(NoContentReason reason, ExtractionDecision decision)
+  record NoContent(
+      NoContentReason reason, ExtractionDecision decision, Optional<PaginationMetadata> pagination)
       implements TextExtractionOutcome {
+
+    public NoContent(NoContentReason reason, ExtractionDecision decision) {
+      this(reason, decision, Optional.empty());
+    }
+
     public NoContent {
       Objects.requireNonNull(reason, "reason must not be null");
       Objects.requireNonNull(decision, "decision must not be null");
+      Objects.requireNonNull(pagination, "pagination must not be null");
+    }
+
+    public NoContent withPagination(PaginationMetadata metadata) {
+      return new NoContent(reason, decision, Optional.of(metadata));
     }
   }
 

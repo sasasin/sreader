@@ -440,9 +440,9 @@ public class FullTextExtractionService {
     return switch (result.outcome()) {
       case TextExtractionOutcome.Extracted extracted ->
           extracted.withPagination(metadata).withExtractedUrl(firstFinalUrl);
-      case TextExtractionOutcome.NoContent noContent -> noContent;
+      case TextExtractionOutcome.NoContent noContent -> noContent.withPagination(metadata);
       case TextExtractionOutcome.Skipped skipped -> skipped;
-      case TextExtractionOutcome.Failed failed -> failed;
+      case TextExtractionOutcome.Failed failed -> failed.withPagination(metadata);
     };
   }
 
