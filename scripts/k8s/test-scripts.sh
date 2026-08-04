@@ -44,6 +44,11 @@ fetch_release_versions() {
 
   while true; do
     curl -fsSL \
+      --http1.1 \
+      --retry 5 \
+      --retry-all-errors \
+      --retry-delay 2 \
+      --retry-max-time 120 \
       -D "$response_headers" \
       -o "$response_json" \
       "${curl_headers[@]}" \
