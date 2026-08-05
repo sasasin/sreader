@@ -3,6 +3,13 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>4.1.0</version>
+		<relativePath/>
+	</parent>
+
 	<groupId>net.sasasin.sreader</groupId>
 	<artifactId>sreader-parent</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
@@ -15,11 +22,9 @@
 	</modules>
 
 	<properties>
+		<!-- Override Spring Boot parent default (17) for this project. -->
 		<java.version>25</java.version>
-		<maven.compiler.release>25</maven.compiler.release>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<spring-boot.version>4.1.0</spring-boot.version>
+		<!-- Keep intentional pins that differ from Spring Boot BOM defaults. -->
 		<jooq.version>3.21.6</jooq.version>
 		<postgresql.version>42.7.13</postgresql.version>
 		<rome.version>2.1.0</rome.version>
@@ -35,39 +40,17 @@
 		<tomlj.version>1.1.1</tomlj.version>
 	</properties>
 
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-dependencies</artifactId>
-				<version>${spring-boot.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 	<build>
 		<pluginManagement>
 			<plugins>
+				<!--
+				  flyway-maven-plugin is not in Spring Boot parent pluginManagement.
+				  Use ${flyway.version} from Spring Boot dependency management (do not redefine it).
+				-->
 				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.15.0</version>
-					<configuration>
-						<release>${maven.compiler.release}</release>
-						<encoding>${project.build.sourceEncoding}</encoding>
-					</configuration>
-				</plugin>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-surefire-plugin</artifactId>
-					<version>3.5.6</version>
-				</plugin>
-				<plugin>
-					<groupId>org.springframework.boot</groupId>
-					<artifactId>spring-boot-maven-plugin</artifactId>
-					<version>${spring-boot.version}</version>
+					<groupId>org.flywaydb</groupId>
+					<artifactId>flyway-maven-plugin</artifactId>
+					<version>${flyway.version}</version>
 				</plugin>
 				<plugin>
 					<groupId>org.jooq</groupId>
