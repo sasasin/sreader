@@ -11,7 +11,7 @@ SReader は、公開 RSS/Atom feed を取得し、記事 URL/タイトルと本�
 - `app/src/generated/java/`: Git-managed jOOQ generated sources
 - `db/migration/`: Flyway migration。fresh development DB 前提で
   `feed_url`、`content_header`、`content_full_text`、`eft_rules` だけを作成
-- `docker-compose.yml`: `postgres`、`flyway`、`maven`、`app`
+- `docker-compose.yml`: `postgres`、`maven`、`app`
 - `k8s/`: Kubernetes manifests (Kustomize base/overlays)。詳細は [k8s/README.md](k8s/README.md)
 
 build/runtime path は `app/` module を対象にします。
@@ -23,7 +23,7 @@ Docker Compose 経由で操作可能です。ホスト OS に Java / Maven / Pos
 ```sh
 docker compose config
 docker compose down -v
-docker compose up -d postgres
+docker compose up -d --wait postgres
 docker compose ps
 docker compose exec postgres psql -U sreader -d sreader -c "SELECT version();"
 ```
@@ -32,30 +32,55 @@ docker compose exec postgres psql -U sreader -d sreader -c "SELECT version();"
 
 ## Flyway
 
+Flyway のバージョンは Spring Boot Parent が管理します。実行経路は次の 2 つです。
+
+1. **開発 / CI（jOOQ 生成用）**: Maven Flyway Plugin（`generate-jooq` profile）
+2. **利用環境（runtime）**: Spring Boot 組み込み Flyway（app 起動時）
+
+独立した Flyway コンテナは使いません。
+
+開発用 DB への migration 状態確認:
+
 ```sh
-docker compose run --rm flyway info
-docker compose run --rm flyway migrate
-docker compose run --rm flyway info
+docker compose up -d --wait postgres
+docker compose run --rm maven \
+  mvn -Pgenerate-jooq -pl app -am flyway:info
 docker compose exec postgres psql -U sreader -d sreader -c "\dt"
 ```
 
-Spring Boot app 起動時にも Flyway auto migration が有効です。
+migration だけ適用する場合:
+
+```sh
+docker compose up -d --wait postgres
+docker compose run --rm maven \
+  mvn -Pgenerate-jooq -pl app -am flyway:migrate
+```
+
+Spring Boot app 起動時にも Flyway auto migration が有効です（`classpath:db/migration`）。Maven Flyway Plugin は jOOQ 生成用であり、runtime migration の代わりではありません。
 
 ## jOOQ generated sources policy
 
 jOOQ generated sources は Git 管理します。通常の app 実装変更では generated sources を再生成・手編集しないでください。
 
-`db/migration/*.sql` を変更した場合:
+`db/migration/*.sql` を変更した場合の標準フロー:
 
-1. build-time PostgreSQL を起動する
-2. Flyway migration を適用する
-3. `mvn -Pgenerate-jooq -pl app -am generate-sources` を実行する
-4. generated source の diff を同じ commit に含める
+1. `db/migration` に versioned migration を追加する
+2. `./scripts/generate-jooq.sh` を実行する（PostgreSQL 起動 → Flyway migrate → jOOQ generate）
+3. `app/src/generated/java` の差分を確認する
+4. migration、生成コード、手書きコードを同じ PR に含める
+5. CI が fresh DB で migration を再生し、生成コードの一致を検証する
 
-jOOQ の version または codegen 設定を変更した場合:
+同等の手動コマンド:
 
-1. `mvn -Pgenerate-jooq -pl app -am generate-sources` を実行する
-2. generated source の diff を確認して commit する
+```sh
+docker compose up -d --wait postgres
+docker compose run --rm maven \
+  mvn -B -Pgenerate-jooq -pl app -am generate-sources
+```
+
+jOOQ の version または codegen 設定を変更した場合も、同じ `generate-jooq` profile を実行して generated source の diff を確認・commit します。
+
+通常の `mvn clean verify` / `mvn package` では migration も jOOQ 生成も実行しません。
 
 generated sources の配置先は `app/src/generated/java/` です。
 
@@ -100,15 +125,7 @@ GitHub Actions の双方で `mvn clean verify` により実行されます。
 を参照してください。ゲート有効化直前の参考値は、BUNDLE 分岐カバレッジ
 622/667（93.25%）です。
 
-jOOQ sources を再生成する場合は、先に fresh DB へ Flyway migration を適用してください。
-
-```sh
-docker compose up -d postgres
-docker compose run --rm flyway migrate
-docker compose run --rm maven mvn -Pgenerate-jooq -pl app -am generate-sources
-```
-
-同等の手順は `scripts/generate-jooq.sh` でも実行できます。
+jOOQ sources を再生成する場合は `scripts/generate-jooq.sh`（または上記の `mvn -Pgenerate-jooq ... generate-sources`）を使います。`generate-jooq` profile は同一 Maven lifecycle 内で Flyway migrate の後に jOOQ Code Generator を実行します。
 
 `maven` service は jOOQ codegen 用に `SREADER_JOOQ_JDBC_*` 環境変数経由で `sreader` DB へ接続し、test 実行時は `sreadertest` DB に接続します。`docker/postgres/init/00-create-test-database.sql` が test DB/role を作成します。
 
