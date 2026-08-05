@@ -1,8 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended",
-    "workarounds:disableMavenParentRoot"
+    "config:recommended"
   ],
   "minimumReleaseAge": "3 days",
   "kubernetes": {
@@ -87,6 +86,13 @@
     }
   ],
   "packageRules": [
+    {
+      "description": "ローカルの親 POM は Maven リポジトリから検索しない",
+      "matchManagers": ["maven"],
+      "matchDepTypes": ["parent", "parent-root"],
+      "matchPackageNames": ["net.sasasin.sreader:sreader-parent"],
+      "enabled": false
+    },
     {
       "matchPackageNames": ["k3s-io/k3s"],
       "groupName": "K3s version (CI required)",
