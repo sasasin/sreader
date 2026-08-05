@@ -169,9 +169,11 @@ jobs:
           rm -rf "$output_dir"
           mkdir -p "$output_dir"
 
-          # SchemaSpy image runs as non-root user "java". Allow write only on the
-          # report directory (not the whole workspace).
-          chmod 777 "$output_dir"
+          # Bind mounts retain the runner's ownership. Run SchemaSpy with the
+          # runner UID/GID so the report directory stays least-privilege writable
+          # without broadening its mode to 777.
+          runner_uid="$(id -u)"
+          runner_gid="$(id -g)"
 
           echo "SchemaSpy image: schemaspy/schemaspy:${SCHEMASPY_VERSION}"
           echo "PostgreSQL target: 127.0.0.1:5432/sreader (schema: public)"
@@ -181,6 +183,7 @@ jobs:
           set +e
           docker run --rm \
             --network host \
+            --user "${runner_uid}:${runner_gid}" \
             --volume "${output_dir}:/output" \
             "schemaspy/schemaspy:${SCHEMASPY_VERSION}" \
             -t pgsql11 \
