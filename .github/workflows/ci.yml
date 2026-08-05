@@ -112,23 +112,38 @@ jobs:
           PGPASSWORD: sreader
         run: psql -h 127.0.0.1 -p 5432 -U sreader -d sreader -c "SELECT version();"
 
-      - name: Apply database migrations with Flyway
-        # Integration tests need the migrated schema in PostgreSQL.
-        run: >-
-          docker run --rm --network host
-          --volume "$GITHUB_WORKSPACE/db/migration:/flyway/migrations:ro"
-          --env FLYWAY_URL=jdbc:postgresql://127.0.0.1:5432/sreader
-          --env FLYWAY_USER=sreader
-          --env FLYWAY_PASSWORD=sreader
-          --env FLYWAY_LOCATIONS=filesystem:/flyway/migrations
-          redgate/flyway:13.1.0 migrate
-
       - name: Set up Java
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: '25'
           cache: maven
+
+      - name: Regenerate jOOQ sources
+        # Fresh PostgreSQL: Flyway migrate (initialize) then jOOQ generate (generate-sources).
+        env:
+          SREADER_JOOQ_JDBC_URL: jdbc:postgresql://127.0.0.1:5432/sreader
+          SREADER_JOOQ_JDBC_USERNAME: sreader
+          SREADER_JOOQ_JDBC_PASSWORD: sreader
+        run: >-
+          mvn -B
+          -Pgenerate-jooq
+          -pl app
+          -am
+          generate-sources
+
+      - name: Verify generated jOOQ sources are committed
+        # Detect modified, deleted, and untracked generated files.
+        run: |
+          set -euo pipefail
+          status="$(git status --porcelain -- app/src/generated/java)"
+          if [[ -n "$status" ]]; then
+            echo "::error::Generated jOOQ sources differ from the committed tree."
+            echo "$status"
+            git diff -- app/src/generated/java || true
+            git ls-files --others --exclude-standard -- app/src/generated/java || true
+            exit 1
+          fi
 
       - name: Maven verify on GitHub Actions runner
         env:

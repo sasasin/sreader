@@ -60,19 +60,6 @@ services:
       timeout: 5s
       retries: 12
 
-  flyway:
-    image: ${FLYWAY_IMAGE:-redgate/flyway:13.1.0}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - ./db/migration:/flyway/migrations:ro
-    environment:
-      FLYWAY_URL: "jdbc:postgresql://postgres:5432/${POSTGRES_DB:-sreader}"
-      FLYWAY_USER: ${POSTGRES_USER:-sreader}
-      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-sreader}
-      FLYWAY_LOCATIONS: filesystem:/flyway/migrations
-
 volumes:
   maven-repository:
   postgres-data:

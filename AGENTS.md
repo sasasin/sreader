@@ -33,7 +33,7 @@
 - `java`
 - `javac`
 - `psql`
-- Flyway
+- Flyway（Maven Flyway Plugin / `generate-jooq` profile）
 - jOOQ code generation
 
 ## Agent 向け高速 Maven Compose
@@ -83,7 +83,7 @@ docker compose config
 ```
 
 ```sh
-docker compose up -d postgres
+docker compose up -d --wait postgres
 ```
 
 ```sh
@@ -92,10 +92,6 @@ docker compose ps
 
 ```sh
 docker compose exec postgres psql -U sreader -d sreader -c "SELECT version();"
-```
-
-```sh
-docker compose run --rm flyway migrate
 ```
 
 ```sh
@@ -179,7 +175,7 @@ docker compose down -v
 その後、fresh DB で起動・migration・code generation・test を確認してください。
 
 ```sh
-docker compose up -d postgres
+docker compose up -d --wait postgres
 ```
 
 ```sh
@@ -187,18 +183,15 @@ docker compose exec postgres psql -U sreader -d sreader -c "SELECT version();"
 ```
 
 ```sh
-docker compose run --rm flyway migrate
-```
-
-```sh
-docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven mvn -Pgenerate-jooq -pl app -am generate-sources
+docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven \
+  mvn -B -Pgenerate-jooq -pl app -am generate-sources
 ```
 
 ```sh
 docker compose -f docker-compose.yml -f docker-compose.agent.yml run --rm maven mvn clean verify
 ```
 
-jOOQ generated sources は `app/src/generated/java/` に commit 済みです。通常 build では jOOQ code generation は実行されません。`db/migration/*.sql` または jOOQ codegen 設定を変更した場合のみ、上記 `generate-jooq` profile で再生成してください。
+jOOQ generated sources は `app/src/generated/java/` に commit 済みです。通常 build では jOOQ code generation も Flyway migrate も実行されません。`db/migration/*.sql` または jOOQ codegen 設定を変更した場合のみ、`generate-jooq` profile で再生成してください。この profile は同一 lifecycle 内で Flyway migrate（initialize）の後に jOOQ generate（generate-sources）を実行します。同等の手順は `scripts/generate-jooq.sh` でも実行できます。
 
 schema と Flyway 履歴を確認してください。
 

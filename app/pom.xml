@@ -179,24 +179,63 @@
 				</executions>
 			</plugin>
 			<plugin>
+				<!-- repackage execution is inherited from spring-boot-starter-parent -->
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>repackage</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 		</plugins>
 	</build>
 
 	<profiles>
+		<!--
+		  Explicit profile only: normal mvn clean verify / package must not migrate or regenerate.
+		  Lifecycle order with -Pgenerate-jooq generate-sources:
+		    initialize → flyway:migrate
+		    generate-sources → jooq-codegen:generate
+		-->
 		<profile>
 			<id>generate-jooq</id>
 			<build>
 				<plugins>
+					<plugin>
+						<groupId>org.flywaydb</groupId>
+						<artifactId>flyway-maven-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>flyway-migrate</id>
+								<phase>initialize</phase>
+								<goals>
+									<goal>migrate</goal>
+								</goals>
+							</execution>
+						</executions>
+						<dependencies>
+							<!--
+							  Plugin classpath is separate from app dependencies.
+							  Versions use Spring Boot managed properties (no project-local flyway.version).
+							-->
+							<dependency>
+								<groupId>org.flywaydb</groupId>
+								<artifactId>flyway-database-postgresql</artifactId>
+								<version>${flyway.version}</version>
+							</dependency>
+							<dependency>
+								<groupId>org.postgresql</groupId>
+								<artifactId>postgresql</artifactId>
+								<version>${postgresql.version}</version>
+							</dependency>
+						</dependencies>
+						<configuration>
+							<url>${env.SREADER_JOOQ_JDBC_URL}</url>
+							<user>${env.SREADER_JOOQ_JDBC_USERNAME}</user>
+							<password>${env.SREADER_JOOQ_JDBC_PASSWORD}</password>
+							<locations>
+								<location>filesystem:${maven.multiModuleProjectDirectory}/db/migration</location>
+							</locations>
+							<!-- Never auto-clean shared or production databases. -->
+							<cleanDisabled>true</cleanDisabled>
+						</configuration>
+					</plugin>
 					<plugin>
 						<groupId>org.jooq</groupId>
 						<artifactId>jooq-codegen-maven</artifactId>
@@ -241,3 +280,4 @@
 		</profile>
 	</profiles>
 </project>
+
