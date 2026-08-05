@@ -44,7 +44,7 @@ Flyway のバージョンは Spring Boot Parent が管理します。実行経�
 ```sh
 docker compose up -d --wait postgres
 docker compose run --rm maven \
-  mvn -Pgenerate-jooq -pl app -am flyway:info
+  mvn -Pgenerate-jooq -pl app flyway:info
 docker compose exec postgres psql -U sreader -d sreader -c "\dt"
 ```
 
@@ -53,8 +53,10 @@ migration だけ適用する場合:
 ```sh
 docker compose up -d --wait postgres
 docker compose run --rm maven \
-  mvn -Pgenerate-jooq -pl app -am flyway:migrate
+  mvn -Pgenerate-jooq -pl app flyway:migrate
 ```
+
+Flyway の goal を直接実行する場合は、親 POM でも goal が実行されないよう `-am` を付けません。jOOQ 生成の `generate-sources` では、通常どおり `-am` を付けて親 POM と app module をまとめて実行します。
 
 Spring Boot app 起動時にも Flyway auto migration が有効です（`classpath:db/migration`）。Maven Flyway Plugin は jOOQ 生成用であり、runtime migration の代わりではありません。
 
