@@ -18,6 +18,9 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    env:
+      # renovate: datasource=docker depName=schemaspy/schemaspy
+      SCHEMASPY_VERSION: 7.0.2
     services:
       postgres:
         image: postgres:18.4
@@ -156,19 +159,112 @@ jobs:
           SREADER_SCHEDULER_ENABLED: 'false'
         run: mvn -B -V clean verify
 
-      - name: Upload test and coverage reports
+      # SchemaSpy must run after mvn clean verify so its output under app/target is not deleted.
+      - name: Generate database schema documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          output_dir="${GITHUB_WORKSPACE}/app/target/site/schemaspy"
+          rm -rf "$output_dir"
+          mkdir -p "$output_dir"
+
+          # Bind mounts retain the runner's ownership. Run SchemaSpy with the
+          # runner UID/GID so the report directory stays least-privilege writable
+          # without broadening its mode to 777.
+          runner_uid="$(id -u)"
+          runner_gid="$(id -g)"
+
+          echo "SchemaSpy image: schemaspy/schemaspy:${SCHEMASPY_VERSION}"
+          echo "PostgreSQL target: 127.0.0.1:5432/sreader (schema: public)"
+          echo "Output directory: ${output_dir}"
+          echo "Options: -t pgsql11 -norows -noimplied -I flyway_schema_history -imageformat svg"
+
+          set +e
+          docker run --rm \
+            --network host \
+            --user "${runner_uid}:${runner_gid}" \
+            --volume "${output_dir}:/output" \
+            "schemaspy/schemaspy:${SCHEMASPY_VERSION}" \
+            -t pgsql11 \
+            -host 127.0.0.1 \
+            -port 5432 \
+            -db sreader \
+            -s public \
+            -u sreader \
+            -p sreader \
+            -norows \
+            -noimplied \
+            -I 'flyway_schema_history' \
+            -imageformat svg \
+            -desc "SReader database schema generated from ${GITHUB_SHA}"
+          schemaspy_exit=$?
+          set -e
+
+          echo "SchemaSpy command exit code: ${schemaspy_exit}"
+          echo "Generated file count: $(find "$output_dir" -type f | wc -l)"
+          echo "Generated files overview (first 50):"
+          find "$output_dir" -type f | sort | head -50 || true
+
+          if [[ "$schemaspy_exit" -ne 0 ]]; then
+            echo "::error::SchemaSpy failed with exit code ${schemaspy_exit}"
+            exit "$schemaspy_exit"
+          fi
+
+      - name: Validate SchemaSpy report
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          schema_dir="app/target/site/schemaspy"
+          index_file="${schema_dir}/index.html"
+
+          if [[ ! -s "$index_file" ]]; then
+            echo "::error file=${index_file}::SchemaSpy index.html is missing or empty"
+            exit 1
+          fi
+
+          # Prefer diagram SVGs (exclude font SVGs under bower/fonts).
+          if ! find "$schema_dir" -type f -path '*/diagrams/*' -name '*.svg' -size +0c -print -quit | grep -q .; then
+            echo "::error file=${schema_dir}::SchemaSpy SVG diagram was not generated"
+            exit 1
+          fi
+
+          if find "$schema_dir" -type l -print -quit | grep -q .; then
+            echo "::error file=${schema_dir}::SchemaSpy output must not contain symbolic links"
+            exit 1
+          fi
+
+          # SchemaSpy writes one HTML page per application table under tables/.
+          # Fail only when flyway_schema_history is emitted as a table page.
+          if [[ -e "${schema_dir}/tables/flyway_schema_history.html" ]]; then
+            echo "::error file=${schema_dir}/tables/flyway_schema_history.html::flyway_schema_history must be excluded from SchemaSpy report"
+            exit 1
+          fi
+
+          if find "${schema_dir}/tables" -type f -name 'flyway_schema_history*' -print -quit 2>/dev/null | grep -q .; then
+            echo "::error file=${schema_dir}/tables::flyway_schema_history must be excluded from SchemaSpy report"
+            exit 1
+          fi
+
+          echo "SchemaSpy report validation passed"
+          echo "SVG diagrams:"
+          find "$schema_dir" -type f -path '*/diagrams/*' -name '*.svg' -size +0c | sort
+
+      - name: Upload CI reports
         id: reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-and-coverage-${{ github.sha }}
+          name: ci-reports-${{ github.sha }}
           path: |
             app/target/site/jacoco/
+            app/target/site/schemaspy/
             app/target/surefire-reports/
           retention-days: 14
           if-no-files-found: warn
 
-      - name: Add coverage report to job summary
+      - name: Add CI reports to job summary
         if: always()
         shell: bash
         env:
@@ -177,6 +273,7 @@ jobs:
           set -uo pipefail
 
           csv="app/target/site/jacoco/jacoco.csv"
+          schema_index="app/target/site/schemaspy/index.html"
           summary="$GITHUB_STEP_SUMMARY"
           table_file=""
 
@@ -190,10 +287,12 @@ jobs:
           commit_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
 
           {
-            echo "## JaCoCo coverage"
+            echo "## CI reports"
             echo
             echo "- Commit: [\`${GITHUB_SHA}\`](${commit_url})"
             echo "- Ref: \`${GITHUB_REF_NAME}\`"
+            echo
+            echo "### JaCoCo coverage"
             echo
           } >> "$summary"
 
@@ -295,8 +394,18 @@ jobs:
 
           {
             echo
+            echo "### Database schema (SchemaSpy)"
+            echo
+            if [[ -s "$schema_index" ]]; then
+              echo "- SchemaSpy HTML report generated under \`app/target/site/schemaspy/\`"
+              svg_count="$(find app/target/site/schemaspy -type f -path '*/diagrams/*' -name '*.svg' -size +0c 2>/dev/null | wc -l | tr -d ' ')"
+              echo "- SVG diagrams: ${svg_count}"
+            else
+              echo "- SchemaSpy HTML report was not generated or is empty."
+            fi
+            echo
             if [[ -n "${ARTIFACT_URL:-}" ]]; then
-              echo "- [Download full JaCoCo and Surefire reports](${ARTIFACT_URL}) — retained for 14 days; GitHub sign-in required"
+              echo "- [Download CI reports (JaCoCo, SchemaSpy, Surefire)](${ARTIFACT_URL}) — retained for 14 days; GitHub sign-in required"
             else
               echo "- Full report artifact URL is unavailable. Check the artifact upload step."
             fi
@@ -337,30 +446,99 @@ jobs:
 
           docker logs --tail=200 sreader-app-ci
 
-      - name: Validate coverage site for GitHub Pages
+      - name: Assemble engineering reports site
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         shell: bash
         run: |
           set -euo pipefail
 
-          report_dir="app/target/site/jacoco"
-          index_file="${report_dir}/index.html"
+          pages_dir="target/pages"
+          jacoco_dir="app/target/site/jacoco"
+          schemaspy_dir="app/target/site/schemaspy"
+          commit_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
 
-          if [[ ! -s "$index_file" ]]; then
-            echo "::error file=${index_file}::JaCoCo HTML report is missing or empty"
+          rm -rf "$pages_dir"
+          mkdir -p "$pages_dir/coverage" "$pages_dir/schema"
+
+          cp -a "${jacoco_dir}/." "$pages_dir/coverage/"
+          cp -a "${schemaspy_dir}/." "$pages_dir/schema/"
+
+          cat > "$pages_dir/index.html" <<EOF
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>SReader Engineering Reports</title>
+          <style>
+          :root { color-scheme: light dark; }
+          body {
+            font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+            line-height: 1.5;
+            margin: 2rem auto;
+            max-width: 42rem;
+            padding: 0 1rem;
+          }
+          h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+          p.lead { color: #555; margin-top: 0; }
+          ul { padding-left: 1.25rem; }
+          li { margin: 0.5rem 0; }
+          code { font-size: 0.9em; }
+          a { text-decoration: none; }
+          a:hover { text-decoration: underline; }
+          </style>
+          </head>
+          <body>
+          <h1>SReader Engineering Reports</h1>
+          <p class="lead">Generated by CI from the latest successful <code>master</code> build.</p>
+          <ul>
+          <li><a href="coverage/">Test Coverage</a> (JaCoCo HTML report)</li>
+          <li><a href="schema/">Database Schema</a> (SchemaSpy ER diagram and table definitions)</li>
+          <li><a href="${commit_url}">Source Commit</a> <code>${GITHUB_SHA}</code></li>
+          </ul>
+          </body>
+          </html>
+          EOF
+
+          echo "Engineering reports site assembled under ${pages_dir}"
+          find "$pages_dir" -maxdepth 2 -type f | sort | head -40
+
+      - name: Validate engineering reports site for GitHub Pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pages_dir="target/pages"
+
+          for index_file in \
+            "${pages_dir}/index.html" \
+            "${pages_dir}/coverage/index.html" \
+            "${pages_dir}/schema/index.html"
+          do
+            if [[ ! -s "$index_file" ]]; then
+              echo "::error file=${index_file}::Engineering reports site index is missing or empty"
+              exit 1
+            fi
+          done
+
+          if find "$pages_dir" -type l -print -quit | grep -q .; then
+            echo "::error file=${pages_dir}::GitHub Pages artifact must not contain symbolic links"
             exit 1
           fi
 
-          if find "$report_dir" -type l -print -quit | grep -q .; then
-            echo "::error file=${report_dir}::GitHub Pages artifact must not contain symbolic links"
+          if ! find "${pages_dir}/schema" -type f -path '*/diagrams/*' -name '*.svg' -size +0c -print -quit | grep -q .; then
+            echo "::error file=${pages_dir}/schema::SchemaSpy SVG diagram missing from Pages site"
             exit 1
           fi
 
-      - name: Upload coverage site for GitHub Pages
+          echo "Engineering reports site validation passed"
+
+      - name: Upload engineering reports site for GitHub Pages
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: app/target/site/jacoco
+          path: target/pages
 
       - name: Show Docker status
         if: always() && steps.container_changes.outputs.required == 'true'
@@ -375,7 +553,7 @@ jobs:
         run: docker rm --force sreader-app-ci 2>/dev/null || true
 
   deploy-coverage:
-    name: Deploy coverage report to GitHub Pages
+    name: Deploy engineering reports to GitHub Pages
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
     needs: verify
     runs-on: ubuntu-latest
@@ -390,19 +568,26 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Deploy coverage report to GitHub Pages
+      - name: Deploy engineering reports to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
 
-      - name: Add published coverage URL to job summary
+      - name: Add published reports URLs to job summary
         shell: bash
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           set -euo pipefail
+
+          # Normalize trailing slash so subpaths never double-slash.
+          base_url="${PAGE_URL%/}"
+          commit_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+
           {
-            echo "## Published coverage report"
+            echo "## Published engineering reports"
             echo
-            echo "- [Open the latest JaCoCo HTML report](${PAGE_URL})"
-            echo "- Source commit: \`${GITHUB_SHA}\`"
+            echo "- [Reports home](${base_url}/)"
+            echo "- [JaCoCo coverage](${base_url}/coverage/)"
+            echo "- [Database schema](${base_url}/schema/)"
+            echo "- Source commit: [\`${GITHUB_SHA}\`](${commit_url})"
           } >> "$GITHUB_STEP_SUMMARY"

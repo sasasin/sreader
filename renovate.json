@@ -74,6 +74,15 @@
       ],
       "depNameTemplate": "k3d-io/k3d",
       "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github\\/workflows\\/ci\\.yml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+SCHEMASPY_VERSION:\\s*(?<currentValue>\\S+)"
+      ]
     }
   ],
   "packageRules": [

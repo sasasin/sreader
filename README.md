@@ -113,10 +113,21 @@ docker compose up -d postgres
 docker compose run --rm maven mvn clean verify
 ```
 
-HTML レポートは `app/target/site/jacoco/index.html` に出力されます。`master` の CI が
-成功した最新レポートは GitHub Pages でも公開されます。
+HTML レポートは `app/target/site/jacoco/index.html` に出力されます。
 
-- [Latest JaCoCo coverage report](https://sasasin.github.io/sreader/)
+`master` の CI が成功すると、engineering reports site を GitHub Pages へ公開します。
+
+- [Engineering reports home](https://sasasin.github.io/sreader/)
+- [Latest JaCoCo coverage report](https://sasasin.github.io/sreader/coverage/)
+- [Latest database schema report (SchemaSpy)](https://sasasin.github.io/sreader/schema/)
+
+Database schema report は、`master` の CI で fresh PostgreSQL に Flyway migration を
+全適用した到達結果を SchemaSpy が解析して生成します。行データや行数は公開せず、
+DB 構造（テーブル定義・制約・ER diagram）のみを文書化します。
+`flyway_schema_history` は application schema report から除外します。
+
+この report は派生ドキュメントであり、DB schema の変更契約（source of truth）は
+引き続き `db/migration/*.sql` です。SchemaSpy は migration の代替ではありません。
 
 jOOQ generated sources（`net/sasasin/sreader/jooq/**`）は集計対象外で、手書き
 プロダクションコードは原則としてすべて集計します。このゲートはローカルと
