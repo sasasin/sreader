@@ -533,12 +533,6 @@ docker compose run --rm app --sreader.scheduler.enabled=false \
 
 apply 後は同じ dry-run を再実行して候補がなくなったことを確認し、text exporter を実行して survivor のファイルが生成されたことと orphan file が残っていないことを確認してください。
 
-## 残課題
-
-- 本格 Web UI
-- production monitoring / secret manager 設計
-- distributed scheduler lock
-
 配布条件
 ------
 
