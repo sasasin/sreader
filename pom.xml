@@ -25,7 +25,7 @@
 		<!-- Override Spring Boot parent default (17) for this project. -->
 		<java.version>25</java.version>
 		<!-- Keep intentional pins that differ from Spring Boot BOM defaults. -->
-		<jooq.version>3.21.6</jooq.version>
+		<jooq.version>3.21.7</jooq.version>
 		<postgresql.version>42.7.13</postgresql.version>
 		<rome.version>2.1.0</rome.version>
 		<jsoup.version>1.23.1</jsoup.version>
