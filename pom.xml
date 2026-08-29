@@ -28,7 +28,7 @@
 		<jooq.version>3.21.7</jooq.version>
 		<postgresql.version>42.7.13</postgresql.version>
 		<rome.version>2.1.0</rome.version>
-		<jsoup.version>1.23.1</jsoup.version>
+		<jsoup.version>1.23.2</jsoup.version>
 		<playwright.version>1.62.0</playwright.version>
 		<readability4j.version>1.0.8</readability4j.version>
 		<spotless-maven-plugin.version>3.9.0</spotless-maven-plugin.version>
