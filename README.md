@@ -149,6 +149,7 @@ jOOQ sources を再生成する場合は `scripts/generate-jooq.sh`（または�
 現在の設定:
 
 - `config:recommended` を継承します。
+- `customManagers:mavenPropertyVersions` を継承し、Spotless が参照する `google-java-format.version` を `com.google.googlejavaformat:google-java-format` として検出します。
 - release 直後の不安定な更新を避けるため、`minimumReleaseAge` を `3 days` にしています。
 - Kubernetes manifest、target k3s version（`k8s/ops/versions.env`）、Kubernetes CI 補助ツールも更新検出の対象です。互換性の判定は [Kubernetes manifests CI](k8s/README.md#kubernetes-compatibility-ci) が担当します。
 
