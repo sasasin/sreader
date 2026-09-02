@@ -31,7 +31,7 @@
 		<jsoup.version>1.23.2</jsoup.version>
 		<playwright.version>1.62.0</playwright.version>
 		<readability4j.version>1.0.8</readability4j.version>
-		<spotless-maven-plugin.version>3.9.0</spotless-maven-plugin.version>
+		<spotless-maven-plugin.version>3.10.1</spotless-maven-plugin.version>
 		<!-- Spotless 設定値であり Maven GAV ではないため、Renovate に依存名を明示する。 -->
 		<!-- renovate: datasource=maven depName=com.google.googlejavaformat:google-java-format -->
 		<google-java-format.version>1.36.1</google-java-format.version>
