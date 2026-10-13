@@ -88,6 +88,11 @@
   ],
   "packageRules": [
     {
+      "description": "google-java-format 1.37.0 fails in Spotless; keep the last verified formatter until a later version is checked",
+      "matchPackageNames": ["com.google.googlejavaformat:google-java-format"],
+      "allowedVersions": "<=1.36.1"
+    },
+    {
       "description": "ローカルの親 POM は Maven リポジトリから検索しない",
       "matchManagers": ["maven"],
       "matchDepTypes": ["parent", "parent-root"],
