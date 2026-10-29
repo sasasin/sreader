@@ -37,7 +37,7 @@
 		<google-java-format.version>1.36.1</google-java-format.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
 		<checkstyle.version>14.3.0</checkstyle.version>
-		<jacoco.version>0.8.15</jacoco.version>
+		<jacoco.version>0.8.16</jacoco.version>
 		<jacoco.branch.minimum>0.90</jacoco.branch.minimum>
 		<tomlj.version>2.2.0</tomlj.version>
 	</properties>
