@@ -25,6 +25,7 @@
 - `docker`
 - `docker compose`
 - `kubectl`
+- `gh`（GitHub CLI と `gh-actions-lock` 拡張。GitHub Actions workflow lockfile の生成・検証用）
 - `ls`, `cat`, `grep`, `find`, `sed` などの基本的な確認コマンド
 
 以下は必ず Docker Compose 経由で実行してください。
@@ -390,6 +391,33 @@ docker run --rm \
 git diff --check
 ```
 
+## GitHub Actions workflow lockfile の確認
+
+`.github/workflows/` 配下を変更した場合は、lockfile と workflow が一致していることを確認してください。
+`gh` CLI と `gh-actions-lock` 拡張はホスト側で直接実行してよいツールとします（Java / Maven と違い Docker Compose 経由ではない）。
+
+```sh
+gh extension upgrade gh-actions-lock
+```
+
+```sh
+gh actions-lock --verify
+```
+
+`uses:` を追加・変更した場合、または新しい workflow を追加した場合は lockfile を再生成し、workflow の変更と同じ commit に取り込みます。
+
+```sh
+gh actions-lock
+git add .github/workflows
+```
+
+- `.github/workflows/actions.lock` は機械生成です。手編集せず、必ず `gh actions-lock` で再生成してください。
+- lockfile の `commit` 変更は実行されるコードの変更、`owner_id` / `repo_id` 変更は別のリポジトリが同じ名前になっている変化です。后者は merge 前に調査してください。
+- GitHub Actions 上では `.github/workflows/actions-lockfile.yml` が pinned version の拡張で `gh actions-lock --verify` を実行します。
+- Renovate は `actions.lock` を検出すると GitHub Actions の更新 PR で lockfile を追従させます（Renovate の experimental 機能）。`renovate.json` の追加設定は不要です。
+- コンテナイメージは lockfile の対象外です。`ci.yml` の `services:` イメージは digest 付きで固定し、Renovate の `github-actions` manager（`depType: service`、`pinDigests: true`）で追従させます。digest が外れると `gh actions-lock` が warning を出しますが、検証自体は成功するため、lockfile 不整合とは区別してください。
+- reusable workflow（`jobs.<job_id>.uses`）は lockfile ではロックされません。使う場合は full commit SHA で参照してください。
+
 ## 期待する最終状態
 
 各変更後、少なくとも以下を満たしてください。
@@ -402,6 +430,7 @@ git diff --check
 - `docker compose up -d app` が成功する。
 - app logs に起動直後の致命的例外がない。
 - README が現行構成と一致している。
+- `.github/workflows/` を変更した場合は `gh actions-lock --verify` が成功する（`All <N> workflows valid`）。
 
 `k8s/` を変更した場合は、少なくとも以下も満たしてください。
 
