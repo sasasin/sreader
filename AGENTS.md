@@ -415,7 +415,7 @@ git add .github/workflows
 - lockfile の `commit` 変更は実行されるコードの変更、`owner_id` / `repo_id` 変更は別のリポジトリが同じ名前になっている変化です。后者は merge 前に調査してください。
 - GitHub Actions 上では `.github/workflows/actions-lockfile.yml` が pinned version の拡張で `gh actions-lock --verify` を実行します。
 - Renovate は `actions.lock` を検出すると GitHub Actions の更新 PR で lockfile を追従させます（Renovate の experimental 機能）。`renovate.json` の追加設定は不要です。
-- コンテナイメージは lockfile の対象外です。`ci.yml` の `services:` 指定 image に digest が無ければ warning になりますが、検証自体は成功します。lockfile 不整合とは区別してください。
+- コンテナイメージは lockfile の対象外です。`ci.yml` の `services:` イメージは digest 付きで固定し、Renovate の `github-actions` manager（`depType: service`、`pinDigests: true`）で追従させます。digest が外れると `gh actions-lock` が warning を出しますが、検証自体は成功するため、lockfile 不整合とは区別してください。
 - reusable workflow（`jobs.<job_id>.uses`）は lockfile ではロックされません。使う場合は full commit SHA で参照してください。
 
 ## 期待する最終状態

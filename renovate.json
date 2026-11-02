@@ -122,6 +122,12 @@
       "minimumReleaseAge": "3 days",
       "automerge": false,
       "ignoreUnstable": true
+    },
+    {
+      "description": "CI の PostgreSQL サービスイメージを digest pin する。gh actions-lock はコンテナイメージを lockfile で守れないため、Renovate 側で digest を追従させる",
+      "matchManagers": ["github-actions"],
+      "matchDepTypes": ["service"],
+      "pinDigests": true
     }
   ]
 }

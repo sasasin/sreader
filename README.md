@@ -152,6 +152,7 @@ jOOQ sources を再生成する場合は `scripts/generate-jooq.sh`（または�
 - `customManagers:mavenPropertyVersions` を継承し、Spotless が参照する `google-java-format.version` を `com.google.googlejavaformat:google-java-format` として検出します。
 - release 直後の不安定な更新を避けるため、`minimumReleaseAge` を `3 days` にしています。
 - Kubernetes manifest、target k3s version（`k8s/ops/versions.env`）、Kubernetes CI 補助ツールも更新検出の対象です。互換性の判定は [Kubernetes manifests CI](k8s/README.md#kubernetes-compatibility-ci) が担当します。
+- GitHub Actions ワークフローの `services:` イメージ（CI の PostgreSQL）は `pinDigests: true` で digest も追従させます。詳細は [GitHub Actions workflow dependency lockfile](#github-actions-workflow-dependency-lockfile) を参照してください。
 
 Renovate GitHub App を有効化する手順:
 
@@ -183,7 +184,7 @@ Renovate は `actions.lock` を検出すると、GitHub Actions の version upda
 
 lockfile の適用範囲:
 
-- コンテナイメージは対象外です。`ci.yml` の `services.postgres.image` は digest 未指定のため `gh actions-lock` が warning を出します（検証は成功します）。
+- コンテナイメージは lockfile の対象外です。`ci.yml` の `services.postgres.image` は digest を直接指定し、Renovate の `github-actions` manager（`depType: service`）が `pinDigests: true` で追従させます。digest 未指定のままにすると `gh actions-lock` が warning を出します（検証自体は成功します）。
 - reusable workflow（`jobs.<job_id>.uses`）はロックされません。導入する場合は full commit SHA 参照でピン留めしてください。
 
 ## app 起動
