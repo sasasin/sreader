@@ -161,6 +161,31 @@ Renovate GitHub App を有効化する手順:
 4. 初回 onboarding PR が作られた場合は、PR の内容が root の `renovate.json` と矛盾しないことを確認して close するか、必要に応じて取り込みます。
 5. 以後の Renovate PR では、この README の Docker Compose コマンドで検証します。
 
+## GitHub Actions workflow dependency lockfile
+
+GitHub Actions の `uses:` 参照は実行時に tag / branch を解決するため、上流で tag が動くと同じ参照名でも別のコードが走る可能性があります。この対策として、GitHub Actions の workflow dependency lockfile（2026-10-28 に GA）を導入しています。
+
+- lockfile: `.github/workflows/actions.lock`（機械生成。手編集しない）
+- workflow 側は読みやすい tag 参照（例 `actions/checkout@v7.0.1`）を使い、実際に走る commit は lockfile が決める
+- composite action が内部で使う transitive 依存もロックされる（例: `actions/upload-pages-artifact@v5.0.0` は `actions/upload-artifact@v7.0.0` を使う）
+- onboard 済みの workflow は全依存が lockfile に存在必須で、runner は lockfile の commit を実行する
+- `.github/workflows/actions-lockfile.yml` が `gh actions-lock --verify` を実行し、lockfile の stale や上流検証失敗を PR で失敗させる
+- `.github/CODEOWNERS` が `.github/workflows/actions.lock` のレビューを割り当てる
+
+workflow を追加した場合や `uses:` を変更した場合は、lockfile を再生成して同じ変更に取り込みます。
+
+```sh
+gh extension install github/gh-actions-lock
+gh actions-lock
+```
+
+Renovate は `actions.lock` を検出すると、GitHub Actions の version update PR で lockfile も追従させます（Renovate 側は experimental 機能で、追加設定は不要です）。
+
+lockfile の適用範囲:
+
+- コンテナイメージは対象外です。`ci.yml` の `services.postgres.image` は digest 未指定のため `gh actions-lock` が warning を出します（検証は成功します）。
+- reusable workflow（`jobs.<job_id>.uses`）はロックされません。導入する場合は full commit SHA 参照でピン留めしてください。
+
 ## app 起動
 
 ```sh

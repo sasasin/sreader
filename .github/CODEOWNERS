@@ -1,0 +1,5 @@
+# Machine-generated dependency pins. The commit recorded here is the exact
+# code GitHub Actions runs, so a changed `commit:` is a code change to review.
+# A changed `owner_id` / `repo_id` means the repository behind that action name
+# is no longer the one originally locked; investigate before merging.
+.github/workflows/actions.lock @sasasin
