@@ -25,7 +25,7 @@ jobs:
       postgres:
         # Renovate keeps this digest in sync (github-actions manager, depType service).
         # gh actions-lock warns because container images are outside the lockfile.
-        image: postgres:18.6@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+        image: postgres:19.0@sha256:bb6e70add742cd868fb62cb3b2f67d1dd2bdd2b65a521e778420748753687c60
         env:
           POSTGRES_DB: sreader
           POSTGRES_USER: sreader
