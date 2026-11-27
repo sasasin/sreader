@@ -26,7 +26,7 @@
 		<java.version>25</java.version>
 		<!-- Keep intentional pins that differ from Spring Boot BOM defaults. -->
 		<jooq.version>3.21.9</jooq.version>
-		<postgresql.version>42.7.14</postgresql.version>
+		<postgresql.version>42.7.15</postgresql.version>
 		<rome.version>2.1.0</rome.version>
 		<jsoup.version>1.24.1</jsoup.version>
 		<playwright.version>1.64.0</playwright.version>
